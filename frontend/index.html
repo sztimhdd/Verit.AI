@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI事实核查系统</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 自定义加载动画 */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- 标题 -->
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">
+            AI事实核查系统
+        </h1>
+
+        <!-- URL输入区域 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div class="flex gap-4">
+                <input type="url" 
+                       id="urlInput" 
+                       placeholder="请输入需要核查的网页URL" 
+                       class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="analyzeBtn" 
+                        class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    开始核查
+                </button>
+            </div>
+        </div>
+
+        <!-- 加载状态 -->
+        <div id="loadingState" class="hidden">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <div class="flex items-center space-x-4">
+                    <div class="animate-pulse">
+                        <div class="h-4 w-4 bg-blue-500 rounded-full"></div>
+                    </div>
+                    <p class="text-gray-600">正在进行事实核查分析...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 内容汇总区域 -->
+        <div id="contentSummary" class="hidden bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">网页内容汇总</h2>
+            <div class="space-y-4">
+                <div>
+                    <h3 class="font-medium text-gray-700">标题</h3>
+                    <p id="articleTitle" class="text-gray-600"></p>
+                </div>
+                <div>
+                    <h3 class="font-medium text-gray-700">信源</h3>
+                    <p id="articleSource" class="text-gray-600"></p>
+                </div>
+                <div>
+                    <h3 class="font-medium text-gray-700">发布日期</h3>
+                    <p id="articleDate" class="text-gray-600"></p>
+                </div>
+                <div>
+                    <h3 class="font-medium text-gray-700">主要观点/宣称</h3>
+                    <p id="articleClaims" class="text-gray-600"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 核查结果卡片 -->
+        <div id="resultCard" class="hidden">
+            <!-- 这里将通过JavaScript插入后端返回的HTML卡片 -->
+        </div>
+
+        <!-- 错误提示 -->
+        <div id="errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-8">
+        </div>
+    </div>
+
+    <script>
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取DOM元素
+            const urlInput = document.getElementById('urlInput');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const loadingState = document.getElementById('loadingState');
+            const contentSummary = document.getElementById('contentSummary');
+            const resultCard = document.getElementById('resultCard');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // API端点配置（开发环境）
+            const API_ENDPOINT = 'http://localhost:3000/api/analyze';
+
+            // 绑定按钮点击事件
+            analyzeBtn.addEventListener('click', async function() {
+                const url = urlInput.value.trim();
+                
+                if (!url) {
+                    showError('请输入要核查的URL');
+                    return;
+                }
+
+                try {
+                    // 重置界面状态
+                    resetUI();
+                    
+                    // 显示加载状态
+                    loadingState.classList.remove('hidden');
+                    
+                    // 调用API
+                    const response = await fetch(API_ENDPOINT, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ url })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    
+                    // 隐藏加载状态
+                    loadingState.classList.add('hidden');
+                    
+                    // 显示内容汇总
+                    displayContentSummary(data.results);
+                    
+                    // 显示核查结果卡片
+                    displayResultCard(data.htmlCard);
+
+                } catch (error) {
+                    showError('分析过程中出现错误：' + error.message);
+                }
+            });
+
+            // 重置UI状态
+            function resetUI() {
+                loadingState.classList.add('hidden');
+                contentSummary.classList.add('hidden');
+                resultCard.classList.add('hidden');
+                errorMessage.classList.add('hidden');
+            }
+
+            // 显示错误信息
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.classList.remove('hidden');
+            }
+
+            // 显示内容汇总
+            function displayContentSummary(results) {
+                document.getElementById('articleTitle').textContent = results.title || '未获取到标题';
+                document.getElementById('articleSource').textContent = results.source || '未获取到信源';
+                document.getElementById('articleDate').textContent = results.date || '未获取到日期';
+                document.getElementById('articleClaims').textContent = results.claims?.join('\n') || '未获取到主要观点';
+                
+                contentSummary.classList.remove('hidden');
+            }
+
+            // 显示核查结果卡片
+            function displayResultCard(htmlCard) {
+                resultCard.innerHTML = htmlCard;
+                resultCard.classList.remove('hidden');
+            }
+
+            // 添加回车键触发分析
+            urlInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    analyzeBtn.click();
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
