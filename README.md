@@ -1,6 +1,7 @@
 # Oracle AI 新闻真实性检测系统
 
 这是一个基于人工智能的新闻真实性检测系统,可以帮助用户快速判断新闻的可信度。
+![image](https://github.com/user-attachments/assets/049a6ade-f8eb-4194-a702-5dae8ab26b5a)
 
 ## 功能特点
 
