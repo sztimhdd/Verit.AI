@@ -300,21 +300,40 @@ sequenceDiagram
     R->>U: 展示报告
 ```
 
-主要流程步骤：
-1. 接收URL输入
-2. 验证URL合法性
-3. 抓取网页内容
-4. 生成内容哈希值
-5. 检查结果缓存
-6. 执行AI多维度分析
-7. 缓存分析结果
-8. 生成分析报告
-9. 返回结果给用户
+## 后端API设计（前端抓取方案）
 
-这些架构设计为Node.js后端实现提供了清晰的参考模型，特别是在：
-- 模块化设计
-- 数据结构定义
-- Prompt模板管理
-- 业务流程控制
+### 接口规范调整
+```javascript
+POST /api/v1/verify
+Headers: 
+  Authorization: Bearer <API_KEY>
+  Content-Type: application/json
 
-等方面提供了具体的实现思路。
+Body:
+{
+  "content": "已清洗的文本内容",  // 由扩展前端提供
+  "lang": "zh",                // 语言代码
+  "content_hash": "a1b2c3d4"    // 前端生成的内容哈希
+}
+
+Response:
+{
+  "status": "valid|invalid|pending",
+  "verification_id": "xxx",     // 核查任务ID
+  "score": 78,                 // 实时/缓存分数
+  "flags": ["unverified_source", "data_conflict"]
+}
+```
+
+
+### 5. 浏览器扩展模块
+
+#### 核心工作流程
+```mermaid
+flowchart TD
+    A[点击扩展图标] --> B[抓取页面内容]
+    B --> C{内容校验}
+    C -->|有效内容| D[调用验证API]
+    C -->|无效内容| E[显示错误提示]
+    D --> F[展示核查结果]
+```

@@ -17,5 +17,8 @@
     "marked": "14.1.4",
     "rollup": "4.24.4",
     "rollup-plugin-copy": "^3.5.0"
+  },
+  "dependencies": {
+    "crypto-js": "^4.2.0"
   }
 }
