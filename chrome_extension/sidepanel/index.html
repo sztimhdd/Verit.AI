@@ -4,18 +4,26 @@
     <link rel="stylesheet" type="text/css" href="index.css" />
   </head>
   <body>
-    <div class="card">
-      <fieldset>
-        <legend>Settings</legend>
-        <div>
-          <label for="type">Summary Type:</label>
-          <select id="type">
-            <option value="key-points" selected>Key Points</option>
-            <option value="tl;dr">TL;DR</option>
-            <option value="teaser">Teaser</option>
-            <option value="headline">Headline</option>
-          </select>
-        </div>
+    <div class="fact-check-card">
+      <div class="score-badge">
+        <span class="score-value">75</span>
+        <span class="score-label">可信度评分</span>
+      </div>
+      <div class="risk-level medium-risk">
+        <i class="warning-icon"></i>
+        <span>中等风险</span>
+      </div>
+      <div class="key-issues">
+        <h3>关键问题</h3>
+        <ul id="issue-list">
+          <li>未经验证的消息来源</li>
+          <li>数据统计方法存疑</li>
+        </ul>
+      </div>
+      <div class="detailed-report">
+        <h3>详细分析</h3>
+        <div id="report-content"></div>
+      </div>
         <div>
           <label for="length">Length:</label>
           <select id="length">

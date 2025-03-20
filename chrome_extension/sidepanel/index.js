@@ -14,7 +14,7 @@ const summaryTypeSelect = document.querySelector('#type');
 const summaryFormatSelect = document.querySelector('#format');
 const summaryLengthSelect = document.querySelector('#length');
 
-function onConfigChange() {
+document.addEventListener('DOMContentLoaded', function() {
   const oldContent = pageContent;
   pageContent = '';
   onContentChange(oldContent);
@@ -58,16 +58,39 @@ async function onContentChange(newContent) {
 
 async function generateSummary(text) {
   try {
-    const session = await createSummarizer(
-      {
-        type: summaryTypeSelect.value,
-        format: summaryFormatSelect.value,
-        length: length.value
-      },
-      (message, progress) => {
-        console.log(`${message} (${progress.loaded}/${progress.total})`);
-      }
-    );
+    // 获取当前页面内容
+chrome.runtime.sendMessage({
+  action: 'extractContent',
+  tabId: chrome.devtools.inspectedWindow.tabId
+}, async (response) => {
+  try {
+    const analysisResult = await fetch('http://localhost:3000/api/analyze', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        content: response.content,
+        lang: 'zh',
+        content_hash: response.hash
+      })
+    });
+    
+    const result = await analysisResult.json();
+    document.querySelector('.score-value').textContent = result.score;
+    document.getElementById('issue-list').innerHTML = result.flags
+      .map(flag => `<li>${flag}</li>`).join('');
+    document.getElementById('report-content').innerHTML = result.details;
+    
+    document.querySelector('.risk-level').className = `risk-level ${getRiskClass(result.score)}`;
+  } catch (error) {
+    console.error('Fact check failed:', error);
+  }
+});
+
+function getRiskClass(score) {
+  if (score >= 80) return 'low-risk';
+  if (score >= 60) return 'medium-risk';
+  return 'high-risk';
+
     const summary = await session.summarize(text);
     session.destroy();
     return summary;
