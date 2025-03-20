@@ -33,27 +33,33 @@ chrome.storage.session.onChanged.addListener((changes) => {
   onContentChange(pageContent.newValue);
 });
 
+// 新增：风险等级计算
+function getRiskClass(score) {
+  if (score >= 80) return 'low-risk';
+  if (score >= 60) return 'medium-risk';
+  return 'high-risk';
+}
+
+function getRiskLabel(score) {
+  if (score >= 80) return '低风险';
+  if (score >= 60) return '中等风险';
+  return '高风险';
+}
+
+// 修改：onContentChange函数
 async function onContentChange(newContent) {
-  if (pageContent == newContent) {
-    // no new content, do nothing
-    return;
-  }
+  if (pageContent == newContent) return;
+  
   pageContent = newContent;
-  let summary;
   if (newContent) {
-    if (newContent.length > MAX_MODEL_CHARS) {
-      updateWarning(
-        `Text is too long for summarization with ${newContent.length} characters (maximum supported content length is ~4000 characters).`
-      );
-    } else {
-      updateWarning('');
-    }
-    showSummary('Loading...');
-    summary = await generateSummary(newContent);
+    showSummary('分析中...');
+    // 模拟延迟
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const result = generateMockData(newContent);
+    displayAnalysisResult(result);
   } else {
-    summary = "There's nothing to summarize";
+    showSummary("无内容可分析");
   }
-  showSummary(summary);
 }
 
 async function generateSummary(text) {

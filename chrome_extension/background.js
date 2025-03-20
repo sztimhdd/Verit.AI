@@ -9,14 +9,40 @@ chrome.tabs.onUpdated.addListener(async (tabId) => {
   showSummary(tabId);
 });
 
+// 新增：模拟数据生成器
+function generateMockData(content) {
+  const hash = md5(content).substring(0, 8);
+  return {
+    trustworthiness_score: Math.floor(Math.random() * 100),
+    analysis_results: {
+      key_issues: [
+        "未经验证的消息来源",
+        "数据统计方法存疑",
+        "可能存在夸大描述"
+      ]
+    },
+    debunking_card: `<p>这是对内容 "${content.substring(0, 50)}..." 的分析结果。</p>`,
+    content_hash: hash
+  };
+}
+
+// 修改：showSummary函数
 async function showSummary(tabId) {
   const tab = await chrome.tabs.get(tabId);
   if (!tab.url.startsWith('http')) {
     return;
   }
+  
   const injection = await chrome.scripting.executeScript({
     target: { tabId },
     files: ['scripts/extract-content.js']
   });
-  chrome.storage.session.set({ pageContent: injection[0].result });
+  
+  const content = injection[0].result;
+  const mockData = generateMockData(content);
+  
+  chrome.storage.session.set({ 
+    pageContent: content,
+    analysisResult: mockData
+  });
 }

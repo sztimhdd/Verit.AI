@@ -56,3 +56,29 @@ fieldset > * {
   color: white;
   padding: 1em;
 }
+
+/* 新增：风险等级样式 */
+.low-risk {
+  background: #4CAF50;
+  color: white;
+}
+
+.medium-risk {
+  background: #FFC107;
+  color: black;
+}
+
+.high-risk {
+  background: #F44336;
+  color: white;
+}
+
+/* 修改：评分样式 */
+.score-badge {
+  background: #2196F3;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 25px;
+  font-size: 1.2em;
+  margin-bottom: 16px;
+}
