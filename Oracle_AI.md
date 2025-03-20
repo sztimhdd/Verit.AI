@@ -1,12 +1,13 @@
 # Oracle AI 辟谣助手 - PRD v2.0
 
 ## 项目定位
-基于Gemini API的Web端辟谣系统，提供便捷的在线内容真实性验证服务
+基于Gemini API的Web端辟谣系统，提供便捷的在线内容真实性验证服务，通过Chrome扩展实现页面内容一键核查
 
 ## 系统架构
 ```mermaid
 graph TB
     A[Web前端] --> |HTTP请求| B[Node.js后端]
+    Z[Chrome扩展] --> |HTTP请求| B
     B --> C[内容解析器]
     C --> D[缓存检查]
     D -->|新内容| E[Gemini API分析]
@@ -43,6 +44,19 @@ API集成:
   - Redis(可选): 分布式缓存
 ```
 
+### Chrome扩展技术
+```yaml
+架构: Chrome Extension (Manifest V3)
+核心技术:
+  - JavaScript (ES6+)
+  - HTML/CSS
+  - Webpack: 模块打包
+主要组件:
+  - Background Service Worker: 后台分析与状态管理
+  - Content Script: 页面内容获取
+  - Popup: 结果展示界面
+```
+
 
 ## 功能模块
 
@@ -73,6 +87,30 @@ POST /api/analyze
       analysis_results: object,
       debunking_card: string
     }
+}
+
+// Chrome Extension专用API
+POST /api/extension/analyze
+- 参数: { 
+    content: string,   // 页面提取的文本内容
+    url: string,       // 页面URL
+    lang: string       // 语言代码（默认zh）
+}
+- 响应: {
+    score: number,     // 可信度评分(0-100)
+    flags: {           // 各维度评级
+        factuality: string,    // 事实性: 高/中/低
+        objectivity: string,   // 客观性: 高/中/低
+        reliability: string,   // 可靠性: 高/中/低
+        bias: string           // 偏见性: 高/中/低
+    },
+    summary: string,   // 内容摘要
+    sources: [         // 参考来源
+        {
+            title: string,
+            url: string
+        }
+    ]
 }
 ```
 
@@ -326,9 +364,12 @@ Response:
 ```
 
 
-### 5. 浏览器扩展模块
+## 5. Chrome扩展模块
 
-#### 核心工作流程
+### 功能概述
+Chrome扩展作为用户的主要交互入口，可以直接对当前浏览的网页进行事实核查，提供即时的可信度评估。
+
+### 核心工作流程
 ```mermaid
 flowchart TD
     A[点击扩展图标] --> B[抓取页面内容]
@@ -337,3 +378,244 @@ flowchart TD
     C -->|无效内容| E[显示错误提示]
     D --> F[展示核查结果]
 ```
+
+### 扩展架构
+```mermaid
+graph TB
+    P[Popup界面] --> |用户交互| B[Background Service]
+    B --> |消息传递| C[Content Script]
+    C --> |内容抓取| W[Web页面]
+    B --> |API调用| S[后端服务]
+    S --> |返回分析| B
+    B --> |更新UI| P
+```
+
+### 组件设计
+
+#### Background Service Worker
+```javascript
+// 主要职责
+- 标签页状态管理
+- 内容分析请求处理
+- 缓存管理
+- 与Content Script通信
+- 徽章状态更新
+
+// 核心功能接口
+async function analyzePage(tabId, url) 
+async function getPageContent(tabId)
+async function showSummary(tabId, result)
+```
+
+#### Content Script
+```javascript
+// 主要职责
+- 页面内容提取
+- 文本清洗
+- 与Background通信
+
+// 核心功能
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'getPageContent') {
+    const content = document.body ? document.body.innerText : '';
+    sendResponse({ content });
+  }
+  return true;
+})
+```
+
+#### Popup界面
+```javascript
+// 主要职责
+- 显示分析结果
+- 用户交互处理
+- 错误状态显示
+
+// 核心功能
+function updateResultUI(result) {
+  // 更新分数显示
+  // 更新各维度评级
+  // 更新摘要和来源
+}
+```
+
+### 数据结构与接口
+
+#### 内部消息结构
+```javascript
+// Background到Content Script消息
+{
+  action: "getPageContent"
+}
+
+// Content Script响应
+{
+  content: "页面文本内容"
+}
+
+// 分析结果结构
+{
+  score: 75,  // 0-100整数
+  flags: {
+    factuality: "高/中/低",
+    objectivity: "高/中/低", 
+    reliability: "高/中/低",
+    bias: "高/中/低"
+  },
+  summary: "内容摘要",
+  sources: [
+    {
+      title: "来源标题",
+      url: "来源URL"
+    }
+  ]
+}
+```
+
+#### 与后端API的通信接口
+如果使用内置API：
+```javascript
+// 发送请求
+async function analyzeWithAPI(content, url) {
+  const response = await fetch('https://api.factchecker.com/analyze', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${API_KEY}`
+    },
+    body: JSON.stringify({
+      content: content,
+      url: url,
+      lang: 'zh'
+    })
+  });
+  
+  return await response.json();
+}
+```
+
+如果使用本地分析（当前使用的模拟数据方式）：
+```javascript
+// 本地分析函数
+function generateAnalysisResult(content, url) {
+  // 基于内容生成确定性哈希
+  const hash = hashString(content);
+  const score = hash % 100;
+  
+  // 根据分数确定各维度评级
+  return {
+    score: score,
+    flags: {
+      factuality: getLevelByScore(score),
+      objectivity: getLevelByScore(score),
+      reliability: getLevelByScore(score),
+      bias: getLevelByScore(100 - score)
+    },
+    summary: `这是对内容的分析摘要...`,
+    sources: [{ title: "示例来源", url: url }]
+  };
+}
+```
+
+### 用户界面设计
+
+#### 弹出窗口布局
+```html
+<div class="popup-container">
+  <header class="popup-header">
+    <img src="icons/icon48.svg" alt="Logo" class="logo">
+    <h1>Oracle AI Fact Checker</h1>
+  </header>
+  
+  <div class="score-section">
+    <div class="score-display" id="score">分数: 75</div>
+  </div>
+  
+  <div class="analysis-section" id="flags">
+    <h3>分析指标</h3>
+    <ul>
+      <li>事实性: 高</li>
+      <li>客观性: 中</li>
+      <li>可靠性: 高</li>
+      <li>偏见性: 低</li>
+    </ul>
+  </div>
+  
+  <div class="summary-section" id="summary">
+    <h3>摘要</h3>
+    <p>这是对内容的分析摘要...</p>
+  </div>
+  
+  <div class="sources-section" id="sources">
+    <h3>来源</h3>
+    <ul>
+      <li><a href="#" target="_blank">示例来源</a></li>
+    </ul>
+  </div>
+  
+  <footer class="popup-footer">
+    <p>Powered by Google Gemini AI</p>
+  </footer>
+</div>
+```
+
+### 扩展配置
+
+#### manifest.json
+```json
+{
+  "manifest_version": 3,
+  "name": "Oracle AI Fact Checker",
+  "version": "1.0.0",
+  "description": "使用 Google Gemini AI 进行网页内容事实核查",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.svg",
+      "48": "icons/icon48.svg",
+      "128": "icons/icon128.svg"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.svg",
+    "48": "icons/icon48.svg",
+    "128": "icons/icon128.svg"
+  }
+}
+```
+
+### 部署和打包
+
+#### 构建流程
+```bash
+# 安装依赖
+npm install
+
+# 开发构建
+npm run watch
+
+# 生产构建
+npm run build
+```
+
+#### 发布清单
+1. manifest.json
+2. 构建后的JS文件 (background.js, content.js, popup.js)
+3. HTML/CSS文件 (popup.html, popup.css)
+4. 图标资源 (icons/*.svg)
+5. 依赖库 (如果需要)
