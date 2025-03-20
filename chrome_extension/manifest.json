@@ -8,20 +8,6 @@
     "AkGcfoMTs5K71isPlCiY033XA9HKSjUJvPCF6K56eqY7mAUAsR7NDbmIWDjomLgCREuOS38XAuafVTz209utDwQAAABzeyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8vamdrYm1sZmZlYWRtZWZqZmdrY2tmYnBja3Bvb2loY2UiLCJmZWF0dXJlIjoiQUlTdW1tYXJpemF0aW9uQVBJIiwiZXhwaXJ5IjoxNzUzMTQyNDAwfQ=="
   ],
   "background": {
-    "service_worker": "background.js"
-  },
-  "permissions": ["tabs", "scripting", "sidePanel", "storage"],
-  "host_permissions": ["http://*/*", "https://*/*"],
-  "side_panel": {
-    "default_path": "sidepanel/index.html"
-  },
-  "action": {
-    "default_icon": {
-      "16": "images/icon16.png",
-      "32": "images/icon32.png",
-      "48": "images/icon48.png",
-      "128": "images/icon128.png"
-    },
-    "default_title": "Generate a summary"
+    "service_worker": "dist/background.bundle.js"
   }
 }

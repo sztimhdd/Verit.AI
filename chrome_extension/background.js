@@ -1,3 +1,12 @@
+
+// 新增：模拟数据生成器
+// 在文件顶部添加导入
+// 确保只有一个CryptoJS导入
+// 修改generateMockData函数
+
+// 确保文件以模块方式加载
+import CryptoJS from 'crypto-js';
+
 chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch((error) => console.error(error));
@@ -8,10 +17,8 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
 chrome.tabs.onUpdated.addListener(async (tabId) => {
   showSummary(tabId);
 });
-
-// 新增：模拟数据生成器
 function generateMockData(content) {
-  const hash = md5(content).substring(0, 8);
+  const hash = CryptoJS.MD5(content).toString().substring(0, 8);
   return {
     trustworthiness_score: Math.floor(Math.random() * 100),
     analysis_results: {
