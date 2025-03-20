@@ -93,24 +93,161 @@ POST /api/analyze
 POST /api/extension/analyze
 - 参数: { 
     content: string,   // 页面提取的文本内容
-    url: string,       // 页面URL
+    url: string,       // 页面URL（可选）
     lang: string       // 语言代码（默认zh）
 }
 - 响应: {
-    score: number,     // 可信度评分(0-100)
-    flags: {           // 各维度评级
-        factuality: string,    // 事实性: 高/中/低
-        objectivity: string,   // 客观性: 高/中/低
-        reliability: string,   // 可靠性: 高/中/低
-        bias: string           // 偏见性: 高/中/低
-    },
-    summary: string,   // 内容摘要
-    sources: [         // 参考来源
-        {
+    status: "success" | "error",  // API调用状态
+    data?: {          // 成功时返回的数据
+        score: number,     // 可信度评分(0-100)
+        flags: {           // 各维度评级
+            factuality: "高" | "中" | "低",    // 事实性
+            objectivity: "高" | "中" | "低",   // 客观性
+            reliability: "高" | "中" | "低",   // 可靠性
+            bias: "高" | "中" | "低"          // 偏见性
+        },
+        source_verification: {     // 来源验证
+            sources_found: string[],           // 发现的信息来源
+            credibility_scores: number[],      // 来源可信度评分(1-10)
+            overall_source_credibility: string // 整体来源可信度
+        },
+        entity_verification: {     // 实体验证
+            entities_found: string[],          // 发现的实体
+            accuracy_assessment: string,       // 准确性评估
+            corrections: string[]              // 需要更正的内容
+        },
+        fact_check: {             // 事实核查
+            claims_identified: string[],       // 主要声明列表
+            verification_results: string[],    // 验证结果列表
+            overall_factual_accuracy: string   // 整体事实准确性
+        },
+        exaggeration_check: {     // 夸大检查
+            exaggerations_found: string[],     // 夸大表述列表
+            corrections: string[],             // 更准确的表述
+            severity_assessment: string        // 严重程度评估
+        },
+        summary: string,          // 内容摘要
+        sources: [{               // 参考来源
             title: string,
             url: string
+        }]
+    },
+    error?: {         // 错误时返回的信息
+        message: string,
+        details?: string
+    }
+}
+```
+
+### Chrome扩展适配指南
+#### Popup UI 更新
+```javascript
+// popup.js 中需要更新的渲染逻辑
+function renderAnalysisResult(result) {
+    if (result.status === 'error') {
+        showError(result.error.message);
+        return;
+    }
+
+    const data = result.data;
+    
+    // 更新基础信息
+    updateScore(data.score);
+    updateFlags(data.flags);
+    
+    // 更新多维度分析结果
+    updateSourceVerification(data.source_verification);
+    updateEntityVerification(data.entity_verification);
+    updateFactCheck(data.fact_check);
+    updateExaggerationCheck(data.exaggeration_check);
+    
+    // 更新摘要和来源
+    updateSummary(data.summary);
+    updateSources(data.sources);
+}
+
+// 添加新的UI组件
+const newUIComponents = `
+    <div class="verification-section">
+        <div class="source-verification">
+            <h3>来源验证</h3>
+            <!-- 来源验证结果展示 -->
+        </div>
+        <div class="entity-verification">
+            <h3>实体验证</h3>
+            <!-- 实体验证结果展示 -->
+        </div>
+        <div class="fact-check">
+            <h3>事实核查</h3>
+            <!-- 事实核查结果展示 -->
+        </div>
+        <div class="exaggeration-check">
+            <h3>夸大检测</h3>
+            <!-- 夸大检测结果展示 -->
+        </div>
+    </div>
+`;
+```
+
+#### Background Service Worker 适配
+```javascript
+// background.js 中的分析处理逻辑
+async function analyzePage(tabId, url) {
+    try {
+        // 显示加载状态
+        await showLoadingState(tabId);
+        
+        // 获取页面内容
+        const content = await getPageContent(tabId);
+        
+        // 调用更新后的API
+        const response = await fetch('http://localhost:4000/api/extension/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                content,
+                url,
+                lang: 'zh'
+            })
+        });
+        
+        const result = await response.json();
+        
+        // 处理API响应
+        if (result.status === 'success') {
+            await showAnalysisResult(tabId, result.data);
+        } else {
+            await showError(tabId, result.error.message);
         }
-    ]
+        
+    } catch (error) {
+        await showError(tabId, error.message);
+    }
+}
+```
+
+### 错误处理规范
+```javascript
+// 统一的错误类型
+const ERROR_TYPES = {
+    CONTENT_ERROR: '内容获取失败',
+    API_ERROR: 'API调用失败',
+    PARSE_ERROR: '解析结果失败',
+    RENDER_ERROR: '显示结果失败'
+};
+
+// 错误处理流程
+async function handleError(error, tabId) {
+    console.error('Error:', error);
+    
+    let errorMessage = ERROR_TYPES[error.type] || '未知错误';
+    if (error.details) {
+        errorMessage += `: ${error.details}`;
+    }
+    
+    await showError(tabId, errorMessage);
 }
 ```
 

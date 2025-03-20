@@ -4,9 +4,9 @@ const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   entry: {
+    popup: './popup.js',
     background: './background.js',
-    content: './content.js',
-    popup: './popup.js'
+    content: './content.js'
   },
   output: {
     filename: '[name].js',
@@ -23,17 +23,19 @@ module.exports = {
     }),
     new CopyPlugin({
       patterns: [
+        { from: 'manifest.json', to: 'manifest.json' },
+        { from: 'popup.html', to: 'popup.html' },
         { 
-          from: 'manifest.json', 
-          to: 'manifest.json' 
+          from: 'node_modules/crypto-js/crypto-js.js',
+          to: 'crypto-js.js'
         },
-        { 
-          from: 'popup.html', 
-          to: 'popup.html' 
+        {
+          from: 'node_modules/@google/generative-ai/dist/index.js',
+          to: 'generative-ai.js'
         },
-        { 
-          from: 'popup.css', 
-          to: 'popup.css' 
+        {
+          from: 'node_modules/@mozilla/readability/Readability.js',
+          to: 'readability.js'
         }
       ]
     })

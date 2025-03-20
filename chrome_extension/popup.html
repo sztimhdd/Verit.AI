@@ -5,150 +5,325 @@
   <title>Oracle AI Fact Checker</title>
   <style>
     body {
-      width: 400px;
-      padding: 16px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      width: 480px;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #fff;
     }
-    
+
     .container {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
+      padding: 20px;
     }
-    
+
+    /* 加载状态 */
+    .loading-state {
+      text-align: center;
+      padding: 24px;
+    }
+
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* 错误状态 */
+    .error-state {
+      text-align: center;
+      padding: 24px;
+      color: #e74c3c;
+    }
+
+    #retryButton {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+
+    /* 头部样式 */
     .header {
       display: flex;
       align-items: center;
-      gap: 8px;
+      margin-bottom: 24px;
     }
-    
-    .logo {
-      width: 32px;
-      height: 32px;
+
+    .header-icon {
+      width: 48px;
+      height: 48px;
+      margin-right: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
     }
-    
-    .title {
+
+    .header-icon.critical { background-color: #dc3545; color: white; }
+    .header-icon.warning { background-color: #ffc107; color: #000; }
+    .header-icon.safe { background-color: #28a745; color: white; }
+
+    .header-content h1 {
+      margin: 0;
       font-size: 18px;
       font-weight: 600;
-      margin: 0;
     }
-    
-    #score {
-      font-size: 24px;
-      font-weight: 700;
+
+    .header-content p {
+      margin: 4px 0 0;
+      font-size: 14px;
+      color: #666;
+    }
+
+    /* 评分汇总 */
+    .score-summary {
       text-align: center;
+      margin-bottom: 24px;
       padding: 16px;
+      background: #f8f9fa;
       border-radius: 8px;
+    }
+
+    .score-number {
+      font-size: 48px;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+
+    .score-label {
+      font-size: 14px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    /* 严重程度指标 */
+    .severity-indicators {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .severity-item {
+      padding: 12px;
+      border-radius: 6px;
+      background: #f8f9fa;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .severity-item.severity-critical { background: #fee2e2; color: #dc2626; }
+    .severity-item.severity-medium { background: #fef3c7; color: #d97706; }
+    .severity-item.severity-low { background: #dcfce7; color: #15803d; }
+
+    /* 分析卡片 */
+    .analysis-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .analysis-card-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .analysis-card-header h3 {
       margin: 0;
-    }
-    
-    .score-high {
-      background-color: #E8F5E9;
-      color: #2E7D32;
-    }
-    
-    .score-medium {
-      background-color: #FFF3E0;
-      color: #E65100;
-    }
-    
-    .score-low {
-      background-color: #FFEBEE;
-      color: #C62828;
-    }
-    
-    .score-very-low {
-      background-color: #FCE4EC;
-      color: #880E4F;
-    }
-    
-    .section {
-      background-color: #F5F5F5;
-      border-radius: 8px;
-      padding: 16px;
-    }
-    
-    .section h3 {
-      margin: 0 0 8px 0;
       font-size: 16px;
       font-weight: 600;
     }
-    
-    .section ul {
-      margin: 0;
-      padding-left: 20px;
+
+    .analysis-card-content {
+      padding: 16px;
     }
-    
-    .section li {
-      margin: 4px 0;
+
+    /* 列表项样式 */
+    .analysis-list-item {
+      padding: 12px 0;
+      border-bottom: 1px solid #e5e7eb;
     }
-    
-    .error {
-      text-align: center;
-      padding: 24px;
-      background-color: #FFEBEE;
-      border-radius: 8px;
-      color: #C62828;
+
+    .analysis-list-item:last-child {
+      border-bottom: none;
     }
-    
-    #retry-button {
-      margin-top: 8px;
-      padding: 8px 16px;
-      background-color: #C62828;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
+
+    /* 来源项样式 */
+    .source-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .source-name {
+      font-size: 14px;
+      color: #374151;
+    }
+
+    .source-score {
       font-size: 14px;
     }
-    
-    #retry-button:hover {
-      background-color: #B71C1C;
+
+    /* 进度条 */
+    .progress-bar {
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 4px;
+      margin-top: 16px;
     }
-    
+
+    .progress-fill {
+      height: 100%;
+      background: #3498db;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    /* 状态标签 */
+    .status-tag {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .status-tag.critical { background: #fee2e2; color: #dc2626; }
+    .status-tag.warning { background: #fef3c7; color: #d97706; }
+    .status-tag.safe { background: #dcfce7; color: #15803d; }
+
+    /* 页脚 */
     .footer {
       text-align: center;
+      padding-top: 16px;
+      color: #666;
       font-size: 12px;
-      color: #757575;
-      margin-top: 16px;
+    }
+
+    /* 链接样式 */
+    a {
+      color: #3498db;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Oracle AI Fact Checker</h1>
-    
-    <div id="result-container">
-      <div id="score">-</div>
-      
-      <div class="section" id="flags">
-        <h3>标记</h3>
-        <ul>
-          <li>事实性: -</li>
-          <li>客观性: -</li>
-          <li>可靠性: -</li>
-          <li>偏见: -</li>
-        </ul>
+    <!-- 加载状态 -->
+    <div id="loadingState" class="loading-state" style="display: none;">
+      <div class="spinner"></div>
+      <p>正在进行事实核查...</p>
+    </div>
+
+    <!-- 错误状态 -->
+    <div id="errorState" class="error-state" style="display: none;">
+      <p id="errorMessage">🚫 发生错误</p>
+      <button id="retryButton">重试</button>
+    </div>
+
+    <!-- 分析结果 -->
+    <div id="resultState" class="result-state" style="display: none;">
+      <!-- 头部信息 -->
+      <div class="header">
+        <div id="headerIcon" class="header-icon">
+          <span>!</span>
+        </div>
+        <div class="header-content">
+          <h1 id="headerTitle">内容可信度分析</h1>
+          <p id="headerSubtitle">立即查看详细的分析报告。</p>
+        </div>
       </div>
-      
-      <div class="section" id="summary">
-        <h3>摘要</h3>
-        <p>-</p>
+
+      <!-- 评分汇总 -->
+      <div class="score-summary">
+        <div class="score-item">
+          <div id="mainScore" class="score-number">--</div>
+          <div class="score-label">总体评分</div>
+        </div>
       </div>
-      
-      <div class="section" id="sources">
-        <h3>来源</h3>
-        <ul>
-          <li>-</li>
-        </ul>
+
+      <!-- 严重程度指标 -->
+      <div class="severity-indicators">
+        <div id="factualityIndicator" class="severity-item">
+          事实性 <span class="indicator-value">--</span>
+        </div>
+        <div id="objectivityIndicator" class="severity-item">
+          客观性 <span class="indicator-value">--</span>
+        </div>
+        <div id="reliabilityIndicator" class="severity-item">
+          可靠性 <span class="indicator-value">--</span>
+        </div>
+        <div id="biasIndicator" class="severity-item">
+          偏见性 <span class="indicator-value">--</span>
+        </div>
+      </div>
+
+      <!-- 来源验证 -->
+      <div class="analysis-card">
+        <div class="analysis-card-header">
+          <h3>来源验证</h3>
+        </div>
+        <div class="analysis-card-content">
+          <div id="sourcesList"></div>
+          <div class="progress-bar">
+            <div id="sourceCredibilityBar" class="progress-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 事实核查 -->
+      <div class="analysis-card">
+        <div class="analysis-card-header">
+          <h3>事实核查</h3>
+        </div>
+        <div class="analysis-card-content">
+          <div id="claimsList"></div>
+        </div>
+      </div>
+
+      <!-- 内容摘要 -->
+      <div class="analysis-card">
+        <div class="analysis-card-header">
+          <h3>内容摘要</h3>
+        </div>
+        <div class="analysis-card-content">
+          <p id="contentSummary">--</p>
+        </div>
+      </div>
+
+      <!-- 参考来源 -->
+      <div class="analysis-card">
+        <div class="analysis-card-header">
+          <h3>参考来源</h3>
+        </div>
+        <div class="analysis-card-content">
+          <ul id="referencesList"></ul>
+        </div>
       </div>
     </div>
-    
-    <div class="footer">
-      Powered by Google Gemini AI
-    </div>
+
+    <footer class="footer">
+      <p>Powered by Google Gemini AI</p>
+    </footer>
   </div>
-  
-  <script type="module" src="popup.js"></script>
+  <script src="popup.js"></script>
 </body>
 </html>

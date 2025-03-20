@@ -7,15 +7,172 @@
 
 /* 其他样式保持不变 */
 
+body {
+  width: 480px;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: #fff;
+}
+
+.container {
+  padding: 20px;
+}
+
+/* 头部样式 */
+.header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.header-icon {
+  width: 48px;
+  height: 48px;
+  margin-right: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.header-icon.critical { background-color: #dc3545; color: white; }
+.header-icon.warning { background-color: #ffc107; color: #000; }
+.header-icon.safe { background-color: #28a745; color: white; }
+
+.header-content h1 {
+  margin: 0;
+  font-size: 24px;
+  color: #333;
+}
+
+.header-content p {
+  margin: 4px 0 0;
+  color: #666;
+  font-size: 14px;
+}
+
+/* 评分展示 */
+.score-summary {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 12px;
+}
+
+.score-item {
+  flex: 1;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.score-number {
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.score-label {
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+}
+
+/* 严重程度指标 */
+.severity-indicators {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.severity-item {
+  flex: 1;
+  padding: 8px;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.severity-critical { background-color: #fde8e8; color: #dc3545; }
+.severity-high { background-color: #fff3cd; color: #856404; }
+.severity-medium { background-color: #e8f4f8; color: #0c5460; }
+.severity-low { background-color: #e8f5e9; color: #155724; }
+
+/* 详细分析卡片 */
+.analysis-card {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.analysis-card-header {
+  background: #f8f9fa;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.analysis-card-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.analysis-card-content {
+  padding: 16px;
+}
+
+.analysis-list-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.analysis-list-item:last-child {
+  border-bottom: none;
+}
+
+/* 进度指示器 */
+.progress-bar {
+  height: 4px;
+  background-color: #e9ecef;
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #007bff;
+  transition: width 0.3s ease;
+}
+
+/* 状态标签 */
+.status-tag {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-critical { background-color: #fde8e8; color: #dc3545; }
+.status-warning { background-color: #fff3cd; color: #856404; }
+.status-info { background-color: #e8f4f8; color: #0c5460; }
+
+/* 加载状态 */
 .loading-state {
   text-align: center;
-  padding: 20px;
+  padding: 24px;
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  margin: 0 auto 15px;
+  margin: 0 auto 16px;
   border: 4px solid #f3f3f3;
   border-top: 4px solid #3498db;
   border-radius: 50%;
@@ -27,14 +184,15 @@
   100% { transform: rotate(360deg); }
 }
 
+/* 错误状态 */
 .error-state {
   text-align: center;
-  padding: 20px;
+  padding: 24px;
   color: #e74c3c;
 }
 
-.error-state button {
-  margin-top: 10px;
+#retryButton {
+  margin-top: 16px;
   padding: 8px 16px;
   background-color: #3498db;
   color: white;
@@ -43,6 +201,127 @@
   cursor: pointer;
 }
 
-.error-state button:hover {
-  background-color: #2980b9;
-} 
+/* 分数显示 */
+.score-section {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.score-display {
+  background-color: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* 指标网格 */
+.flags-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.flag-item {
+  background-color: white;
+  padding: 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.flag-label {
+  display: block;
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.flag-value {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* 列表样式 */
+.source-list, .entity-list, .claims-list, .exaggeration-list {
+  margin-bottom: 12px;
+}
+
+.list-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+/* 评估结果 */
+.assessment {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.label {
+  color: #666;
+}
+
+.value {
+  font-weight: bold;
+}
+
+/* 摘要部分 */
+.summary-section {
+  background-color: white;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* 来源列表 */
+.sources-section {
+  background-color: white;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#referencesList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#referencesList li {
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+#referencesList li:last-child {
+  border-bottom: none;
+}
+
+#referencesList a {
+  color: #3498db;
+  text-decoration: none;
+}
+
+#referencesList a:hover {
+  text-decoration: underline;
+}
+
+/* 页脚 */
+.footer {
+  text-align: center;
+  padding: 16px 0;
+  color: #666;
+  font-size: 12px;
+}
+
+/* 评分颜色 */
+.score-high { color: #2ecc71; }
+.score-medium { color: #f1c40f; }
+.score-low { color: #e74c3c; } 
