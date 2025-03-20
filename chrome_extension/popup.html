@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="popup.css">
+  <style>
+    /* 基础重置 */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', system-ui;
+    }
+  </style>
+</head>
+<body>
+  <div class="result-card">
+    <header class="card-header">
+      <h2>Fact Check Results</h2>
+    </header>
+    
+    <div class="score-section">
+      <div class="credibility-score">-/-</div>
+      <div class="score-label">Credibility Score</div>
+    </div>
+
+    <div class="rating-metrics">
+      <div class="metric">
+        <span class="metric-label">Factual Accuracy</span>
+        <span class="metric-value">-</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Source Credibility</span>
+        <span class="metric-value">-</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Exaggeration Level</span>
+        <span class="metric-value">-</span>
+      </div>
+    </div>
+
+    <div class="issues-section">
+      <h3>Main Issues</h3>
+      <ul class="issue-list"></ul>
+    </div>
+
+    <footer class="card-footer">
+      2025 AI Fact Check System - Powered by Gemini API
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
