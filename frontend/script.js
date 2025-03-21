@@ -1,6 +1,6 @@
 // 配置
 const CONFIG = {
-    API_URL: 'https://45c90e87-a787-4d55-b3a0-8ac505903a5f-00-2dv568h2t0hkr.spock.replit.dev/api/extension/analyze'
+    API_URL: 'https://fact-checkerai.replit.app/api/extension/analyze'
 };
 
 // DOM 元素
