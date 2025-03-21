@@ -1,9 +1,9 @@
-import express from 'express';
-import cors from 'cors';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import express from "express";
+import cors from "cors";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import dotenv from "dotenv";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,44 +14,44 @@ const app = express();
 const port = process.env.PORT || 4000;
 
 // 增加请求体大小限制
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cors());
 
 // 初始化 Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 // Token 使用统计函数
 function calculateTokenUsage(content, response) {
-  const inputTokens = content.split('').reduce((count, char) => {
+  const inputTokens = content.split("").reduce((count, char) => {
     return count + (/[\u4e00-\u9fa5]/.test(char) ? 2 : 1);
   }, 0);
-  
+
   const outputText = JSON.stringify(response);
-  const outputTokens = outputText.split('').reduce((count, char) => {
+  const outputTokens = outputText.split("").reduce((count, char) => {
     return count + (/[\u4e00-\u9fa5]/.test(char) ? 2 : 1);
   }, 0);
 
   return {
     inputTokens,
     outputTokens,
-    totalTokens: inputTokens + outputTokens
+    totalTokens: inputTokens + outputTokens,
   };
 }
 
 // Chrome Extension专用API
-app.post('/api/extension/analyze', async (req, res) => {
+app.post("/api/extension/analyze", async (req, res) => {
   const startTime = Date.now();
   try {
-    const { content, url, lang = 'zh' } = req.body;
+    const { content, url, lang = "zh" } = req.body;
 
     if (!content) {
       return res.status(400).json({
-        status: 'error',
+        status: "error",
         error: {
-          message: '内容不能为空'
-        }
+          message: "内容不能为空",
+        },
       });
     }
 
@@ -104,7 +104,7 @@ app.post('/api/extension/analyze', async (req, res) => {
 }`;
 
     // 记录请求开始
-    console.log('\n=== 新的分析请求 ===');
+    console.log("\n=== 新的分析请求 ===");
     console.log(`时间: ${new Date().toLocaleString()}`);
     console.log(`内容长度: ${content.length} 字符`);
 
@@ -116,46 +116,51 @@ app.post('/api/extension/analyze', async (req, res) => {
         topK: 40,
         topP: 0.8,
         maxOutputTokens: 2048,
-      }
+      },
     });
-    
+
     const response = await result.response;
     const text = response.text().trim();
-    
+
     // 解析 JSON 响应
     let analysisResult;
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        throw new Error('No valid JSON found in response');
+        throw new Error("No valid JSON found in response");
       }
       analysisResult = JSON.parse(jsonMatch[0]);
     } catch (parseError) {
-      console.error('JSON Parse Error:', parseError);
-      console.log('Raw Response:', text);
+      console.error("JSON Parse Error:", parseError);
+      console.log("Raw Response:", text);
       return res.status(500).json({
-        status: 'error',
+        status: "error",
         error: {
-          message: '分析结果解析失败',
-          details: parseError.message
-        }
+          message: "分析结果解析失败",
+          details: parseError.message,
+        },
       });
     }
 
     // 验证返回的数据格式
     const requiredFields = [
-      'score', 'flags', 'source_verification', 
-      'entity_verification', 'fact_check', 
-      'exaggeration_check', 'summary', 'sources'
+      "score",
+      "flags",
+      "source_verification",
+      "entity_verification",
+      "fact_check",
+      "exaggeration_check",
+      "summary",
+      "sources",
     ];
-    
+
     for (const field of requiredFields) {
       if (!analysisResult[field]) {
         return res.status(500).json({
-          status: 'error',
+          status: "error",
           error: {
-            message: `缺少必要字段: ${field}`
-          }
+            message: `缺少必要字段: ${field}`,
+          },
         });
       }
     }
@@ -163,29 +168,28 @@ app.post('/api/extension/analyze', async (req, res) => {
     // 计算并记录 token 使用量
     const tokenUsage = calculateTokenUsage(content, analysisResult);
     const timeUsed = Date.now() - startTime;
-    
-    console.log('\n=== API调用统计 ===');
+
+    console.log("\n=== API调用统计 ===");
     console.log(`输入Token数: ${tokenUsage.inputTokens}`);
     console.log(`输出Token数: ${tokenUsage.outputTokens}`);
     console.log(`总Token消耗: ${tokenUsage.totalTokens}`);
     console.log(`处理时间: ${timeUsed}ms`);
-    console.log('分析结果:', JSON.stringify(analysisResult, null, 2));
-    console.log('==================\n');
+    console.log("分析结果:", JSON.stringify(analysisResult, null, 2));
+    console.log("==================\n");
 
     // 返回成功响应
     res.json({
-      status: 'success',
-      data: analysisResult
+      status: "success",
+      data: analysisResult,
     });
-
   } catch (error) {
-    console.error('API Error:', error);
+    console.error("API Error:", error);
     res.status(500).json({
-      status: 'error',
+      status: "error",
       error: {
-        message: error.message || '内部服务器错误',
-        details: error.stack
-      }
+        message: error.message || "内部服务器错误",
+        details: error.stack,
+      },
     });
   }
 });
@@ -193,4 +197,4 @@ app.post('/api/extension/analyze', async (req, res) => {
 // 启动服务器
 app.listen(port, () => {
   console.log(`后端服务运行在 http://localhost:${port}`);
-}); 
+});

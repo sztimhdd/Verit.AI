@@ -5,4 +5,34 @@ run = "cd backend && node app.js"
 channel = "stable-24_05"
 
 [deployment]
-run = ["sh", "-c", "cd backend && node app.js"]
+build = ["sh", "-c", "cd backend && npm install"]
+deploymentTarget = "static"
+publicDir = '\backend'
+
+[workflows]
+runButton = "Run"
+
+[[workflows.workflow]]
+name = "Run"
+author = 40712558
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd backend"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "git pull"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm install"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node app.js"
+
+[[ports]]
+localPort = 4000
+externalPort = 80
