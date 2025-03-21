@@ -1,13 +1,12 @@
 // 配置常量
 const CONFIG = {
-  API_URL: 'https://45c90e87-a787-4d55-b3a0-8ac505903a5f-00-2dv568h2t0hkr.spock.replit.dev',
-  DEBOUNCE_TIME: 3000, // 防重复提交时间间隔
+  API_URL: 'https://factcheckerai-production.up.railway.app/api/extension/analyze',
+  DEBOUNCE_TIME: 1000, // 防重复提交时间间隔
   CONTENT_MAX_LENGTH: 10000, // 内容最大长度限制
   BADGE_COLORS: {
-    HIGH: '#4CAF50',   // >= 80
-    MEDIUM: '#FFC107', // >= 60
-    LOW: '#FF9800',    // >= 40
-    POOR: '#F44336'    // < 40
+    success: '#4CAF50',   // >= 80
+    error: '#F44336',     // < 40
+    loading: '#FFC107'     // >= 60
   }
 };
 
@@ -191,7 +190,7 @@ async function analyzeContent(content) {
       throw new Error('无法获取当前标签页信息');
     }
 
-    const response = await fetch(`${CONFIG.API_URL}/api/extension/analyze`, {
+    const response = await fetch(CONFIG.API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -340,7 +339,7 @@ async function updateErrorBadge(tabId) {
         tabId
       }),
       chrome.action.setBadgeBackgroundColor({
-        color: CONFIG.BADGE_COLORS.POOR,
+        color: CONFIG.BADGE_COLORS.error,
         tabId
       })
     ]);
@@ -350,10 +349,10 @@ async function updateErrorBadge(tabId) {
 }
 
 function getBadgeColor(score) {
-  if (score >= 80) return CONFIG.BADGE_COLORS.HIGH;
-  if (score >= 60) return CONFIG.BADGE_COLORS.MEDIUM;
-  if (score >= 40) return CONFIG.BADGE_COLORS.LOW;
-  return CONFIG.BADGE_COLORS.POOR;
+  if (score >= 80) return CONFIG.BADGE_COLORS.success;
+  if (score >= 60) return CONFIG.BADGE_COLORS.loading;
+  if (score >= 40) return CONFIG.BADGE_COLORS.success;
+  return CONFIG.BADGE_COLORS.error;
 }
 
 // 清理函数

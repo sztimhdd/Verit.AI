@@ -1,6 +1,8 @@
 // 配置
 const CONFIG = {
-    API_URL: 'https://fact-checkerai.replit.app/api/extension/analyze'
+    API_URL: 'https://factcheckerai-production.up.railway.app/api/extension/analyze',
+    DEBOUNCE_TIME: 1000,
+    MAX_CONTENT_LENGTH: 10000
 };
 
 // DOM 元素

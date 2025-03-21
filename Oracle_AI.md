@@ -78,22 +78,10 @@ API集成:
 ### 2. 后端服务
 #### API端点
 ```javascript
-POST /api/analyze
-- 参数: { url, lang }
-- 响应: {
-    status: "success/error",
-    data: {
-      trustworthiness_score: number,
-      analysis_results: object,
-      debunking_card: string
-    }
-}
-
-// Chrome Extension专用API
+// Chrome Extension和Web前端通用API
 POST /api/extension/analyze
 - 参数: { 
-    content: string,   // 页面提取的文本内容
-    url: string,       // 页面URL（可选）
+    url: string,       // 页面URL
     lang: string       // 语言代码（默认zh）
 }
 - 响应: {
@@ -269,13 +257,34 @@ async function handleError(error, tabId) {
 | 夸大 | 表述准确性 | 偏差程度 |
 
 ### 评分细则
-```json
-"score_breakdown": {
-    "sources_error": "来源可靠性扣分",
-    "entities_error": "实体识别错误扣分",
-    "data_error": "数据偏差扣分",
-    "evidence_mismatch": "证据等级失配扣分",
-    "stat_errors": "统计方法错误扣分",
+```typescript
+interface ScoreBreakdown {
+    source_credibility: number;    // 来源可信度得分
+    entity_accuracy: number;       // 实体准确性得分
+    factual_accuracy: number;      // 事实准确性得分
+    exaggeration_penalty: number;  // 夸大表述扣分
+    final_score: number;          // 最终得分
+}
+
+// 评分计算规则
+const scoreCalculation = {
+    source_credibility: {
+        weight: 0.3,              // 权重30%
+        calculation: 'average of credibility_scores'
+    },
+    entity_accuracy: {
+        weight: 0.2,              // 权重20%
+        calculation: 'percentage of accurate entities'
+    },
+    factual_accuracy: {
+        weight: 0.3,              // 权重30%
+        calculation: 'percentage of verified claims'
+    },
+    exaggeration_penalty: {
+        weight: 0.2,              // 权重20%
+        calculation: 'penalty based on severity_assessment'
+    }
+};
 ```
 
 #### 生成策略
@@ -756,3 +765,232 @@ npm run build
 3. HTML/CSS文件 (popup.html, popup.css)
 4. 图标资源 (icons/*.svg)
 5. 依赖库 (如果需要)
+```
+
+### 前端渲染最佳实践
+```typescript
+// 结果渲染前的清理函数
+function clearPreviousResults() {
+    const sections = [
+        'source-verification',
+        'entity-verification',
+        'fact-check',
+        'exaggeration-check'
+    ];
+    
+    sections.forEach(section => {
+        const element = document.querySelector(`.${section}`);
+        if (element) {
+            element.innerHTML = '';
+        }
+    });
+}
+
+// 结果数组渲染函数
+function renderArrayResults(container: HTMLElement, items: string[], results: string[]) {
+    container.innerHTML = ''; // 清空容器
+    if (!Array.isArray(items) || !Array.isArray(results)) {
+        console.error('Invalid data format:', { items, results });
+        return;
+    }
+    
+    items.forEach((item, index) => {
+        const result = results[index] || '未知结果';
+        const itemElement = document.createElement('div');
+        itemElement.className = 'result-item';
+        itemElement.innerHTML = `
+            <div class="item-content">${item}</div>
+            <div class="item-result">${result}</div>
+        `;
+        container.appendChild(itemElement);
+    });
+}
+
+// 实体验证渲染函数
+function renderEntityVerification(data: EntityVerification) {
+    const container = document.querySelector('.entity-verification');
+    if (!container) return;
+    
+    clearSection(container);
+    
+    if (!data.entities_found?.length) {
+        container.innerHTML = '<p>未发现需要验证的实体</p>';
+        return;
+    }
+    
+    const entitiesHtml = data.entities_found.map((entity, index) => `
+        <div class="entity-item">
+            <div class="entity-name">${entity}</div>
+            <div class="entity-accuracy">${data.accuracy_assessment}</div>
+            <div class="entity-correction">${data.corrections[index] || '无需更正'}</div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = `
+        <h3>实体验证</h3>
+        ${entitiesHtml}
+    `;
+}
+
+// 事实核查渲染函数
+function renderFactCheck(data: FactCheck) {
+    const container = document.querySelector('.fact-check');
+    if (!container) return;
+    
+    clearSection(container);
+    
+    if (!data.claims_identified?.length) {
+        container.innerHTML = '<p>未发现需要核查的事实声明</p>';
+        return;
+    }
+    
+    const factsHtml = data.claims_identified.map((claim, index) => `
+        <div class="fact-item">
+            <div class="fact-claim">${claim}</div>
+            <div class="fact-result">${data.verification_results[index] || '验证结果待更新'}</div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = `
+        <h3>事实核查</h3>
+        <div class="overall-accuracy">整体准确性：${data.overall_factual_accuracy}</div>
+        ${factsHtml}
+    `;
+}
+
+// 夸张表述渲染函数
+function renderExaggerationCheck(data: ExaggerationCheck) {
+    const container = document.querySelector('.exaggeration-check');
+    if (!container) return;
+    
+    clearSection(container);
+    
+    if (!data.exaggerations_found?.length) {
+        container.innerHTML = '<p>未发现夸张表述</p>';
+        return;
+    }
+    
+    const exaggerationsHtml = data.exaggerations_found.map((exaggeration, index) => `
+        <div class="exaggeration-item">
+            <div class="exaggeration-claim">${exaggeration}</div>
+            <div class="exaggeration-correction">${data.corrections[index] || '修正建议待更新'}</div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = `
+        <h3>夸张表述检查</h3>
+        <div class="severity-assessment">严重程度：${data.severity_assessment}</div>
+        ${exaggerationsHtml}
+    `;
+}
+
+// 主渲染函数
+function updateDetailsDisplay(result: ApiResponse) {
+    if (result.status === 'error') {
+        showError(result.error.message);
+        return;
+    }
+
+    const data = result.data;
+    if (!data) {
+        showError('返回数据格式错误');
+        return;
+    }
+
+    // 清空所有之前的结果
+    clearPreviousResults();
+    
+    // 更新基础信息
+    updateScore(data.score);
+    updateFlags(data.flags);
+    
+    // 更新各个分析模块
+    renderEntityVerification(data.entity_verification);
+    renderFactCheck(data.fact_check);
+    renderExaggerationCheck(data.exaggeration_check);
+    
+    // 更新摘要和来源
+    updateSummary(data.summary);
+    updateSources(data.sources);
+}
+
+// 错误处理和数据验证
+interface ValidationResult {
+    isValid: boolean;
+    error?: string;
+}
+
+function validateApiResponse(data: any): ValidationResult {
+    if (!data) {
+        return { isValid: false, error: '响应数据为空' };
+    }
+
+    const requiredArrays = {
+        'entity_verification': ['entities_found', 'corrections'],
+        'fact_check': ['claims_identified', 'verification_results'],
+        'exaggeration_check': ['exaggerations_found', 'corrections']
+    };
+
+    for (const [section, fields] of Object.entries(requiredArrays)) {
+        if (!data[section]) {
+            return { isValid: false, error: `缺少 ${section} 部分` };
+        }
+
+        for (const field of fields) {
+            if (!Array.isArray(data[section][field])) {
+                return { isValid: false, error: `${section}.${field} 不是数组` };
+            }
+        }
+    }
+
+    return { isValid: true };
+}
+
+// 数据结构完整性检查
+function validateArrayLengths(data: any): boolean {
+    // 实体验证数组长度检查
+    const entityVerification = data.entity_verification;
+    if (entityVerification.entities_found.length !== entityVerification.corrections.length) {
+        console.error('实体验证数组长度不匹配');
+        return false;
+    }
+
+    // 事实核查数组长度检查
+    const factCheck = data.fact_check;
+    if (factCheck.claims_identified.length !== factCheck.verification_results.length) {
+        console.error('事实核查数组长度不匹配');
+        return false;
+    }
+
+    // 夸张表述数组长度检查
+    const exaggerationCheck = data.exaggeration_check;
+    if (exaggerationCheck.exaggerations_found.length !== exaggerationCheck.corrections.length) {
+        console.error('夸张表述数组长度不匹配');
+        return false;
+    }
+
+    return true;
+}
+
+// API响应数据标准化函数
+function normalizeApiResponse(data: any): ApiResponse {
+    // 确保所有数组都有值
+    return {
+        ...data,
+        entity_verification: {
+            entities_found: data.entity_verification.entities_found || [],
+            corrections: data.entity_verification.corrections || [],
+            accuracy_assessment: data.entity_verification.accuracy_assessment || '未知'
+        },
+        fact_check: {
+            claims_identified: data.fact_check.claims_identified || [],
+            verification_results: data.fact_check.verification_results || [],
+            overall_factual_accuracy: data.fact_check.overall_factual_accuracy || '未知'
+        },
+        exaggeration_check: {
+            exaggerations_found: data.exaggeration_check.exaggerations_found || [],
+            corrections: data.exaggeration_check.corrections || [],
+            severity_assessment: data.exaggeration_check.severity_assessment || '未知'
+        }
+    };
+}
