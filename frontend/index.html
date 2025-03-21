@@ -527,12 +527,86 @@
             hideLoading();
         }
 
+        // 清理之前的结果
+        function clearPreviousResults() {
+            const sections = [
+                'entity-section',
+                'fact-check-section',
+                'exaggeration-section',
+                'sources-section'
+            ];
+            
+            sections.forEach(section => {
+                const elements = document.getElementsByClassName(section);
+                Array.from(elements).forEach(element => {
+                    if (element.parentNode) {
+                        element.parentNode.removeChild(element);
+                    }
+                });
+            });
+
+            // 清空容器内容
+            document.getElementById('tagsContainer').innerHTML = '';
+            document.getElementById('summary').innerHTML = '';
+            document.getElementById('sourcesList').innerHTML = '';
+            document.getElementById('factCheckList').innerHTML = '';
+            document.getElementById('exaggerationList').innerHTML = '';
+        }
+
+        // 数据验证
+        function validateApiResponse(data) {
+            if (!data) {
+                return { isValid: false, error: '响应数据为空' };
+            }
+
+            const requiredArrays = {
+                'entity_verification': ['entities_found', 'corrections'],
+                'fact_check': ['claims_identified', 'verification_results'],
+                'exaggeration_check': ['exaggerations_found', 'corrections']
+            };
+
+            for (const [section, fields] of Object.entries(requiredArrays)) {
+                if (!data[section]) {
+                    return { isValid: false, error: `缺少 ${section} 部分` };
+                }
+
+                for (const field of fields) {
+                    if (!Array.isArray(data[section][field])) {
+                        return { isValid: false, error: `${section}.${field} 不是数组` };
+                    }
+                }
+            }
+
+            return { isValid: true };
+        }
+
+        // 标准化响应数据
+        function normalizeApiResponse(data) {
+            return {
+                ...data,
+                entity_verification: {
+                    entities_found: data.entity_verification?.entities_found || [],
+                    corrections: data.entity_verification?.corrections || [],
+                    accuracy_assessment: data.entity_verification?.accuracy_assessment || '未知'
+                },
+                fact_check: {
+                    claims_identified: data.fact_check?.claims_identified || [],
+                    verification_results: data.fact_check?.verification_results || [],
+                    overall_factual_accuracy: data.fact_check?.overall_factual_accuracy || '未知'
+                },
+                exaggeration_check: {
+                    exaggerations_found: data.exaggeration_check?.exaggerations_found || [],
+                    corrections: data.exaggeration_check?.corrections || [],
+                    severity_assessment: data.exaggeration_check?.severity_assessment || '未知'
+                }
+            };
+        }
+
         // 更新评分显示
         function updateScoreDisplay(score) {
             const scoreCircle = document.getElementById('scoreCircle');
             scoreCircle.textContent = score;
             
-            // 根据分数设置不同的背景颜色
             if (score >= 80) {
                 scoreCircle.style.backgroundColor = '#4CAF50';
             } else if (score >= 60) {
@@ -567,9 +641,26 @@
 
         // 更新详细信息显示
         function updateDetailsDisplay(result) {
+            if (result.status === 'error') {
+                showError(result.error.message);
+                return;
+            }
+
+            const validation = validateApiResponse(result.data);
+            if (!validation.isValid) {
+                showError(validation.error);
+                return;
+            }
+
+            // 清空之前的结果
+            clearPreviousResults();
+
+            // 标准化数据
+            const data = normalizeApiResponse(result.data);
+            
             // 更新标签
             const tagsContainer = document.getElementById('tagsContainer');
-            tagsContainer.innerHTML = Object.entries(result.flags).map(([key, value]) => `
+            tagsContainer.innerHTML = Object.entries(data.flags).map(([key, value]) => `
                 <div class="tag" style="background: ${getLevelColor(value)}20; 
                                       color: ${getLevelColor(value)}; 
                                       border: 1px solid ${getLevelColor(value)}">
@@ -578,22 +669,22 @@
             `).join('');
 
             // 更新摘要
-            document.getElementById('summary').textContent = result.summary;
+            document.getElementById('summary').textContent = data.summary;
 
             // 更新信息来源
             const sourcesList = document.getElementById('sourcesList');
             sourcesList.innerHTML = `
-                <p style="margin-bottom: 16px;">整体可信度: ${result.source_verification.overall_source_credibility}</p>
-                ${result.source_verification.sources_found.map((source, index) => `
+                <p style="margin-bottom: 16px;">整体可信度: ${data.source_verification.overall_source_credibility}</p>
+                ${data.source_verification.sources_found.map((source, index) => `
                     <div class="source-item">
                         <span class="source-name">${source}</span>
-                        <span class="source-score">${result.source_verification.credibility_scores[index]}/10</span>
+                        <span class="source-score">${data.source_verification.credibility_scores[index]}/10</span>
                     </div>
                 `).join('')}
-                ${result.sources.length > 0 ? `
+                ${data.sources.length > 0 ? `
                     <div style="margin-top: 16px;">
                         <h4 style="margin-bottom: 8px;">参考来源</h4>
-                        ${result.sources.map(source => `
+                        ${data.sources.map(source => `
                             <div class="source-item">
                                 <span class="source-name">${source.title}</span>
                                 <a href="${source.url}" target="_blank" class="source-link">查看来源</a>
@@ -608,15 +699,15 @@
             entitySection.className = 'entity-section';
             entitySection.innerHTML = `
                 <h3 class="section-title">实体验证</h3>
-                <p>准确性评估: ${result.entity_verification.accuracy_assessment}</p>
-                ${result.entity_verification.entities_found.length > 0 ? `
+                <p>准确性评估: ${data.entity_verification.accuracy_assessment}</p>
+                ${data.entity_verification.entities_found.length > 0 ? `
                     <div class="entities-list">
-                        ${result.entity_verification.entities_found.map((entity, index) => `
+                        ${data.entity_verification.entities_found.map((entity, index) => `
                             <div class="entity-item">
                                 <span class="entity-name">${entity}</span>
-                                ${result.entity_verification.corrections[index] ? `
+                                ${data.entity_verification.corrections[index] ? `
                                     <div class="entity-correction">
-                                        需要更正: ${result.entity_verification.corrections[index]}
+                                        需要更正: ${data.entity_verification.corrections[index]}
                                     </div>
                                 ` : ''}
                             </div>
@@ -629,11 +720,11 @@
             // 更新事实核查
             const factCheckList = document.getElementById('factCheckList');
             factCheckList.innerHTML = `
-                <p style="margin-bottom: 16px;">整体事实准确性: ${result.fact_check.overall_factual_accuracy}</p>
-                ${result.fact_check.claims_identified.map((claim, index) => `
+                <p style="margin-bottom: 16px;">整体事实准确性: ${data.fact_check.overall_factual_accuracy}</p>
+                ${data.fact_check.claims_identified.map((claim, index) => `
                     <div class="fact-check-item">
                         <div class="claim">${claim}</div>
-                        <div class="verification">${result.fact_check.verification_results[index]}</div>
+                        <div class="verification">${data.fact_check.verification_results[index] || '验证结果待更新'}</div>
                     </div>
                 `).join('')}
             `;
@@ -642,20 +733,23 @@
             const exaggerationSection = document.getElementById('exaggerationSection');
             const exaggerationList = document.getElementById('exaggerationList');
             
-            if (result.exaggeration_check.exaggerations_found.length > 0) {
+            if (data.exaggeration_check.exaggerations_found.length > 0) {
                 exaggerationSection.style.display = 'block';
                 exaggerationList.innerHTML = `
-                    <p style="margin-bottom: 16px;">严重程度: ${result.exaggeration_check.severity_assessment}</p>
-                    ${result.exaggeration_check.exaggerations_found.map((exag, index) => `
+                    <p style="margin-bottom: 16px;">严重程度: ${data.exaggeration_check.severity_assessment}</p>
+                    ${data.exaggeration_check.exaggerations_found.map((exag, index) => `
                         <div class="exaggeration-item">
                             <div class="original">原文：${exag}</div>
-                            <div class="correction">建议：${result.exaggeration_check.corrections[index]}</div>
+                            <div class="correction">建议：${data.exaggeration_check.corrections[index] || '修正建议待更新'}</div>
                         </div>
                     `).join('')}
                 `;
             } else {
                 exaggerationSection.style.display = 'none';
             }
+
+            // 更新评分显示
+            updateScoreDisplay(data.score);
         }
 
         // 验证 URL
@@ -708,8 +802,7 @@
 
                 // 显示结果
                 document.getElementById('resultContainer').style.display = 'block';
-                updateScoreDisplay(responseData.data.score);
-                updateDetailsDisplay(responseData.data);
+                updateDetailsDisplay(responseData);
                 hideLoading();
             } catch (error) {
                 showError(error.message || '分析失败，请稍后重试');
@@ -721,6 +814,7 @@
             document.getElementById('url').value = '';
             document.getElementById('resultContainer').style.display = 'none';
             document.getElementById('errorMessage').style.display = 'none';
+            clearPreviousResults();
         }
 
         // 添加回车键提交功能
