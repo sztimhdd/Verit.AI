@@ -1,11 +1,12 @@
 const path = require('path');
 const webpack = require('webpack');
 const CopyPlugin = require('copy-webpack-plugin');
+const TerserPlugin = require('terser-webpack-plugin');
 
 module.exports = {
   entry: {
-    popup: './popup.js',
     background: './background.js',
+    'floating-card': './floating-card.js',
     content: './content.js'
   },
   output: {
@@ -15,16 +16,31 @@ module.exports = {
   },
   mode: 'production',
   optimization: {
-    minimize: false
+    minimize: true,
+    minimizer: [
+      new TerserPlugin({
+        terserOptions: {
+          format: {
+            comments: false,
+          },
+          compress: {
+            drop_console: false,
+            drop_debugger: true,
+            pure_funcs: ['console.info', 'console.debug', 'console.warn']
+          },
+        },
+        extractComments: false,
+      }),
+    ],
   },
   plugins: [
     new webpack.DefinePlugin({
-      API_URL: JSON.stringify('http://localhost:4000')
+      'process.env.API_URL': JSON.stringify('http://localhost:4000')
     }),
     new CopyPlugin({
       patterns: [
-        { from: 'manifest.json', to: 'manifest.json' },
-        { from: 'popup.html', to: 'popup.html' },
+        { from: 'manifest.json' },
+        { from: 'floating-card.html' },
         { 
           from: 'node_modules/crypto-js/crypto-js.js',
           to: 'crypto-js.js'

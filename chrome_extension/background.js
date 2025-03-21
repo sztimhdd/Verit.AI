@@ -1,215 +1,195 @@
-import { geminiService } from './services/geminiService.js';
-import { handleError } from './utils/errorHandler.js';
+// 配置常量
+const CONFIG = {
+  API_URL: 'http://localhost:4000',
+  DEBOUNCE_TIME: 3000, // 防重复提交时间间隔
+  CONTENT_MAX_LENGTH: 10000, // 内容最大长度限制
+  BADGE_COLORS: {
+    HIGH: '#4CAF50',   // >= 80
+    MEDIUM: '#FFC107', // >= 60
+    LOW: '#FF9800',    // >= 40
+    POOR: '#F44336'    // < 40
+  }
+};
+
+// 统一的状态管理
+const analysisManager = {
+  results: new Map(), // 存储分析结果
+  pending: new Map(), // 存储正在分析的请求
+
+  isPending(url) {
+    const lastTime = this.pending.get(url);
+    return lastTime && (Date.now() - lastTime) < CONFIG.DEBOUNCE_TIME;
+  },
+
+  addPending(url) {
+    this.pending.set(url, Date.now());
+  },
+
+  removePending(url) {
+    this.pending.delete(url);
+  },
+
+  setResult(url, result) {
+    this.results.set(url, {
+      data: result,
+      timestamp: Date.now()
+    });
+  },
+
+  getResult(url) {
+    return this.results.get(url)?.data;
+  },
+
+  clearAll(url) {
+    this.pending.delete(url);
+    this.results.delete(url);
+  }
+};
 
 // 存储最新的分析结果
 const latestResults = {};
 
-// 直接使用 webpack 定义的全局变量
-const API_URL = 'http://localhost:4000'; // 硬编码 API 地址
+// 跟踪当前分析状态
+const analysisState = {
+  inProgress: false,
+  currentTabId: null,
+  currentUrl: null
+};
 
-// 监听标签页更新
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && tab.url) {
-    // 延迟分析以确保内容脚本已加载
-    setTimeout(() => analyzePage(tabId, tab.url), 1000);
-  }
-});
+// 在文件顶部添加防重复提交跟踪
+const pendingAnalysis = new Map(); // 记录正在分析的URL
 
-// 监听标签页激活
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  chrome.tabs.get(activeInfo.tabId, (tab) => {
-    if (tab.url) {
-      analyzePage(activeInfo.tabId, tab.url);
+// 内联 handleError 函数
+function handleError(error) {
+  console.error('Error:', error);
+  return {
+    error: true,
+    message: error.message || '发生未知错误'
+  };
+}
+
+// 初始化扩展
+async function initializeExtension() {
+  // 注册事件监听器
+  initializeEventListeners();
+  
+  // 清理现有卡片
+  await cleanupExistingCards();
+}
+
+// 事件监听器初始化
+function initializeEventListeners() {
+  // 只保留扩展图标点击事件
+  chrome.action.onClicked.addListener(async (tab) => {
+    if (tab?.url && !analysisManager.isPending(tab.url)) {
+      await analyzePage(tab.id, tab.url);
     }
   });
-});
 
-// 监听来自popup和content script的消息
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'getPageContent') {
-    handleContentRequest(sender.tab.id, request.content)
+  // 标签页关闭时清理
+  chrome.tabs.onRemoved.addListener(async (tabId) => {
+    await cleanupTab(tabId);
+  });
+
+  // URL 变化时清理
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.url) {
+      cleanupTab(tabId);
+    }
+  });
+
+  // 消息处理
+  chrome.runtime.onMessage.addListener(handleMessage);
+}
+
+// 消息处理器映射
+const messageHandlers = {
+  CLOSE_CARD: async (message) => {
+    analysisManager.clearAll(message.url);
+    return { success: true };
+  },
+
+  URL_CHANGED: async (message) => {
+    analysisManager.clearAll(message.oldUrl);
+    return { success: true };
+  },
+
+  RETRY_ANALYSIS: async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.url && !analysisManager.isPending(tab.url)) {
+      await analyzePage(tab.id, tab.url);
+    }
+    return { success: true };
+  }
+};
+
+// 统一的消息处理函数
+function handleMessage(message, sender, sendResponse) {
+  const handler = messageHandlers[message.type];
+  if (handler) {
+    handler(message, sender)
       .then(sendResponse)
-      .catch((error) => sendResponse(handleError(error)));
+      .catch(error => {
+        console.error('消息处理错误:', error);
+        sendResponse({ error: error.message });
+      });
     return true;
   }
-  
-  if (request.action === 'getAnalysisResult') {
-    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-      if (tabs[0]) {
-        const tabId = tabs[0].id;
-        // 检查是否已有该标签页的分析结果
-        if (latestResults[tabId]) {
-          sendResponse(latestResults[tabId]);
-        } else {
-          // 如果没有结果，尝试分析当前页面或使用模拟数据
-          try {
-            // 尝试获取页面内容
-            let content;
-            try {
-              content = await getPageContent(tabId);
-            } catch (error) {
-              console.warn('无法获取页面内容，使用URL作为模拟内容:', error);
-              content = tabs[0].url;
-            }
-            
-            const result = await geminiService.analyzeContent(content, tabs[0].url);
-            // 保存结果并返回
-            latestResults[tabId] = result;
-            sendResponse(result);
-          } catch (error) {
-            console.error('分析失败:', error);
-            sendResponse({ error: '分析失败' });
-          }
-        }
-      } else {
-        sendResponse({ error: '无法获取当前标签页' });
-      }
-    });
-    return true; // 保持消息通道开放
-  }
-  
-  if (request.action === 'retryAnalysis') {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        // 删除缓存的结果，强制重新分析
-        delete latestResults[tabs[0].id];
-        analyzePage(tabs[0].id, tabs[0].url);
-        sendResponse({ success: true });
-      }
-    });
-    return true;
-  }
+  return false;
+}
 
-  if (request.action === 'analyze') {
-    // 立即返回，表示我们会异步处理
-    sendResponse({ received: true });
-    
-    // 异步处理分析请求
-    analyzePage(request.tabId, request.url);
-    return true; // 保持消息通道开放
+// 页面加载处理
+async function handlePageLoad(tabId, url) {
+  try {
+    if (!analysisManager.isPending(url)) {
+      await analyzePage(tabId, url);
+    }
+  } catch (error) {
+    console.error('页面加载处理失败:', error);
   }
+}
 
-  return true;
-});
-
+// 核心分析流程
 async function analyzePage(tabId, url) {
   try {
-    console.log('开始分析页面:', url);
-    
-    // 获取页面内容
+    if (analysisManager.isPending(url)) {
+      return;
+    }
+
+    analysisManager.addPending(url);
+    await injectFloatingCard(tabId);
+
     const content = await getPageContent(tabId);
-    if (!content || !content.trim()) {
+    if (!content?.trim()) {
       throw new Error('无法获取页面内容');
     }
 
-    console.log('获取到页面内容长度:', content.length);
-
-    // 调用 API 进行分析
     const result = await analyzeContent(content);
-    
-    // 保存结果
-    latestResults[tabId] = result;
-    
-    // 通知 popup 分析完成
-    try {
-      await chrome.runtime.sendMessage({
-        type: 'analysisComplete',
-        data: result,
-        tabId
-      });
-    } catch (error) {
-      console.log('Popup可能已关闭，结果已缓存');
-    }
+    analysisManager.setResult(url, result);
+
+    await Promise.all([
+      notifyResult(tabId, result),
+      updateBadge(tabId, result)
+    ]);
 
   } catch (error) {
-    console.error('分析失败:', error);
-    try {
-      await chrome.runtime.sendMessage({
-        type: 'analysisError',
-        error: error.message,
-        tabId
-      });
-    } catch (e) {
-      console.log('Popup可能已关闭，错误已记录');
-    }
+    await Promise.all([
+      notifyError(tabId, error),
+      updateErrorBadge(tabId)
+    ]);
+  } finally {
+    analysisManager.removePending(url);
   }
 }
 
-// 获取页面内容
-async function getPageContent(tabId) {
-  try {
-    // 注入并执行content script
-    const [{ result }] = await chrome.scripting.executeScript({
-      target: { tabId },
-      function: () => document.body.innerText
-    });
-    
-    return result;
-  } catch (error) {
-    console.error('获取内容失败:', error);
-    throw new Error('无法获取页面内容');
-  }
-}
-
-async function showSummary(tabId, result) {
-  await chrome.action.setBadgeText({
-    text: result.score.toString(),
-    tabId
-  });
-  
-  await chrome.action.setBadgeBackgroundColor({
-    color: getScoreColor(result.score),
-    tabId
-  });
-}
-
-async function showError(tabId, error) {
-  await chrome.action.setBadgeText({
-    text: '!',
-    tabId
-  });
-  
-  await chrome.action.setBadgeBackgroundColor({
-    color: '#FF0000',
-    tabId
-  });
-}
-
-function getScoreColor(score) {
-  if (score >= 80) return '#4CAF50';
-  if (score >= 60) return '#FFC107';
-  if (score >= 40) return '#FF9800';
-  return '#F44336';
-}
-
-async function handleContentRequest(tabId, content) {
-  try {
-    if (!content) {
-      throw new Error('无法获取页面内容');
-    }
-
-    const url = (await chrome.tabs.get(tabId)).url;
-    const result = await geminiService.analyzeContent(content, url);
-    
-    // 保存结果
-    latestResults[tabId] = result;
-    
-    return result;
-  } catch (error) {
-    return handleError(error);
-  }
-}
-
-// 调用API进行分析
+// API 调用
 async function analyzeContent(content) {
   try {
-    const response = await fetch('http://localhost:4000/api/extension/analyze', {
+    const response = await fetch(`${CONFIG.API_URL}/api/extension/analyze`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        content: content.substring(0, 10000), // 限制内容长度
+        content: content.substring(0, CONFIG.CONTENT_MAX_LENGTH),
         lang: 'zh'
       })
     });
@@ -224,3 +204,142 @@ async function analyzeContent(content) {
     throw new Error('分析服务暂时不可用');
   }
 }
+
+// 浮动卡片注入
+async function injectFloatingCard(tabId) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        if (document.getElementById('factChecker-frame')) {
+          return;
+        }
+
+        const iframe = document.createElement('iframe');
+        iframe.id = 'factChecker-frame';
+        iframe.src = chrome.runtime.getURL('floating-card.html');
+        iframe.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          width: 180px;
+          height: 40px;
+          border: none;
+          z-index: 2147483647;
+          background: transparent;
+          transition: all 0.3s ease;
+        `;
+        
+        document.body.appendChild(iframe);
+      }
+    });
+  } catch (error) {
+    console.error('注入浮动卡片失败:', error);
+    throw error;
+  }
+}
+
+// 工具函数
+async function getPageContent(tabId) {
+  try {
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => document.body.innerText
+    });
+    return result;
+  } catch (error) {
+    throw new Error('无法获取页面内容');
+  }
+}
+
+// 发送分析结果到内容脚本
+async function notifyResult(tabId, result) {
+  try {
+    await chrome.tabs.sendMessage(tabId, {
+      type: 'SHOW_RESULT',
+      data: result
+    });
+    console.log('Analysis result sent to content script');
+  } catch (error) {
+    console.error('发送结果失败:', error);
+  }
+}
+
+// 发送错误到内容脚本
+async function notifyError(tabId, error) {
+  try {
+    await chrome.tabs.sendMessage(tabId, {
+      type: 'SHOW_ERROR',
+      error: error.message || '发生未知错误'
+    });
+    console.log('Error sent to content script');
+  } catch (error) {
+    console.error('发送错误失败:', error);
+  }
+}
+
+async function updateBadge(tabId, result) {
+  try {
+    if (result && typeof result.score === 'number') {
+      await Promise.all([
+        chrome.action.setBadgeText({
+          text: result.score.toString(),
+          tabId
+        }),
+        chrome.action.setBadgeBackgroundColor({
+          color: getBadgeColor(result.score),
+          tabId
+        })
+      ]);
+    }
+  } catch (error) {
+    console.error('更新徽章失败:', error);
+  }
+}
+
+async function updateErrorBadge(tabId) {
+  try {
+    await Promise.all([
+      chrome.action.setBadgeText({
+        text: '!',
+        tabId
+      }),
+      chrome.action.setBadgeBackgroundColor({
+        color: CONFIG.BADGE_COLORS.POOR,
+        tabId
+      })
+    ]);
+  } catch (error) {
+    console.error('更新错误徽章失败:', error);
+  }
+}
+
+function getBadgeColor(score) {
+  if (score >= 80) return CONFIG.BADGE_COLORS.HIGH;
+  if (score >= 60) return CONFIG.BADGE_COLORS.MEDIUM;
+  if (score >= 40) return CONFIG.BADGE_COLORS.LOW;
+  return CONFIG.BADGE_COLORS.POOR;
+}
+
+// 清理函数
+async function cleanupExistingCards() {
+  try {
+    const tabs = await chrome.tabs.query({});
+    await Promise.all(tabs.map(tab => 
+      chrome.tabs.sendMessage(tab.id, { type: 'REMOVE_CARD' }).catch(() => {})
+    ));
+  } catch (error) {
+    console.error('清理现有卡片失败:', error);
+  }
+}
+
+async function cleanupTab(tabId) {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: 'REMOVE_CARD' });
+  } catch (error) {
+    // 忽略错误，标签页可能已关闭
+  }
+}
+
+// 启动扩展
+chrome.runtime.onInstalled.addListener(initializeExtension);

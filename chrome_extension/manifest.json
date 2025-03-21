@@ -6,14 +6,13 @@
   "permissions": [
     "activeTab",
     "scripting",
-    "storage"
+    "tabs"
   ],
   "host_permissions": [
-    "http://localhost:4000/*"
+    "<all_urls>"
   ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
@@ -23,9 +22,16 @@
     }
   ],
   "action": {
-    "default_popup": "popup.html"
+    "default_title": "Oracle AI Fact Checker"
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
-  }
+  },
+  "web_accessible_resources": [{
+    "resources": [
+      "floating-card.html",
+      "floating-card.js"
+    ],
+    "matches": ["<all_urls>"]
+  }]
 }

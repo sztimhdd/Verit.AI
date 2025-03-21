@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .floating-card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+      border: 1px solid #e0e0e0;
+      min-height: 40px;
+      padding: 16px;
+    }
+
+    /* 处理中的紧凑样式 */
+    .floating-card.processing {
+      width: 180px;
+      height: 40px;
+    }
+
+    /* 结果展示的完整样式 */
+    .floating-card.completed {
+      width: 360px;
+      height: auto;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .close-btn:hover {
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    /* 处理中的标题栏样式 */
+    .processing .card-header {
+      border-bottom: none;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .header-text {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    /* 处理中隐藏内容区域 */
+    .processing .card-content {
+      display: none;
+    }
+
+    .card-content {
+      padding: 16px;
+      max-height: 400px;
+      overflow-y: auto;
+      min-height: 20px;
+    }
+
+    /* 结果样式 */
+    .score-summary {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .score-number {
+      font-size: 36px;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+
+    .score-label {
+      font-size: 14px;
+      color: #666;
+    }
+
+    .analysis-details {
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* 错误状态样式 */
+    .error-message {
+      color: #e74c3c;
+      margin: 0 0 12px;
+    }
+
+    #retry-btn {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    /* 添加一些基本的内容样式 */
+    .flags {
+      margin: 12px 0;
+    }
+
+    .flag-item {
+      background: #f8f9fa;
+      padding: 8px 12px;
+      margin: 4px 0;
+      border-radius: 4px;
+      color: #666;
+    }
+
+    .source-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .source-item:last-child {
+      border-bottom: none;
+    }
+
+    #result-state,
+    #error-state {
+      display: none;
+    }
+
+    /* 在现有样式后添加以下内容 */
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    .tag {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .summary-section,
+    .exaggeration-section,
+    .sources-section,
+    .fact-check-section {
+      margin: 16px 0;
+    }
+
+    h4 {
+      margin: 0 0 8px 0;
+      color: #2c3e50;
+      font-size: 14px;
+    }
+
+    .exaggeration-item {
+      background: #fff3e0;
+      padding: 8px;
+      border-radius: 4px;
+      margin: 8px 0;
+    }
+
+    .exaggeration-item .original {
+      color: #e65100;
+      margin-bottom: 4px;
+    }
+
+    .exaggeration-item .correction {
+      color: #2e7d32;
+    }
+
+    .fact-check-item {
+      border-left: 3px solid #3498db;
+      padding: 8px;
+      margin: 8px 0;
+      background: #f8f9fa;
+    }
+
+    .fact-check-item .claim {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .fact-check-item .verification {
+      color: #666;
+      font-size: 13px;
+    }
+
+    .source-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      background: #f8f9fa;
+      margin: 4px 0;
+      border-radius: 4px;
+    }
+
+    .source-score {
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    /* 调整卡片内容的最大高度和滚动 */
+    .card-content {
+      max-height: 500px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+
+    /* 添加滚动条样式 */
+    .card-content::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .card-content::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 3px;
+    }
+
+    .card-content::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 3px;
+    }
+
+    .card-content::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+  </style>
+</head>
+<body>
+  <div class="floating-card processing">
+    <div class="card-header">
+      <div class="header-left">
+        <div class="spinner"></div>
+        <h3 class="header-text">正在核查...</h3>
+      </div>
+      <button class="close-btn" id="close-btn">×</button>
+    </div>
+    
+    <div class="card-content">
+      <div id="result-state"></div>
+      <div id="error-state">
+        <p class="error-message"></p>
+        <button id="retry-btn">重试</button>
+      </div>
+    </div>
+  </div>
+  <script src="floating-card.js"></script>
+</body>
+</html> 
