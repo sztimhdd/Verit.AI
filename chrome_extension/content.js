@@ -167,6 +167,22 @@ function initialize() {
 // 启动初始化
 initialize();
 
+// 添加 cleanup 函数
+function cleanup() {
+  // 移除浮动卡片
+  removeFloatingCard();
+  
+  // 断开 URL 观察器
+  if (urlObserver) {
+    urlObserver.disconnect();
+    urlObserver = null;
+  }
+  
+  // 移除事件监听器
+  window.removeEventListener('popstate', handleUrlChange);
+  window.removeEventListener('beforeunload', removeFloatingCard);
+}
+
 // 导出清理函数供外部使用
 window.factCheckerCleanup = cleanup;
 
