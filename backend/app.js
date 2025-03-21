@@ -13,10 +13,12 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 4000;
 
-// 增加请求体大小限制
+// 启用 CORS
+app.use(cors());
+
+// 解析 JSON 请求体
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use(cors());
 
 // 初始化 Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -190,7 +192,12 @@ app.post('/api/extension/analyze', async (req, res) => {
   }
 });
 
+// 测试路由
+app.get('/', (req, res) => {
+  res.json({ message: 'Server is running' });
+});
+
 // 启动服务器
 app.listen(port, () => {
-  console.log(`后端服务运行在 http://localhost:${port}`);
+  console.log(`Server running on port ${port}`);
 }); 

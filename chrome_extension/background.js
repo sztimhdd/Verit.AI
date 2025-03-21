@@ -1,6 +1,6 @@
 // 配置常量
 const CONFIG = {
-  API_URL: 'http://localhost:4000',
+  API_URL: 'https://45c90e87-a787-4d55-b3a0-8ac505903a5f-00-2dv568h2t0hkr.spock.replit.dev/api/analyze',
   DEBOUNCE_TIME: 3000, // 防重复提交时间间隔
   CONTENT_MAX_LENGTH: 10000, // 内容最大长度限制
   BADGE_COLORS: {
