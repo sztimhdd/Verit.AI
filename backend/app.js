@@ -4,6 +4,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import axios from 'axios';
+import cheerio from 'cheerio';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -23,6 +25,46 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // 初始化 Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+
+// 获取网页内容的函数
+async function fetchWebContent(url) {
+    try {
+        const response = await axios.get(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        });
+        
+        const $ = cheerio.load(response.data);
+        
+        // 移除不需要的元素
+        $('script').remove();
+        $('style').remove();
+        $('nav').remove();
+        $('header').remove();
+        $('footer').remove();
+        $('iframe').remove();
+        $('img').remove();
+        
+        // 获取主要内容
+        const title = $('title').text().trim();
+        const content = $('body').text().trim();
+        
+        // 限制内容长度
+        const maxLength = 10000;
+        const truncatedContent = content.length > maxLength 
+            ? content.substring(0, maxLength) + '...' 
+            : content;
+        
+        return {
+            title,
+            content: truncatedContent
+        };
+    } catch (error) {
+        console.error('获取网页内容失败:', error);
+        throw new Error('无法获取网页内容');
+    }
+}
 
 // Token 使用统计函数
 function calculateTokenUsage(content, response) {
@@ -48,13 +90,23 @@ app.post('/api/extension/analyze', async (req, res) => {
   try {
     const { content, url, lang = 'zh' } = req.body;
 
-    if (!content) {
-      return res.status(400).json({
-        status: 'error',
-        error: {
-          message: '内容不能为空'
-        }
-      });
+    // 如果提供了 URL 但没有内容，则获取网页内容
+    let analysisContent = content;
+    let pageTitle = '';
+    
+    if (url && !content) {
+        const webContent = await fetchWebContent(url);
+        analysisContent = webContent.content;
+        pageTitle = webContent.title;
+    }
+
+    if (!analysisContent) {
+        return res.status(400).json({
+            status: 'error',
+            error: {
+                message: '内容不能为空'
+            }
+        });
     }
 
     // 构建多维度分析提示词
@@ -65,7 +117,7 @@ app.post('/api/extension/analyze', async (req, res) => {
 4. 夸大检查：识别可能的夸大或误导性表述
 5. 整体评估：考虑事实准确性、来源可信度、偏见程度和完整性
 
-文本内容：${content}
+${pageTitle ? `标题：${pageTitle}\n` : ''}文本内容：${analysisContent}
 
 请严格按照以下JSON格式返回分析结果：
 {
@@ -108,7 +160,7 @@ app.post('/api/extension/analyze', async (req, res) => {
     // 记录请求开始
     console.log('\n=== 新的分析请求 ===');
     console.log(`时间: ${new Date().toLocaleString()}`);
-    console.log(`内容长度: ${content.length} 字符`);
+    console.log(`内容长度: ${analysisContent.length} 字符`);
 
     // 调用 Gemini API
     const result = await model.generateContent({
@@ -163,7 +215,7 @@ app.post('/api/extension/analyze', async (req, res) => {
     }
 
     // 计算并记录 token 使用量
-    const tokenUsage = calculateTokenUsage(content, analysisResult);
+    const tokenUsage = calculateTokenUsage(analysisContent, analysisResult);
     const timeUsed = Date.now() - startTime;
     
     console.log('\n=== API调用统计 ===');
