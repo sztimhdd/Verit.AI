@@ -1,0 +1,9 @@
+{
+  "verbose": true,
+  "ignore": ["node_modules/*"],
+  "watch": ["*.js"],
+  "legacyWatch": true,
+  "delay": "1000",
+  "polling": true,
+  "pollInterval": 100
+} 
