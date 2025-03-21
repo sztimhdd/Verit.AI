@@ -19,11 +19,11 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd backend"
+args = "git pull"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "git pull"
+args = "cd backend"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
@@ -32,15 +32,6 @@ args = "npm install"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "node app.js"
-
-[[workflows.workflow]]
-name = "Run Frontend"
-author = 40712558
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd frontend && python -m http.server 4000 --bind 0.0.0.0"
 
 [[ports]]
 localPort = 4000
