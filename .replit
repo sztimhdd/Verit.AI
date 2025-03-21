@@ -7,7 +7,7 @@ channel = "stable-24_05"
 [deployment]
 build = ["sh", "-c", "cd backend && npm install"]
 deploymentTarget = "static"
-publicDir = '\backend'
+publicDir = "backend"
 
 [workflows]
 runButton = "Run"
