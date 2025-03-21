@@ -1,0 +1,8 @@
+modules = ["nodejs-20", "python-3.12", "web"]
+run = "cd backend && node app.js"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-c", "cd backend && node app.js"]
