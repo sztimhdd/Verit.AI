@@ -1,6 +1,6 @@
 // 配置常量
 const CONFIG = {
-  API_URL: 'http://localhost:4000',
+  API_URL: 'https://45c90e87-a787-4d55-b3a0-8ac505903a5f-00-2dv568h2t0hkr.spock.replit.dev',
   DEBOUNCE_TIME: 3000, // 防重复提交时间间隔
   CONTENT_MAX_LENGTH: 10000, // 内容最大长度限制
   BADGE_COLORS: {
@@ -185,11 +185,19 @@ async function analyzePage(tabId, url) {
 // API 调用
 async function analyzeContent(content) {
   try {
+    // 获取当前活动标签页的信息
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) {
+      throw new Error('无法获取当前标签页信息');
+    }
+
     const response = await fetch(`${CONFIG.API_URL}/api/extension/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         content: content.substring(0, CONFIG.CONTENT_MAX_LENGTH),
+        title: tab.title || '', // 使用标签页的标题
+        url: tab.url || '',     // 使用标签页的 URL
         lang: 'zh'
       })
     });
@@ -198,7 +206,8 @@ async function analyzeContent(content) {
       throw new Error(`API请求失败: ${response.status}`);
     }
 
-    return await response.json();
+    const result = await response.json();
+    return result.data || result;
   } catch (error) {
     console.error('API调用失败:', error);
     throw new Error('分析服务暂时不可用');
@@ -222,12 +231,13 @@ async function injectFloatingCard(tabId) {
           position: fixed;
           top: 20px;
           right: 20px;
-          width: 180px;
-          height: 40px;
+          width: 360px;
+          height: 200px;
           border: none;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
           z-index: 2147483647;
-          background: transparent;
-          transition: all 0.3s ease;
+          background: white;
         `;
         
         document.body.appendChild(iframe);
@@ -244,10 +254,16 @@ async function getPageContent(tabId) {
   try {
     const [{ result }] = await chrome.scripting.executeScript({
       target: { tabId },
-      func: () => document.body.innerText
+      func: () => {
+        // 在页面上下文中执行
+        const title = document.title;
+        const content = document.body.innerText;
+        return { title, content };
+      }
     });
-    return result;
+    return result.content; // 只返回内容部分
   } catch (error) {
+    console.error('获取页面内容失败:', error);
     throw new Error('无法获取页面内容');
   }
 }
@@ -255,13 +271,32 @@ async function getPageContent(tabId) {
 // 发送分析结果到内容脚本
 async function notifyResult(tabId, result) {
   try {
-    await chrome.tabs.sendMessage(tabId, {
-      type: 'SHOW_RESULT',
-      data: result
-    });
-    console.log('Analysis result sent to content script');
+    // 先检查标签页是否存在
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!tab) {
+      throw new Error('标签页不存在');
+    }
+
+    // 确保内容脚本已注入
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content.js']
+    }).catch(() => {});
+
+    // 延迟发送消息，确保内容脚本已准备就绪
+    setTimeout(async () => {
+      try {
+        await chrome.tabs.sendMessage(tabId, {
+          type: 'SHOW_RESULT',
+          data: result
+        });
+        console.log('Analysis result sent to content script');
+      } catch (error) {
+        console.error('发送结果失败:', error);
+      }
+    }, 500);
   } catch (error) {
-    console.error('发送结果失败:', error);
+    console.error('通知结果失败:', error);
   }
 }
 
