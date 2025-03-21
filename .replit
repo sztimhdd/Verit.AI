@@ -7,10 +7,10 @@ channel = "stable-24_05"
 [deployment]
 build = ["sh", "-c", "cd backend && npm install"]
 deploymentTarget = "static"
-publicDir = "backend"
+publicDir = "frontend"
 
 [workflows]
-runButton = "Run"
+runButton = "Run Frontend"
 
 [[workflows.workflow]]
 name = "Run"
@@ -32,6 +32,15 @@ args = "npm install"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "node app.js"
+
+[[workflows.workflow]]
+name = "Run Frontend"
+author = 40712558
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd frontend && python -m http.server 4000 --bind 0.0.0.0"
 
 [[ports]]
 localPort = 4000
