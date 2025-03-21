@@ -1,81 +1,186 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const urlInput = document.getElementById('urlInput');
-    const analyzeBtn = document.getElementById('analyzeBtn');
-    const loadingState = document.getElementById('loadingState');
-    const contentSummary = document.getElementById('contentSummary');
-    const resultCard = document.getElementById('resultCard');
-    const errorMessage = document.getElementById('errorMessage');
+// 配置
+const CONFIG = {
+    API_URL: 'https://45c90e87-a787-4d55-b3a0-8ac505903a5f-00-2dv568h2t0hkr.spock.replit.dev/api/extension/analyze'
+};
 
-    // API端点（开发环境）
-    const API_ENDPOINT = 'http://localhost:3000/api/analyze';
+// DOM 元素
+const elements = {
+    form: document.getElementById('urlForm'),
+    urlInput: document.getElementById('urlInput'),
+    loadingState: document.getElementById('loadingState'),
+    resultCard: document.getElementById('resultCard'),
+    errorState: document.getElementById('errorState'),
+    errorMessage: document.getElementById('errorMessage')
+};
 
-    analyzeBtn.addEventListener('click', async function() {
-        const url = urlInput.value.trim();
-        
-        if (!url) {
-            showError('请输入要核查的URL');
-            return;
+// 事件监听
+elements.form.addEventListener('submit', handleSubmit);
+
+// 表单提交处理
+async function handleSubmit(event) {
+    event.preventDefault();
+    const url = elements.urlInput.value.trim();
+    
+    if (!url) {
+        showError('请输入有效的URL');
+        return;
+    }
+
+    try {
+        showLoading();
+        const result = await analyzeUrl(url);
+        showResult(result);
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+// API 调用
+async function analyzeUrl(url) {
+    try {
+        const response = await fetch(CONFIG.API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                url: url,
+                lang: 'zh'
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`API请求失败: ${response.status}`);
         }
 
-        try {
-            // 重置界面状态
-            resetUI();
-            
-            // 显示加载状态
-            loadingState.classList.remove('hidden');
-            
-            // 调用API
-            const response = await fetch(API_ENDPOINT, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ url })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            
-            // 隐藏加载状态
-            loadingState.classList.add('hidden');
-            
-            // 显示内容汇总
-            displayContentSummary(data.results);
-            
-            // 显示核查结果卡片
-            displayResultCard(data.htmlCard);
-
-        } catch (error) {
-            showError('分析过程中出现错误：' + error.message);
-        }
-    });
-
-    function resetUI() {
-        loadingState.classList.add('hidden');
-        contentSummary.classList.add('hidden');
-        resultCard.classList.add('hidden');
-        errorMessage.classList.add('hidden');
+        const result = await response.json();
+        return result.data || result;
+    } catch (error) {
+        console.error('API调用失败:', error);
+        throw new Error('分析服务暂时不可用');
     }
+}
 
-    function showError(message) {
-        errorMessage.textContent = message;
-        errorMessage.classList.remove('hidden');
-    }
+// UI 更新函数
+function showLoading() {
+    elements.loadingState.classList.remove('hidden');
+    elements.resultCard.classList.add('hidden');
+    elements.errorState.classList.add('hidden');
+}
 
-    function displayContentSummary(results) {
-        document.getElementById('articleTitle').textContent = results.title || '未获取到标题';
-        document.getElementById('articleSource').textContent = results.source || '未获取到信源';
-        document.getElementById('articleDate').textContent = results.date || '未获取到日期';
-        document.getElementById('articleClaims').textContent = results.claims?.join('\n') || '未获取到主要观点';
-        
-        contentSummary.classList.remove('hidden');
-    }
+function hideLoading() {
+    elements.loadingState.classList.add('hidden');
+}
 
-    function displayResultCard(htmlCard) {
-        resultCard.innerHTML = htmlCard;
-        resultCard.classList.remove('hidden');
+function showError(message) {
+    elements.errorMessage.textContent = message;
+    elements.errorState.classList.remove('hidden');
+    elements.resultCard.classList.add('hidden');
+}
+
+function showResult(result) {
+    const content = createResultContent(result);
+    elements.resultCard.innerHTML = content;
+    elements.resultCard.classList.remove('hidden');
+    elements.errorState.classList.add('hidden');
+}
+
+// 结果内容生成
+function createResultContent(result) {
+    return `
+        <div class="result-card">
+            <div class="flex items-center justify-between mb-6">
+                <div class="text-center">
+                    <div class="text-4xl font-bold ${getScoreColor(result.score)}">${result.score}</div>
+                    <div class="text-gray-600">总体可信度评分</div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="flex flex-wrap gap-2">
+                    ${Object.entries(result.flags).map(([key, value]) => `
+                        <div class="tag" style="background: ${getLevelColor(value)}20; 
+                                            color: ${getLevelColor(value)}; 
+                                            border: 1px solid ${getLevelColor(value)}">
+                            ${getTagLabel(key)}: ${value}
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">内容摘要</h3>
+                    <p class="text-gray-700">${result.summary}</p>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">信息来源</h3>
+                    <div class="space-y-2">
+                        ${result.source_verification.sources_found.map((source, index) => `
+                            <div class="source-item">
+                                <span>${source}</span>
+                                <span class="bg-green-100 text-green-800 px-2 py-1 rounded">
+                                    ${result.source_verification.credibility_scores[index]}/10
+                                </span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">事实核查</h3>
+                    ${result.fact_check.claims_identified.map((claim, index) => `
+                        <div class="fact-check-item">
+                            <div class="font-medium">${claim}</div>
+                            <div class="text-gray-600 mt-1">
+                                ${result.fact_check.verification_results[index]}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                ${result.exaggeration_check.exaggerations_found.length > 0 ? `
+                    <div>
+                        <h3 class="text-lg font-semibold mb-2">夸张表述</h3>
+                        ${result.exaggeration_check.exaggerations_found.map((exag, index) => `
+                            <div class="exaggeration-item">
+                                <div class="text-orange-800">原文：${exag}</div>
+                                <div class="text-green-800 mt-1">
+                                    建议：${result.exaggeration_check.corrections[index]}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+// 辅助函数
+function getScoreColor(score) {
+    if (score >= 80) return 'text-green-600';
+    if (score >= 60) return 'text-yellow-600';
+    if (score >= 40) return 'text-orange-600';
+    return 'text-red-600';
+}
+
+function getLevelColor(level) {
+    switch(level) {
+        case '高': return '#4caf50';
+        case '中': return '#ff9800';
+        case '低': return '#f44336';
+        default: return '#757575';
     }
-}); 
+}
+
+function getTagLabel(key) {
+    const labels = {
+        factuality: '事实性',
+        objectivity: '客观性',
+        reliability: '可靠性',
+        bias: '偏见性'
+    };
+    return labels[key] || key;
+} 
