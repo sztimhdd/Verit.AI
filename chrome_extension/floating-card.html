@@ -2,89 +2,72 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    :root {
-      --primary-color: #2196f3;
-      --success-color: #4caf50;
-      --warning-color: #ff9800;
-      --error-color: #f44336;
-      --text-primary: #2c3e50;
-      --text-secondary: #666;
-      --border-color: #e0e0e0;
-      --background-light: #f8f9fa;
-      --card-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-      --header-height: 56px;
-      --card-padding: 20px;
-      --border-radius: 12px;
-      --min-font-size: 12pt;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: var(--min-font-size);
-      line-height: 1.5;
-      color: var(--text-primary);
-      overflow: hidden;
     }
 
     .floating-card {
       background: white;
-      border-radius: var(--border-radius);
-      box-shadow: var(--card-shadow);
-      border: 1px solid var(--border-color);
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      max-height: 90vh;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+      border: 1px solid #e0e0e0;
+      min-height: 40px;
+      padding: 16px;
     }
 
     /* 处理中的紧凑样式 */
     .floating-card.processing {
-      width: 320px;
-      height: var(--header-height);
-      min-height: auto;
+      width: 180px;
+      height: 40px;
     }
 
     /* 结果展示的完整样式 */
     .floating-card.completed {
-      width: 480px;
-      min-height: var(--header-height);
+      width: 360px;
+      height: auto;
     }
 
     .card-header {
-      height: var(--header-height);
-      padding: 0 var(--card-padding);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: white;
-      border-bottom: 1px solid var(--border-color);
-      flex-shrink: 0;
+      margin-bottom: 16px;
     }
 
     .header-left {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .close-btn:hover {
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    /* 处理中的标题栏样式 */
+    .processing .card-header {
+      border-bottom: none;
     }
 
     .spinner {
       width: 20px;
       height: 20px;
-      border: 2px solid var(--background-light);
-      border-top: 2px solid var(--primary-color);
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #3498db;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      flex-shrink: 0;
     }
 
     @keyframes spin {
@@ -93,196 +76,193 @@
     }
 
     .header-text {
-      font-size: 13pt;
-      font-weight: 600;
-      color: var(--text-primary);
+      margin: 0;
+      font-size: 16px;
     }
 
-    .close-btn {
-      width: 32px;
-      height: 32px;
-      border: none;
-      background: transparent;
-      color: var(--text-secondary);
-      font-size: 20px;
-      cursor: pointer;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-    }
-
-    .close-btn:hover {
-      background: var(--background-light);
-      color: var(--text-primary);
+    /* 处理中隐藏内容区域 */
+    .processing .card-content {
+      display: none;
     }
 
     .card-content {
-      flex: 1;
-      padding: var(--card-padding);
-      overflow: hidden;
-    }
-
-    .processing .card-content {
-      display: none;
+      padding: 16px;
+      max-height: 400px;
+      overflow-y: auto;
+      min-height: 20px;
     }
 
     /* 结果样式 */
     .score-summary {
       text-align: center;
-      padding: 16px;
-      margin: 0 0 16px;
-      background: var(--background-light);
-      border-radius: 8px;
+      margin-bottom: 16px;
     }
 
     .score-number {
-      font-size: 48px;
+      font-size: 36px;
       font-weight: bold;
-      line-height: 1.2;
-      margin-bottom: 4px;
+      color: #2c3e50;
     }
 
     .score-label {
-      font-size: 13pt;
-      color: var(--text-secondary);
-      font-weight: 500;
+      font-size: 14px;
+      color: #666;
     }
 
-    .tags-container {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-      margin-bottom: 16px;
+    .analysis-details {
+      font-size: 14px;
+      line-height: 1.5;
     }
 
-    .tag {
-      padding: 8px;
-      border-radius: 6px;
-      font-size: 12pt;
-      font-weight: 500;
-      text-align: center;
+    /* 错误状态样式 */
+    .error-message {
+      color: #e74c3c;
+      margin: 0 0 12px;
     }
 
-    .section {
-      margin-bottom: 16px;
+    #retry-btn {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
     }
 
-    .section:last-child {
-      margin-bottom: 0;
+    /* 添加一些基本的内容样式 */
+    .flags {
+      margin: 12px 0;
     }
 
-    .section-title {
-      font-size: 14pt;
-      font-weight: 600;
-      margin-bottom: 12px;
-      padding-bottom: 6px;
-      border-bottom: 2px solid var(--border-color);
-      color: var(--text-primary);
-    }
-
-    .section-content {
-      font-size: 12pt;
-      color: var(--text-primary);
-    }
-
-    .item-card {
-      background: var(--background-light);
-      border-radius: 6px;
-      padding: 12px;
-      margin-bottom: 8px;
-    }
-
-    .item-card:last-child {
-      margin-bottom: 0;
+    .flag-item {
+      background: #f8f9fa;
+      padding: 8px 12px;
+      margin: 4px 0;
+      border-radius: 4px;
+      color: #666;
     }
 
     .source-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
     }
 
     .source-item:last-child {
-      margin-bottom: 0;
+      border-bottom: none;
     }
 
-    .source-score {
-      background: var(--success-color);
-      color: white;
-      padding: 2px 10px;
-      border-radius: 12px;
+    #result-state,
+    #error-state {
+      display: none;
+    }
+
+    /* 在现有样式后添加以下内容 */
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    .tag {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
       font-weight: 500;
     }
 
+    .summary-section,
+    .exaggeration-section,
+    .sources-section,
+    .fact-check-section {
+      margin: 16px 0;
+    }
+
+    h4 {
+      margin: 0 0 8px 0;
+      color: #2c3e50;
+      font-size: 14px;
+    }
+
+    .exaggeration-item {
+      background: #fff3e0;
+      padding: 8px;
+      border-radius: 4px;
+      margin: 8px 0;
+    }
+
+    .exaggeration-item .original {
+      color: #e65100;
+      margin-bottom: 4px;
+    }
+
+    .exaggeration-item .correction {
+      color: #2e7d32;
+    }
+
     .fact-check-item {
-      border-left: 3px solid var(--primary-color);
+      border-left: 3px solid #3498db;
+      padding: 8px;
+      margin: 8px 0;
+      background: #f8f9fa;
     }
 
     .fact-check-item .claim {
       font-weight: 500;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
     .fact-check-item .verification {
-      color: var(--text-secondary);
+      color: #666;
+      font-size: 13px;
     }
 
-    .exaggeration-item {
-      border-left: 3px solid var(--warning-color);
+    .source-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      background: #f8f9fa;
+      margin: 4px 0;
+      border-radius: 4px;
     }
 
-    .exaggeration-item .original {
-      color: var(--error-color);
-      margin-bottom: 6px;
+    .source-score {
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
     }
 
-    .exaggeration-item .correction {
-      color: var(--success-color);
+    /* 调整卡片内容的最大高度和滚动 */
+    .card-content {
+      max-height: 500px;
+      overflow-y: auto;
+      padding-right: 8px;
     }
 
-    /* 错误状态 */
-    .error-message {
-      color: var(--error-color);
-      background: #fdf3f2;
-      padding: 12px;
-      border-radius: 6px;
-      margin-bottom: 12px;
+    /* 添加滚动条样式 */
+    .card-content::-webkit-scrollbar {
+      width: 6px;
     }
 
-    #retry-btn {
-      background: var(--primary-color);
-      color: white;
-      border: none;
-      padding: 6px 16px;
-      border-radius: 16px;
-      font-size: 12pt;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
+    .card-content::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 3px;
     }
 
-    #retry-btn:hover {
-      background: #1976d2;
+    .card-content::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 3px;
     }
 
-    /* 响应式调整 */
-    @media (max-width: 520px) {
-      .floating-card.completed {
-        width: 100vw;
-        max-height: 100vh;
-        border-radius: 0;
-      }
-
-      .tags-container {
-        grid-template-columns: 1fr;
-      }
-
-      .score-number {
-        font-size: 42px;
-      }
+    .card-content::-webkit-scrollbar-thumb:hover {
+      background: #555;
     }
   </style>
 </head>
@@ -298,7 +278,7 @@
     
     <div class="card-content">
       <div id="result-state"></div>
-      <div id="error-state" style="display: none;">
+      <div id="error-state">
         <p class="error-message"></p>
         <button id="retry-btn">重试</button>
       </div>
