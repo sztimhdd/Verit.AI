@@ -146,8 +146,10 @@ function initialize() {
 
     switch (event.data.type) {
       case 'RESIZE_FRAME':
+        console.log('content.js 接收到 RESIZE_FRAME 消息:', event.data);
         iframe.style.width = `${event.data.width}px`;
         iframe.style.height = `${event.data.height}px`;
+        console.log('iframe 样式已更新为:', { width: iframe.style.width, height: iframe.style.height });
         break;
         
       case 'REMOVE_FRAME':

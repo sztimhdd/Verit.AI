@@ -3,62 +3,54 @@ let cardState = 'loading'; // loading, result, error
 
 // 初始化浮动卡片
 function initializeFloatingCard() {
-  const card = document.querySelector('.floating-card');
+  // 获取DOM元素
+  const loadingState = document.getElementById('loading-state');
   const resultState = document.getElementById('result-state');
   const errorState = document.getElementById('error-state');
-  const loadingSpinner = document.querySelector('.spinner');
-  const headerText = document.querySelector('.header-text');
   const closeBtn = document.getElementById('close-btn');
+  const closeBtnError = document.getElementById('close-btn-error');
   const retryBtn = document.getElementById('retry-btn');
-  const cardContent = document.querySelector('.card-content');
+  
+  console.log('事实核查卡片已初始化');
 
-  console.log('Floating card initialized');
+  // 设置卡片状态
+  function setCardState(state) {
+    loadingState.style.display = state === 'loading' ? 'flex' : 'none';
+    resultState.style.display = state === 'result' ? 'block' : 'none';
+    errorState.style.display = state === 'error' ? 'block' : 'none';
+  }
 
   // 监听消息
   window.addEventListener('message', (event) => {
-    console.log('Floating card received message:', event.data);
+    console.log('收到消息:', event.data);
 
     if (event.data.type === 'UPDATE_RESULT') {
       const result = event.data.data;
-      console.log('Updating result:', result);
+      console.log('更新结果:', result);
 
-      try {
-        // 更新加载状态
-        if (loadingSpinner) loadingSpinner.style.display = 'none';
-        if (headerText) headerText.textContent = '核查完成';
-        
-        // 显示结果
-        if (resultState && cardContent) {
-          // 显示卡片内容容器
-          cardContent.style.display = 'block';
-          
-          // 生成并显示结果内容
-          resultState.innerHTML = createResultContent(result);
-          resultState.style.display = 'block';
-          
-          // 隐藏错误状态
-          if (errorState) {
-            errorState.style.display = 'none';
-          }
-
-          // 更新卡片状态
-          card.className = 'floating-card completed';
-
-          // 调整卡片大小
-          window.parent.postMessage({
-            type: 'RESIZE_FRAME',
-            width: 360,
-            height: 500
-          }, '*');
-        } else {
-          console.error('Required elements not found:', { resultState, cardContent });
-        }
-      } catch (error) {
-        console.error('Error updating result:', error);
-        showError('更新结果时发生错误');
+      if (result) {
+        // 设置评分和进度环
+        setScoreProgress(result.score);
+        // 生成结果内容
+        document.getElementById('result-content').innerHTML = createResultContent(result);
+        // 绑定显示更多实体的点击事件
+        bindEntitiesToggle();
+        // 显示结果状态
+        setCardState('result');
+        // 调整卡片高度
+        adjustCardHeight();
+      } else {
+        console.error('未提供结果数据');
+        showError('结果数据无效');
       }
     }
   });
+
+  // 显示错误
+  function showError(message) {
+    document.getElementById('error-message').textContent = message || '分析过程中出现错误，请重试。';
+    setCardState('error');
+  }
 
   // 关闭按钮事件
   if (closeBtn) {
@@ -67,155 +59,243 @@ function initializeFloatingCard() {
     });
   }
 
+  if (closeBtnError) {
+    closeBtnError.addEventListener('click', () => {
+      window.parent.postMessage({ type: 'REMOVE_FRAME' }, '*');
+    });
+  }
+
   // 重试按钮事件
   if (retryBtn) {
     retryBtn.addEventListener('click', () => {
-      if (loadingSpinner) loadingSpinner.style.display = 'block';
-      if (headerText) headerText.textContent = '正在核查...';
-      if (resultState) resultState.style.display = 'none';
-      if (errorState) errorState.style.display = 'none';
-      if (card) card.className = 'floating-card processing';
-      
+      setCardState('loading');
       window.parent.postMessage({ type: 'RETRY_ANALYSIS' }, '*');
     });
   }
 
-  function showError(message) {
-    if (errorState) {
-      const errorMessage = errorState.querySelector('.error-message');
-      if (errorMessage) {
-        errorMessage.textContent = message;
-      }
-      errorState.style.display = 'block';
-      if (resultState) {
-        resultState.style.display = 'none';
-      }
+  // 设置评分进度环
+  function setScoreProgress(score) {
+    const circle = document.getElementById('score-circle');
+    const scoreValue = document.getElementById('score-value');
+    const radius = circle.r.baseVal.value;
+    const circumference = radius * 2 * Math.PI;
+    
+    circle.style.strokeDasharray = `${circumference} ${circumference}`;
+    
+    const offset = circumference - (score / 100) * circumference;
+    circle.style.strokeDashoffset = offset;
+    
+    // 设置颜色
+    let color;
+    if (score >= 80) {
+      color = 'var(--success)';
+    } else if (score >= 60) {
+      color = 'var(--primary)';
+    } else if (score >= 40) {
+      color = 'var(--warning)';
+    } else {
+      color = 'var(--danger)';
+    }
+    
+    circle.style.stroke = color;
+    scoreValue.textContent = score;
+    scoreValue.style.color = color;
+  }
+
+  // 绑定显示更多实体的点击事件
+  function bindEntitiesToggle() {
+    const toggleBtn = document.getElementById('entities-toggle');
+    if (toggleBtn) {
+      const hiddenEntities = document.getElementById('entities-hidden');
+      let entitiesShown = false;
+      
+      toggleBtn.addEventListener('click', () => {
+        if (entitiesShown) {
+          hiddenEntities.classList.add('entities-hidden');
+          toggleBtn.textContent = '显示更多实体 >';
+        } else {
+          hiddenEntities.classList.remove('entities-hidden');
+          toggleBtn.textContent = '< 收起实体';
+        }
+        entitiesShown = !entitiesShown;
+      });
     }
   }
 
+  // 创建结果内容
   function createResultContent(result) {
-    if (!result) {
-      console.error('No result data provided');
-      return '';
+    if (!result) return '';
+    
+    // 设置顶部摘要
+    const summaryPreview = document.getElementById('summary-preview');
+    if (summaryPreview) {
+      summaryPreview.textContent = result.summary || '无法提供内容总结';
+    }
+    
+    // 评级映射函数
+    const getRatingClass = (value) => {
+      if (value === '高') return 'rating-high';
+      if (value === '中') return 'rating-medium';
+      return 'rating-low';
+    };
+
+    // 获取图标映射
+    const getFlagIcon = (key) => {
+      const icons = {
+        factuality: 'fa-check-circle',
+        objectivity: 'fa-balance-scale',
+        reliability: 'fa-shield-alt',
+        bias: 'fa-random'
+      };
+      return icons[key] || 'fa-flag';
+    };
+
+    // 获取标签名称
+    const getFlagLabel = (key) => ({
+      factuality: '真实性',
+      objectivity: '客观性',
+      reliability: '可靠性',
+      bias: '偏见度'
+    })[key] || key;
+
+    // 创建评估指标
+    const flagsHTML = Object.entries(result.flags || {}).map(([key, value]) => `
+      <div class="flag-item">
+        <div class="flag-icon ${getRatingClass(value)}">
+          <i class="fas ${getFlagIcon(key)}"></i>
+        </div>
+        <div class="flag-title">${getFlagLabel(key)}</div>
+        <div class="flag-value">${value}</div>
+      </div>
+    `).join('');
+
+    // 创建来源标签
+    const sourcesHTML = (result.source_verification?.sources_found || []).map((source, index) => `
+      <div class="source-tag">
+        <span class="source-credibility">${result.source_verification.credibility_scores[index]}</span>
+        ${source}
+      </div>
+    `).join('');
+
+    // 创建事实检查项
+    const factChecksHTML = (result.fact_check?.claims_identified || []).map((claim, index) => `
+      <div class="fact-item">
+        <div class="fact-content">${claim}</div>
+        <div class="fact-status">${result.fact_check.verification_results[index] || '需要核实'}</div>
+      </div>
+    `).join('');
+
+    // 创建夸张信息项
+    const exaggerationsHTML = (result.exaggeration_check?.exaggerations_found || []).map((exaggeration, index) => `
+      <div class="exaggeration-item">
+        <div class="exaggeration-claim">${exaggeration}</div>
+        <div class="exaggeration-correction">${result.exaggeration_check.corrections[index] || '需要更准确的表述'}</div>
+      </div>
+    `).join('');
+
+    // 创建实体标签
+    const entities = result.entity_verification?.entities_found || [];
+    let entitiesHTML = '';
+    
+    if (entities.length > 0) {
+      const previewEntities = entities.slice(0, Math.min(10, entities.length));
+      const hiddenEntities = entities.length > 10 ? entities.slice(10) : [];
+      
+      const previewHTML = previewEntities.map(entity => `
+        <div class="entity-tag">${entity}</div>
+      `).join('');
+      
+      let hiddenHTML = '';
+      if (hiddenEntities.length > 0) {
+        hiddenHTML = `
+          <span class="entities-toggle" id="entities-toggle">显示更多实体 ></span>
+          <div class="entities-container entities-hidden" id="entities-hidden">
+            ${hiddenEntities.map(entity => `<div class="entity-tag">${entity}</div>`).join('')}
+          </div>
+        `;
+      }
+      
+      entitiesHTML = `
+        <div class="entities-container" id="entities-preview">
+          ${previewHTML}
+        </div>
+        ${hiddenHTML}
+      `;
+    } else {
+      entitiesHTML = '<p>未发现需要验证的实体</p>';
     }
 
-    console.log('Creating result content with:', result);
-
     return `
-      <div class="score-summary">
-        <div class="score-number">${result.score}</div>
-        <div class="score-label">总体可信度评分</div>
+      <div class="section">
+        <h2 class="section-title">
+          <i class="fas fa-flag"></i>
+          信息评估指标
+        </h2>
+        <div class="flags-container">
+          ${flagsHTML}
+        </div>
       </div>
       
-      <div class="analysis-details">
-        <div class="tags-container">
-          ${Object.entries(result.flags).map(([key, value]) => `
-            <div class="tag" style="background: ${getLevelColor(value)}20; 
-                                  color: ${getLevelColor(value)}; 
-                                  border: 1px solid ${getLevelColor(value)}">
-              ${getTagLabel(key)}: ${value}
-            </div>
-          `).join('')}
+      <div class="section">
+        <h2 class="section-title">
+          <i class="fas fa-link"></i>
+          信息来源评估
+        </h2>
+        <div class="sources-list">
+          ${sourcesHTML || '<p>未找到相关信息来源</p>'}
         </div>
-
-        <div class="summary-section">
-          <h4>内容摘要</h4>
-          <p>${result.summary}</p>
+      </div>
+      
+      <div class="section">
+        <h2 class="section-title">
+          <i class="fas fa-search"></i>
+          事实核查
+        </h2>
+        <div class="facts-container">
+          ${factChecksHTML || '<p>未发现需要核查的主要事实声明</p>'}
         </div>
-
-        <div class="sources-section">
-          <h4>信息来源 (整体可信度: ${result.source_verification.overall_source_credibility})</h4>
-          <div class="sources-list">
-            ${result.source_verification.sources_found.map((source, index) => `
-              <div class="source-item">
-                <span class="source-name">${source}</span>
-                <span class="source-score">${result.source_verification.credibility_scores[index]}/10</span>
-              </div>
-            `).join('')}
-            ${result.sources.length > 0 ? `
-              <div style="margin-top: 12px;">
-                <h5>参考来源</h5>
-                ${result.sources.map(source => `
-                  <div class="source-item">
-                    <span class="source-name">${source.title}</span>
-                    <a href="${source.url}" target="_blank" class="source-link">查看来源</a>
-                  </div>
-                `).join('')}
-              </div>
-            ` : ''}
-          </div>
+      </div>
+      
+      ${result.exaggeration_check?.exaggerations_found?.length > 0 ? `
+      <div class="section">
+        <h2 class="section-title">
+          <i class="fas fa-exclamation-triangle"></i>
+          夸张信息检查
+        </h2>
+        <div class="exaggerations-container">
+          ${exaggerationsHTML}
         </div>
-
-        <div class="entity-section">
-          <h4>实体验证 (准确性评估: ${result.entity_verification.accuracy_assessment})</h4>
-          ${result.entity_verification.entities_found.length > 0 ? `
-            <div class="entities-list">
-              ${result.entity_verification.entities_found.map((entity, index) => `
-                <div class="entity-item">
-                  <span class="entity-name">${entity}</span>
-                  ${result.entity_verification.corrections[index] ? `
-                    <div class="entity-correction">
-                      需要更正: ${result.entity_verification.corrections[index]}
-                    </div>
-                  ` : ''}
-                </div>
-              `).join('')}
-            </div>
-          ` : '<p>未发现需要验证的实体</p>'}
-        </div>
-
-        <div class="fact-check-section">
-          <h4>事实核查 (整体准确性: ${result.fact_check.overall_factual_accuracy})</h4>
-          <div class="fact-check-list">
-            ${result.fact_check.claims_identified.map((claim, index) => `
-              <div class="fact-check-item">
-                <div class="claim">${claim}</div>
-                <div class="verification">${result.fact_check.verification_results[index] || '验证结果待更新'}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-
-        ${result.exaggeration_check.exaggerations_found.length > 0 ? `
-          <div class="exaggeration-section">
-            <h4>夸张表述 (严重程度: ${result.exaggeration_check.severity_assessment})</h4>
-            ${result.exaggeration_check.exaggerations_found.map((exag, index) => `
-              <div class="exaggeration-item">
-                <div class="original">原文：${exag}</div>
-                <div class="correction">建议：${result.exaggeration_check.corrections[index] || '修正建议待更新'}</div>
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
+      </div>
+      ` : ''}
+      
+      <div class="section">
+        <h2 class="section-title">
+          <i class="fas fa-user-tag"></i>
+          实体验证
+        </h2>
+        ${entitiesHTML}
       </div>
     `;
   }
 
-  // 辅助函数
-  function getLevelColor(level) {
-    switch(level) {
-      case '高': return '#4caf50';
-      case '中': return '#ff9800';
-      case '低': return '#f44336';
-      default: return '#757575';
-    }
+  // 调整卡片高度
+  function adjustCardHeight() {
+    console.log('调整卡片为结果状态尺寸：400x600');
+    
+    // 固定使用400x600的尺寸
+    window.parent.postMessage({
+      type: 'RESIZE_FRAME',
+      width: 400,
+      height: 600
+    }, '*');
   }
 
-  function getTagLabel(key) {
-    const labels = {
-      factuality: '事实性',
-      objectivity: '客观性',
-      reliability: '可靠性',
-      bias: '偏见性'
-    };
-    return labels[key] || key;
-  }
-
-  // 通知父窗口卡片已准备就绪
+  // 初始化为加载状态
+  setCardState('loading');
   window.parent.postMessage({ type: 'CARD_READY' }, '*');
 }
 
-// 当 DOM 加载完成后初始化
+// 当DOM加载完成后初始化
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeFloatingCard);
 } else {

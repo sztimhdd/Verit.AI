@@ -146,7 +146,7 @@ ${pageTitle ? `标题：${pageTitle}\n` : ''}文本内容：${analysisContent}
         "corrections": ["更准确的表述"],
         "severity_assessment": "高/中/低"
     },
-    "summary": "内容摘要",
+    "summary": "作为用户信任的朋友和该领域专家，请用40个汉字以内给出关于这篇内容真实性和可信度的总结性建议，语气友好且专业",
     "sources": [
         {
             "title": "参考来源标题",
@@ -203,7 +203,7 @@ ${pageTitle ? `标题：${pageTitle}\n` : ''}文本内容：${analysisContent}
             "fact_check",
             "exaggeration_check",
             "summary",
-            "sources",
+            "sources"
         ];
 
         for (const field of requiredFields) {

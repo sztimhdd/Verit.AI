@@ -230,13 +230,15 @@ async function injectFloatingCard(tabId) {
           position: fixed;
           top: 20px;
           right: 20px;
-          width: 360px;
-          height: 200px;
+          width: 100px;  /* 稍微增加初始宽度 */
+          height: 70px; /* 调整初始高度 */
           border: none;
           border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
           z-index: 2147483647;
           background: white;
+          overflow: hidden;
+          transition: all 0.3s ease;
         `;
         
         document.body.appendChild(iframe);

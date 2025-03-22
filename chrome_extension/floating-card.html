@@ -1,71 +1,71 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>事实核查报告</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
   <style>
-    body {
+    :root {
+      --primary: #2563eb;
+      --primary-light: #3b82f6;
+      --secondary: #6366f1;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #06b6d4;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+
+    * {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
     }
 
-    .floating-card {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
-      border: 1px solid #e0e0e0;
-      min-height: 40px;
-      padding: 16px;
+    body {
+      background-color: transparent;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
     }
 
-    /* 处理中的紧凑样式 */
-    .floating-card.processing {
-      width: 180px;
-      height: 40px;
+    .card {
+      width: 100%;
+      height: 100%;
+      background-color: white;
+      overflow: hidden;
+      position: relative;
+      border-radius: 0; /* 移除卡片自身的圆角，由iframe来提供 */
+      box-shadow: none; /* 移除卡片自身的阴影，由iframe来提供 */
     }
 
-    /* 结果展示的完整样式 */
-    .floating-card.completed {
-      width: 360px;
-      height: auto;
-    }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .header-left {
+    /* 加载状态 */
+    .card.loading {
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: center;
+      flex-direction: column;
+      gap: 0.5rem;
+      padding: 10px;
     }
 
-    .close-btn {
-      background: none;
-      border: none;
-      font-size: 20px;
-      cursor: pointer;
-      padding: 4px;
-    }
-
-    .close-btn:hover {
-      background: #f5f5f5;
-      color: #333;
-    }
-
-    /* 处理中的标题栏样式 */
-    .processing .card-header {
-      border-bottom: none;
-    }
-
-    .spinner {
-      width: 20px;
-      height: 20px;
-      border: 2px solid #f3f3f3;
-      border-top: 2px solid #3498db;
+    .loading-spinner {
+      width: 28px;
+      height: 28px;
+      border: 2px solid var(--gray-200);
+      border-top: 2px solid var(--primary);
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
@@ -75,215 +75,432 @@
       100% { transform: rotate(360deg); }
     }
 
-    .header-text {
-      margin: 0;
-      font-size: 16px;
+    .loading-text {
+      font-size: 12px;
+      color: var(--gray-700);
+      font-weight: 500;
+      white-space: nowrap;
     }
 
-    /* 处理中隐藏内容区域 */
-    .processing .card-content {
-      display: none;
-    }
-
-    .card-content {
-      padding: 16px;
-      max-height: 400px;
-      overflow-y: auto;
-      min-height: 20px;
-    }
-
-    /* 结果样式 */
-    .score-summary {
-      text-align: center;
-      margin-bottom: 16px;
-    }
-
-    .score-number {
-      font-size: 36px;
-      font-weight: bold;
-      color: #2c3e50;
-    }
-
-    .score-label {
-      font-size: 14px;
-      color: #666;
-    }
-
-    .analysis-details {
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    /* 错误状态样式 */
-    .error-message {
-      color: #e74c3c;
-      margin: 0 0 12px;
-    }
-
-    #retry-btn {
-      background: #3498db;
+    /* 结果状态 */
+    .card-header {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
       color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
+      padding: 1rem 1.5rem;
+      position: relative;
+      min-height: 110px; /* 设置最小高度确保评分环有足够空间 */
     }
 
-    /* 添加一些基本的内容样式 */
-    .flags {
-      margin: 12px 0;
+    .card-header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .summary-preview {
+      font-size: 0.9rem;
+      line-height: 1.5;
+      opacity: 0.95;
+      margin-right: 80px; /* 给评分留出空间 */
+      /* 移除固定行数限制，允许完整显示 */
+      overflow: visible;
+      max-height: none;
+      padding-bottom: 0.5rem; /* 底部增加一些间距 */
+    }
+
+    .trust-score {
+      position: absolute;
+      right: 1.5rem;
+      top: 1rem; /* 固定在顶部而不是中间 */
+      transform: none; /* 移除垂直居中变换 */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .score-circle {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background-color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+
+    .score-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .trust-score-label {
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    .card-body {
+      padding: 1.5rem;
+      overflow-y: auto !important;
+      height: auto; /* 移除固定高度 */
+      max-height: calc(100% - 110px); /* 动态计算最大高度，根据标题最小高度 */
+      flex-grow: 1; /* 允许内容区域伸展 */
+    }
+
+    .section {
+      margin-bottom: 1.5rem;
+    }
+
+    .section:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--gray-800);
+      margin-bottom: 0.8rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .section-title i {
+      margin-right: 0.75rem;
+      color: var(--primary);
+      font-size: 1.1rem;
+    }
+
+    .flags-container {
+      display: flex;
+      gap: 0.8rem;
+      flex-wrap: wrap;
     }
 
     .flag-item {
-      background: #f8f9fa;
-      padding: 8px 12px;
-      margin: 4px 0;
-      border-radius: 4px;
-      color: #666;
+      background-color: var(--gray-100);
+      border-radius: 12px;
+      padding: 0.8rem;
+      flex: 1;
+      min-width: 50px;
+      text-align: center;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
     }
 
-    .source-item {
+    .flag-icon {
+      font-size: 1.2rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .flag-title {
+      font-size: 0.8rem;
+      color: var(--gray-600);
+      margin-bottom: 0.25rem;
+    }
+
+    .flag-value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--gray-800);
+    }
+
+    .rating-high {
+      color: var(--success);
+    }
+
+    .rating-medium {
+      color: var(--warning);
+    }
+
+    .rating-low {
+      color: var(--danger);
+    }
+
+    .sources-list {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 0;
-      border-bottom: 1px solid #eee;
+      flex-wrap: wrap;
+      gap: 0.6rem;
     }
 
-    .source-item:last-child {
+    .source-tag {
+      background-color: var(--gray-100);
+      border-radius: 8px;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.8rem;
+      color: var(--gray-700);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .source-credibility {
+      background-color: var(--primary-light);
+      color: white;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+
+    .facts-container {
+      margin-top: 0.8rem;
+      width: 100%;
+    }
+
+    .fact-item {
+      display: flex;
+      flex-direction: column;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .fact-item:last-child {
       border-bottom: none;
     }
 
-    #result-state,
-    #error-state {
-      display: none;
+    .fact-content {
+      font-size: 0.9rem;
+      color: var(--gray-700);
+      margin-bottom: 0.5rem;
+      word-break: break-word;
     }
 
-    /* 在现有样式后添加以下内容 */
-    .tags-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin: 16px 0;
-    }
-
-    .tag {
-      padding: 4px 8px;
+    .fact-status {
+      font-size: 0.8rem;
+      padding: 0.25rem 0.5rem;
       border-radius: 4px;
-      font-size: 12px;
-      font-weight: 500;
+      background-color: var(--warning);
+      color: white;
+      align-self: flex-start;
+      margin-top: 0.3rem;
+      display: inline-block;
+      max-width: 100%;
     }
 
-    .summary-section,
-    .exaggeration-section,
-    .sources-section,
-    .fact-check-section {
-      margin: 16px 0;
-    }
-
-    h4 {
-      margin: 0 0 8px 0;
-      color: #2c3e50;
-      font-size: 14px;
+    .exaggerations-container {
+      margin-top: 0.8rem;
     }
 
     .exaggeration-item {
-      background: #fff3e0;
-      padding: 8px;
-      border-radius: 4px;
-      margin: 8px 0;
+      background-color: var(--gray-100);
+      border-radius: 8px;
+      padding: 0.8rem;
+      margin-bottom: 0.6rem;
     }
 
-    .exaggeration-item .original {
-      color: #e65100;
-      margin-bottom: 4px;
+    .exaggeration-item:last-child {
+      margin-bottom: 0;
     }
 
-    .exaggeration-item .correction {
-      color: #2e7d32;
+    .exaggeration-claim {
+      font-size: 0.9rem;
+      color: var(--gray-700);
+      margin-bottom: 0.4rem;
     }
 
-    .fact-check-item {
-      border-left: 3px solid #3498db;
-      padding: 8px;
-      margin: 8px 0;
-      background: #f8f9fa;
+    .exaggeration-correction {
+      font-size: 0.85rem;
+      color: var(--danger);
+      padding-left: 0.8rem;
+      border-left: 3px solid var(--danger);
     }
 
-    .fact-check-item .claim {
-      font-weight: 500;
-      margin-bottom: 4px;
-    }
-
-    .fact-check-item .verification {
-      color: #666;
-      font-size: 13px;
-    }
-
-    .source-item {
+    .entities-container {
+      margin-top: 0.8rem;
       display: flex;
-      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .entity-tag {
+      background-color: var(--gray-100);
+      border-radius: 6px;
+      padding: 0.3rem 0.5rem;
+      font-size: 0.8rem;
+      color: var(--gray-600);
+    }
+
+    .summary-box {
+      background-color: var(--gray-100);
+      border-left: 4px solid var(--primary);
+      padding: 1rem;
+      border-radius: 0 8px 8px 0;
+      margin-top: 0.8rem;
+    }
+
+    .summary-text {
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: var(--gray-700);
+    }
+
+    /* Circular progress for score */
+    .progress-ring {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    .progress-ring__circle {
+      stroke: var(--primary);
+      fill: transparent;
+      stroke-linecap: round;
+      stroke-width: 6;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+      transition: stroke-dashoffset 0.35s;
+    }
+
+    .progress-ring__background {
+      stroke: var(--gray-200);
+      fill: transparent;
+      stroke-width: 6;
+    }
+
+    .entities-toggle {
+      margin-top: 0.5rem;
+      color: var(--primary);
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: inline-block;
+    }
+    
+    .entities-toggle:hover {
+      text-decoration: underline;
+    }
+    
+    .entities-hidden {
+      display: none;
+    }
+
+    .error-container {
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .error-icon {
+      font-size: 3rem;
+      color: var(--danger);
+      margin-bottom: 1rem;
+    }
+
+    .error-message {
+      font-size: 1rem;
+      color: var(--gray-700);
+      margin-bottom: 1.5rem;
+    }
+
+    .retry-button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .retry-button:hover {
+      background-color: var(--primary-light);
+    }
+
+    /* 关闭按钮 */
+    .close-btn {
+      position: absolute;
+      top: 0.25rem;
+      right: 0.25rem;
+      background: rgba(255, 255, 255, 0.3);
+      color: white;
+      border: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
       align-items: center;
-      padding: 8px;
-      border-bottom: 1px solid #eee;
-      background: #f8f9fa;
-      margin: 4px 0;
-      border-radius: 4px;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      z-index: 10;
     }
 
-    .source-score {
-      background: #e8f5e9;
-      color: #2e7d32;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 12px;
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.5);
     }
 
-    /* 调整卡片内容的最大高度和滚动 */
-    .card-content {
-      max-height: 500px;
-      overflow-y: auto;
-      padding-right: 8px;
-    }
-
-    /* 添加滚动条样式 */
-    .card-content::-webkit-scrollbar {
+    /* 美化滚动条 */
+    .card-body::-webkit-scrollbar {
       width: 6px;
     }
 
-    .card-content::-webkit-scrollbar-track {
-      background: #f1f1f1;
-      border-radius: 3px;
+    .card-body::-webkit-scrollbar-track {
+      background: var(--gray-100);
+      border-radius: 4px;
     }
 
-    .card-content::-webkit-scrollbar-thumb {
-      background: #888;
-      border-radius: 3px;
+    .card-body::-webkit-scrollbar-thumb {
+      background: var(--gray-400);
+      border-radius: 4px;
     }
 
-    .card-content::-webkit-scrollbar-thumb:hover {
-      background: #555;
+    .card-body::-webkit-scrollbar-thumb:hover {
+      background: var(--gray-500);
+    }
+
+    /* 添加卡片整体弹性布局 */
+    .card.result {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
     }
   </style>
 </head>
 <body>
-  <div class="floating-card processing">
+  <!-- 加载状态 -->
+  <div id="loading-state" class="card loading">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">正在核查...</div>
+  </div>
+
+  <!-- 结果状态 -->
+  <div id="result-state" class="card result" style="display: none;">
+    <button id="close-btn" class="close-btn"><i class="fas fa-times"></i></button>
     <div class="card-header">
-      <div class="header-left">
-        <div class="spinner"></div>
-        <h3 class="header-text">正在核查...</h3>
+      <h1>事实核查报告</h1>
+      <div class="summary-preview" id="summary-preview">
+        <!-- 这里将显示总结内容的前两行 -->
       </div>
-      <button class="close-btn" id="close-btn">×</button>
+      <div class="trust-score">
+        <div class="score-circle">
+          <svg class="progress-ring" height="70" width="70">
+            <circle class="progress-ring__background" cx="35" cy="35" r="30"></circle>
+            <circle id="score-circle" class="progress-ring__circle" cx="35" cy="35" r="30" stroke-dasharray="188.5" stroke-dashoffset="0"></circle>
+          </svg>
+          <div id="score-value" class="score-value">0</div>
+        </div>
+      </div>
     </div>
-    
-    <div class="card-content">
-      <div id="result-state"></div>
-      <div id="error-state">
-        <p class="error-message"></p>
-        <button id="retry-btn">重试</button>
-      </div>
+    <div class="card-body" id="result-content">
+      <!-- 此处内容将由JavaScript动态生成 -->
     </div>
   </div>
+
+  <!-- 错误状态 -->
+  <div id="error-state" class="card error" style="display: none;">
+    <button id="close-btn-error" class="close-btn"><i class="fas fa-times"></i></button>
+    <div class="error-container">
+      <div class="error-icon"><i class="fas fa-exclamation-circle"></i></div>
+      <div id="error-message" class="error-message">分析过程中出现错误，请重试。</div>
+      <button id="retry-btn" class="retry-button">重新核查</button>
+    </div>
+  </div>
+
   <script src="floating-card.js"></script>
 </body>
 </html> 
