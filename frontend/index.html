@@ -539,18 +539,28 @@
             sections.forEach(section => {
                 const elements = document.getElementsByClassName(section);
                 Array.from(elements).forEach(element => {
-                    if (element.parentNode) {
+                    if (element && element.parentNode) {
                         element.parentNode.removeChild(element);
                     }
                 });
             });
 
-            // 清空容器内容
-            document.getElementById('tagsContainer').innerHTML = '';
-            document.getElementById('summary').innerHTML = '';
-            document.getElementById('sourcesList').innerHTML = '';
-            document.getElementById('factCheckList').innerHTML = '';
-            document.getElementById('exaggerationList').innerHTML = '';
+            // 清空容器内容，添加元素存在性检查
+            const elementsToEmpty = {
+                'tagsContainer': document.getElementById('tagsContainer'),
+                'summary': document.getElementById('summary'),
+                'sourcesList': document.getElementById('sourcesList'),
+                'factCheckList': document.getElementById('factCheckList'),
+                'exaggerationList': document.getElementById('exaggerationList')
+            };
+
+            Object.entries(elementsToEmpty).forEach(([key, element]) => {
+                if (element) {
+                    element.innerHTML = '';
+                } else {
+                    console.warn(`Element ${key} not found`);
+                }
+            });
         }
 
         // 数据验证
@@ -660,96 +670,119 @@
             
             // 更新标签
             const tagsContainer = document.getElementById('tagsContainer');
-            tagsContainer.innerHTML = Object.entries(data.flags).map(([key, value]) => `
-                <div class="tag" style="background: ${getLevelColor(value)}20; 
-                                      color: ${getLevelColor(value)}; 
-                                      border: 1px solid ${getLevelColor(value)}">
-                    ${getTagLabel(key)}: ${value}
-                </div>
-            `).join('');
+            if (tagsContainer) {
+                tagsContainer.innerHTML = Object.entries(data.flags).map(([key, value]) => `
+                    <div class="tag" style="background: ${getLevelColor(value)}20; 
+                                          color: ${getLevelColor(value)}; 
+                                          border: 1px solid ${getLevelColor(value)}">
+                        ${getTagLabel(key)}: ${value}
+                    </div>
+                `).join('');
+            }
 
             // 更新摘要
-            document.getElementById('summary').textContent = data.summary;
+            const summaryElement = document.getElementById('summary');
+            if (summaryElement) {
+                summaryElement.textContent = data.summary;
+            }
 
             // 更新信息来源
             const sourcesList = document.getElementById('sourcesList');
-            sourcesList.innerHTML = `
-                <p style="margin-bottom: 16px;">整体可信度: ${data.source_verification.overall_source_credibility}</p>
-                ${data.source_verification.sources_found.map((source, index) => `
-                    <div class="source-item">
-                        <span class="source-name">${source}</span>
-                        <span class="source-score">${data.source_verification.credibility_scores[index]}/10</span>
-                    </div>
-                `).join('')}
-                ${data.sources.length > 0 ? `
-                    <div style="margin-top: 16px;">
-                        <h4 style="margin-bottom: 8px;">参考来源</h4>
-                        ${data.sources.map(source => `
-                            <div class="source-item">
-                                <span class="source-name">${source.title}</span>
-                                <a href="${source.url}" target="_blank" class="source-link">查看来源</a>
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
-            `;
+            if (sourcesList) {
+                sourcesList.innerHTML = `
+                    <p style="margin-bottom: 16px;">整体可信度: ${data.source_verification.overall_source_credibility}</p>
+                    ${data.source_verification.sources_found.map((source, index) => `
+                        <div class="source-item">
+                            <span class="source-name">${source}</span>
+                            <span class="source-score">${data.source_verification.credibility_scores[index]}/10</span>
+                        </div>
+                    `).join('')}
+                    ${data.sources.length > 0 ? `
+                        <div style="margin-top: 16px;">
+                            <h4 style="margin-bottom: 8px;">参考来源</h4>
+                            ${data.sources.map(source => `
+                                <div class="source-item">
+                                    <span class="source-name">${source.title}</span>
+                                    <a href="${source.url}" target="_blank" class="source-link">查看来源</a>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                `;
+            }
 
             // 更新实体验证
-            const entitySection = document.createElement('div');
-            entitySection.className = 'entity-section';
-            entitySection.innerHTML = `
-                <h3 class="section-title">实体验证</h3>
-                <p>准确性评估: ${data.entity_verification.accuracy_assessment}</p>
-                ${data.entity_verification.entities_found.length > 0 ? `
-                    <div class="entities-list">
-                        ${data.entity_verification.entities_found.map((entity, index) => `
-                            <div class="entity-item">
-                                <span class="entity-name">${entity}</span>
-                                ${data.entity_verification.corrections[index] ? `
-                                    <div class="entity-correction">
-                                        需要更正: ${data.entity_verification.corrections[index]}
-                                    </div>
-                                ` : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : '<p>未发现需要验证的实体</p>'}
-            `;
-            document.querySelector('.sources-section').after(entitySection);
+            const sourcesSection = document.querySelector('.sources-section');
+            if (sourcesSection) {
+                const entitySection = document.createElement('div');
+                entitySection.className = 'entity-section';
+                entitySection.innerHTML = `
+                    <h3 class="section-title">实体验证</h3>
+                    <p>准确性评估: ${data.entity_verification.accuracy_assessment}</p>
+                    ${data.entity_verification.entities_found.length > 0 ? `
+                        <div class="entities-list">
+                            ${data.entity_verification.entities_found.map((entity, index) => `
+                                <div class="entity-item">
+                                    <span class="entity-name">${entity}</span>
+                                    ${data.entity_verification.corrections[index] ? `
+                                        <div class="entity-correction">
+                                            需要更正: ${data.entity_verification.corrections[index]}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p>未发现需要验证的实体</p>'}
+                `;
+                sourcesSection.after(entitySection);
+            }
 
             // 更新事实核查
             const factCheckList = document.getElementById('factCheckList');
-            factCheckList.innerHTML = `
-                <p style="margin-bottom: 16px;">整体事实准确性: ${data.fact_check.overall_factual_accuracy}</p>
-                ${data.fact_check.claims_identified.map((claim, index) => `
-                    <div class="fact-check-item">
-                        <div class="claim">${claim}</div>
-                        <div class="verification">${data.fact_check.verification_results[index] || '验证结果待更新'}</div>
-                    </div>
-                `).join('')}
-            `;
+            if (factCheckList) {
+                factCheckList.innerHTML = `
+                    <p style="margin-bottom: 16px;">整体事实准确性: ${data.fact_check.overall_factual_accuracy}</p>
+                    ${data.fact_check.claims_identified.map((claim, index) => `
+                        <div class="fact-check-item">
+                            <div class="claim">${claim}</div>
+                            <div class="verification">${data.fact_check.verification_results[index] || '验证结果待更新'}</div>
+                        </div>
+                    `).join('')}
+                `;
+            }
 
             // 更新夸张表述
             const exaggerationSection = document.getElementById('exaggerationSection');
             const exaggerationList = document.getElementById('exaggerationList');
             
-            if (data.exaggeration_check.exaggerations_found.length > 0) {
-                exaggerationSection.style.display = 'block';
-                exaggerationList.innerHTML = `
-                    <p style="margin-bottom: 16px;">严重程度: ${data.exaggeration_check.severity_assessment}</p>
-                    ${data.exaggeration_check.exaggerations_found.map((exag, index) => `
-                        <div class="exaggeration-item">
-                            <div class="original">原文：${exag}</div>
-                            <div class="correction">建议：${data.exaggeration_check.corrections[index] || '修正建议待更新'}</div>
-                        </div>
-                    `).join('')}
-                `;
-            } else {
-                exaggerationSection.style.display = 'none';
+            if (exaggerationSection && exaggerationList) {
+                if (data.exaggeration_check.exaggerations_found.length > 0) {
+                    exaggerationSection.style.display = 'block';
+                    exaggerationList.innerHTML = `
+                        <p style="margin-bottom: 16px;">严重程度: ${data.exaggeration_check.severity_assessment}</p>
+                        ${data.exaggeration_check.exaggerations_found.map((exag, index) => `
+                            <div class="exaggeration-item">
+                                <div class="original">原文：${exag}</div>
+                                <div class="correction">建议：${data.exaggeration_check.corrections[index] || '修正建议待更新'}</div>
+                            </div>
+                        `).join('')}
+                    `;
+                } else {
+                    exaggerationSection.style.display = 'none';
+                }
             }
 
             // 更新评分显示
-            updateScoreDisplay(data.score);
+            const scoreCircle = document.getElementById('scoreCircle');
+            if (scoreCircle) {
+                updateScoreDisplay(data.score);
+            }
+
+            // 显示结果容器
+            const resultContainer = document.getElementById('resultContainer');
+            if (resultContainer) {
+                resultContainer.style.display = 'block';
+            }
         }
 
         // 验证 URL
