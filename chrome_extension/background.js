@@ -181,7 +181,7 @@ async function analyzePage(tabId, url) {
   }
 }
 
-// API 调用
+// API 调用 - 添加语言参数
 async function analyzeContent(content) {
   try {
     // 获取当前活动标签页的信息
@@ -190,14 +190,18 @@ async function analyzeContent(content) {
       throw new Error('无法获取当前标签页信息');
     }
 
+    // 获取浏览器语言
+    const browserLang = navigator.language || navigator.userLanguage || 'en';
+    const userLang = browserLang.startsWith('zh') ? 'zh' : 'en';
+
     const response = await fetch(CONFIG.API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         content: content.substring(0, CONFIG.CONTENT_MAX_LENGTH),
-        title: tab.title || '', // 使用标签页的标题
-        url: tab.url || '',     // 使用标签页的 URL
-        lang: 'zh'
+        title: tab.title || '',
+        url: tab.url || '',
+        lang: 'en' // 强制使用英文
       })
     });
 
@@ -376,6 +380,28 @@ async function cleanupTab(tabId) {
     // 忽略错误，标签页可能已关闭
   }
 }
+
+// 强制使用中文
+document.addEventListener('DOMContentLoaded', function() {
+  const elements = {
+    'Information Evaluation': '信息评估指标',
+    'Source Evaluation': '信息来源评估',
+    'Fact Checking': '事实核查', 
+    'Factuality': '真实性',
+    'Objectivity': '客观性',
+    'Reliability': '可靠性',
+    'Bias': '偏见'
+  };
+  
+  // 替换所有英文标题
+  for (const [en, zh] of Object.entries(elements)) {
+    document.querySelectorAll(`*:contains('${en}')`).forEach(el => {
+      if (el.childElementCount === 0 || el.tagName === 'BUTTON') {
+        el.textContent = el.textContent.replace(en, zh);
+      }
+    });
+  }
+});
 
 // 启动扩展
 chrome.runtime.onInstalled.addListener(initializeExtension);

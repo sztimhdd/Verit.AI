@@ -1,3 +1,67 @@
+// 语言检测功能
+function detectUserLanguage() {
+  const browserLang = navigator.language || navigator.userLanguage || 'en';
+  return browserLang.startsWith('zh') ? 'zh' : 'en';
+}
+
+// 文本资源字典
+const i18n = {
+  zh: {
+    loadingText: "正在核查...",
+    factCheckReport: "事实核查报告",
+    trustedFriend: "作为您信任的朋友",
+    trustScore: "可信度评分",
+    summary: "总结",
+    infoEvaluation: "信息评估指标",
+    sourceEvaluation: "信息来源评估",
+    factChecking: "事实核查",
+    exaggerationCheck: "夸张信息检查",
+    entityVerification: "实体验证",
+    showMoreEntities: "显示更多实体 >",
+    hideEntities: "< 收起实体",
+    factuality: "真实性",
+    objectivity: "客观性",
+    reliability: "可靠性",
+    bias: "偏见度",
+    noSourcesFound: "未找到相关信息来源",
+    noFactsToCheck: "未发现需要核查的主要事实声明",
+    noEntitiesFound: "未发现需要验证的实体",
+    errorMessage: "分析过程中出现错误，请重试。",
+    retry: "重新核查",
+    analyzing: "正在核查..."
+  },
+  en: {
+    loadingText: "Analyzing...",
+    factCheckReport: "Fact Check Report",
+    trustedFriend: "As your trusted friend",
+    trustScore: "Trust Score",
+    summary: "Summary",
+    infoEvaluation: "Information Evaluation",
+    sourceEvaluation: "Source Evaluation",
+    factChecking: "Fact Checking",
+    exaggerationCheck: "Exaggeration Check",
+    entityVerification: "Entity Verification",
+    showMoreEntities: "Show more entities >",
+    hideEntities: "< Hide entities",
+    factuality: "Factuality",
+    objectivity: "Objectivity",
+    reliability: "Reliability",
+    bias: "Bias",
+    noSourcesFound: "No related sources found",
+    noFactsToCheck: "No major factual claims to check",
+    noEntitiesFound: "No entities to verify",
+    errorMessage: "An error occurred during analysis. Please try again.",
+    retry: "Retry",
+    analyzing: "Analyzing..."
+  }
+};
+
+// 获取用户语言的翻译文本
+function getText(key) {
+  const lang = detectUserLanguage();
+  return (i18n[lang] && i18n[lang][key]) || key;
+}
+
 // 状态管理
 let cardState = 'loading'; // loading, result, error
 
@@ -12,6 +76,9 @@ function initializeFloatingCard() {
   const retryBtn = document.getElementById('retry-btn');
   
   console.log('事实核查卡片已初始化');
+
+  // 应用语言本地化
+  applyLanguageTexts();
 
   // 设置卡片状态
   function setCardState(state) {
@@ -48,7 +115,7 @@ function initializeFloatingCard() {
 
   // 显示错误
   function showError(message) {
-    document.getElementById('error-message').textContent = message || '分析过程中出现错误，请重试。';
+    document.getElementById('error-message').textContent = message || getText('errorMessage');
     setCardState('error');
   }
 
@@ -112,10 +179,10 @@ function initializeFloatingCard() {
       toggleBtn.addEventListener('click', () => {
         if (entitiesShown) {
           hiddenEntities.classList.add('entities-hidden');
-          toggleBtn.textContent = '显示更多实体 >';
+          toggleBtn.textContent = getText('showMoreEntities');
         } else {
           hiddenEntities.classList.remove('entities-hidden');
-          toggleBtn.textContent = '< 收起实体';
+          toggleBtn.textContent = getText('hideEntities');
         }
         entitiesShown = !entitiesShown;
       });
@@ -129,7 +196,7 @@ function initializeFloatingCard() {
     // 设置顶部摘要
     const summaryPreview = document.getElementById('summary-preview');
     if (summaryPreview) {
-      summaryPreview.textContent = result.summary || '无法提供内容总结';
+      summaryPreview.textContent = result.summary || getText('noSummary');
     }
     
     // 评级映射函数
@@ -152,10 +219,10 @@ function initializeFloatingCard() {
 
     // 获取标签名称
     const getFlagLabel = (key) => ({
-      factuality: '真实性',
-      objectivity: '客观性',
-      reliability: '可靠性',
-      bias: '偏见度'
+      factuality: getText('factuality'),
+      objectivity: getText('objectivity'),
+      reliability: getText('reliability'),
+      bias: getText('bias')
     })[key] || key;
 
     // 创建评估指标
@@ -208,7 +275,7 @@ function initializeFloatingCard() {
       let hiddenHTML = '';
       if (hiddenEntities.length > 0) {
         hiddenHTML = `
-          <span class="entities-toggle" id="entities-toggle">显示更多实体 ></span>
+          <span class="entities-toggle" id="entities-toggle">${getText('showMoreEntities')}</span>
           <div class="entities-container entities-hidden" id="entities-hidden">
             ${hiddenEntities.map(entity => `<div class="entity-tag">${entity}</div>`).join('')}
           </div>
@@ -222,14 +289,14 @@ function initializeFloatingCard() {
         ${hiddenHTML}
       `;
     } else {
-      entitiesHTML = '<p>未发现需要验证的实体</p>';
+      entitiesHTML = `<p>${getText('noEntitiesFound')}</p>`;
     }
 
     return `
       <div class="section">
         <h2 class="section-title">
           <i class="fas fa-flag"></i>
-          信息评估指标
+          <span data-i18n="infoEvaluation">${getText('infoEvaluation')}</span>
         </h2>
         <div class="flags-container">
           ${flagsHTML}
@@ -239,20 +306,20 @@ function initializeFloatingCard() {
       <div class="section">
         <h2 class="section-title">
           <i class="fas fa-link"></i>
-          信息来源评估
+          ${getText('sourceEvaluation')}
         </h2>
         <div class="sources-list">
-          ${sourcesHTML || '<p>未找到相关信息来源</p>'}
+          ${sourcesHTML || `<p>${getText('noSourcesFound')}</p>`}
         </div>
       </div>
       
       <div class="section">
         <h2 class="section-title">
           <i class="fas fa-search"></i>
-          事实核查
+          ${getText('factChecking')}
         </h2>
         <div class="facts-container">
-          ${factChecksHTML || '<p>未发现需要核查的主要事实声明</p>'}
+          ${factChecksHTML || `<p>${getText('noFactsToCheck')}</p>`}
         </div>
       </div>
       
@@ -260,7 +327,7 @@ function initializeFloatingCard() {
       <div class="section">
         <h2 class="section-title">
           <i class="fas fa-exclamation-triangle"></i>
-          夸张信息检查
+          ${getText('exaggerationCheck')}
         </h2>
         <div class="exaggerations-container">
           ${exaggerationsHTML}
@@ -271,11 +338,44 @@ function initializeFloatingCard() {
       <div class="section">
         <h2 class="section-title">
           <i class="fas fa-user-tag"></i>
-          实体验证
+          ${getText('entityVerification')}
         </h2>
         ${entitiesHTML}
       </div>
     `;
+  }
+
+  // 应用语言本地化到所有静态UI元素
+  function applyLanguageTexts() {
+    // 设置加载状态文本
+    document.querySelector('.loading-text').textContent = getText('loadingText');
+    
+    // 设置标题文本
+    document.querySelector('.card-header h1').textContent = getText('factCheckReport');
+    
+    // 设置标签页标题
+    document.title = getText('factCheckReport');
+    
+    // 设置所有分类标题
+    const sectionTitles = {
+      'Information Evaluation': 'infoEvaluation',
+      'Source Evaluation': 'sourceEvaluation',
+      'Fact Checking': 'factChecking'
+    };
+    
+    // 查找并替换英文标题为当前语言
+    for (const [englishTitle, i18nKey] of Object.entries(sectionTitles)) {
+      const elements = document.querySelectorAll(`h2:contains('${englishTitle}'), h3:contains('${englishTitle}')`);
+      elements.forEach(el => {
+        el.textContent = getText(i18nKey);
+      });
+    }
+    
+    // 其他所有标签
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      el.textContent = getText(key);
+    });
   }
 
   // 调整卡片高度

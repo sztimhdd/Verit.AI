@@ -64,6 +64,53 @@ async function fetchWebContent(url) {
     }
 }
 
+// 添加翻译功能 - 新增
+async function translateToZh(analysisResult) {
+    try {
+        // 构建翻译提示词
+        const translationPrompt = `
+            请将以下JSON格式的事实核查结果从英文翻译成中文，保持JSON结构不变。
+            只翻译值部分，不要翻译键名。
+            特别是以下关键术语的翻译:
+            - "High" -> "高"
+            - "Medium" -> "中"
+            - "Low" -> "低"
+            - "True" -> "真实"
+            - "Partially True" -> "部分真实"
+            - "False" -> "虚假"
+            
+            ${JSON.stringify(analysisResult)}
+        `;
+        
+        // 调用Gemini API翻译
+        const translationResult = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: translationPrompt }] }],
+            generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 4096,
+            }
+        });
+        
+        // 解析返回结果
+        const text = translationResult.response.text().trim();
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        
+        if (jsonMatch) {
+            try {
+                return JSON.parse(jsonMatch[0]);
+            } catch (parseError) {
+                console.error("Translation JSON Parse Error:", parseError);
+                return analysisResult; // 解析失败时返回原始结果
+            }
+        }
+        
+        return analysisResult; // 未找到JSON时返回原始结果
+    } catch (error) {
+        console.error("Translation API Error:", error);
+        return analysisResult; // 出错时返回原始结果
+    }
+}
+
 // Token usage statistics function
 function calculateTokenUsage(content, response) {
     const inputTokens = content.split("").reduce((count, char) => {
@@ -86,7 +133,8 @@ function calculateTokenUsage(content, response) {
 app.post("/api/extension/analyze", async (req, res) => {
     const startTime = Date.now();
     try {
-        const { content, url, lang = "zh" } = req.body;
+        const { content, url, lang = "en" } = req.body;
+        const needsTranslation = lang === 'zh';
 
         // If URL is provided but no content, fetch web content
         let analysisContent = content;
@@ -107,58 +155,93 @@ app.post("/api/extension/analyze", async (req, res) => {
             });
         }
 
-        // Build multi-dimensional analysis prompt
-        const prompt = `你是一个专业的事实核查助手。请对以下内容进行多维度分析，包括：
-1. 来源验证：识别并验证文中提到的信息来源（如期刊、研究论文、机构等）的可信度
-2. 实体验证：验证文中提到的人物、组织等实体的真实性和描述准确性
-3. 事实核查：验证主要事实性陈述的准确性
-4. 夸大检查：识别可能的夸大或误导性表述
-5. 整体评估：考虑事实准确性、来源可信度、偏见程度和完整性
+        // 修改英文分析Prompt
+        const prompt = `You are a professional fact checker. Please analyze the following content with multi-dimensional analysis.
 
-${pageTitle ? `标题：${pageTitle}\n` : ''}文本内容：${analysisContent}
+        First, carefully read the entire text, identifying key information, claims, and information sources.
+        Then, think through your analysis process step by step:
 
-请严格按照以下JSON格式返回分析结果：
-{
-    "score": 0-100的整数,
-    "flags": {
-        "factuality": "高/中/低",
-        "objectivity": "高/中/低",
-        "reliability": "高/中/低",
-        "bias": "高/中/低"
-    },
-    "source_verification": {
-        "sources_found": ["来源列表"],
-        "credibility_scores": [1-10的评分列表],
-        "overall_source_credibility": "高/中/低"
-    },
-    "entity_verification": {
-        "entities_found": ["实体列表"],
-        "accuracy_assessment": "高/中/低",
-        "corrections": ["需要更正的内容"]
-    },
-    "fact_check": {
-        "claims_identified": ["主要声明列表"],
-        "verification_results": ["验证结果列表"],
-        "overall_factual_accuracy": "高/中/低"
-    },
-    "exaggeration_check": {
-        "exaggerations_found": ["夸大表述列表"],
-        "corrections": ["更准确的表述"],
-        "severity_assessment": "高/中/低"
-    },
-    "summary": "作为用户信任的朋友和该领域专家，请用40个汉字以内给出关于这篇内容真实性和可信度的总结性建议，语气友好且专业",
-    "sources": [
+        1. Source verification:
+           - Identify all information sources mentioned (journals, research papers, institutions, etc.)
+           - Confirm whether each source actually exists
+           - Verify if the sources actually support the related claims in the text
+           - Rate the credibility of each source (1-10 score)
+
+        2. Entity verification:
+           - Identify all key people, organizations, and entities mentioned
+           - Verify if these entities actually exist
+           - Check if the descriptions about these entities are accurate
+           - Provide specific corrections for inaccurate descriptions
+
+        3. Fact checking:
+           - Identify all important factual claims in the text
+           - Evaluate if each claim is true, partially true, or false
+           - Provide corrections for false or misleading claims
+           - Cite reliable sources to support your verification results
+
+        4. Exaggeration check:
+           - Identify all exaggerated or misleading statements
+           - Explain why these statements are considered exaggerated or misleading
+           - Provide more accurate factual statements
+
+        5. Overall assessment:
+           - Consider all dimensions above comprehensively
+           - Assess the overall reliability and credibility of the content
+           - Identify the most critical issues in the content
+
+        ${pageTitle ? `Title: ${pageTitle}\n` : ''}Content: ${analysisContent}
+
+        Think through your analysis carefully, considering all evidence before reaching final conclusions.
+        Consider different perspectives and viewpoints, avoiding personal bias in your judgment.
+
+        Please return the analysis results in the following JSON format:
         {
-            "title": "参考来源标题",
-            "url": "链接地址"
-        }
-    ]
-}`;
+            "score": integer from 0-100,
+            "flags": {
+                "factuality": "High/Medium/Low",
+                "objectivity": "High/Medium/Low",
+                "reliability": "High/Medium/Low",
+                "bias": "High/Medium/Low"
+            },
+            "source_verification": {
+                "sources_found": ["list of sources"],
+                "credibility_scores": [list of scores from 1-10],
+                "verification_details": ["detailed verification results, including whether sources support related claims"],
+                "overall_source_credibility": "High/Medium/Low"
+            },
+            "entity_verification": {
+                "entities_found": ["list of entities"],
+                "verification_details": ["verification details for each entity"],
+                "accuracy_assessment": "High/Medium/Low",
+                "corrections": ["content needing correction"]
+            },
+            "fact_check": {
+                "claims_identified": ["list of main claims"],
+                "verification_results": ["list of verification results, including true/partially true/false judgments and reasons"],
+                "supporting_evidence": ["evidence or references supporting verification results"],
+                "overall_factual_accuracy": "High/Medium/Low"
+            },
+            "exaggeration_check": {
+                "exaggerations_found": ["list of exaggerated statements"],
+                "explanations": ["explanations of why these are exaggerated or misleading"],
+                "corrections": ["more accurate statements"],
+                "severity_assessment": "High/Medium/Low"
+            },
+            "key_issues": ["list of the main issues in the content"],
+            "summary": "As a trusted friend and expert in this field, provide a 40-word summary about the truthfulness and credibility of this content in a friendly yet professional tone",
+            "sources": [
+                {
+                    "title": "Reference source title",
+                    "url": "link"
+                }
+            ]
+        }`;
 
         // Log request start
         console.log("\n=== New Analysis Request ===");
         console.log(`Time: ${new Date().toLocaleString()}`);
         console.log(`Content Length: ${analysisContent.length} characters`);
+        console.log(`Language: ${lang}`);
 
         // Call Gemini API
         const result = await model.generateContent({
@@ -167,8 +250,18 @@ ${pageTitle ? `标题：${pageTitle}\n` : ''}文本内容：${analysisContent}
                 temperature: 0.1,
                 topK: 40,
                 topP: 0.8,
-                maxOutputTokens: 2048,
+                maxOutputTokens: 4096,
             },
+            safetySettings: [
+                {
+                    category: "HARM_CATEGORY_HARASSMENT",
+                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    category: "HARM_CATEGORY_HATE_SPEECH",
+                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                }
+            ]
         });
 
         const response = await result.response;
@@ -217,8 +310,15 @@ ${pageTitle ? `标题：${pageTitle}\n` : ''}文本内容：${analysisContent}
             }
         }
 
+        // 如果需要中文，对结果进行翻译
+        let finalResult = analysisResult;
+        if (needsTranslation) {
+            console.log("Translating results to Chinese...");
+            finalResult = await translateToZh(analysisResult);
+        }
+
         // Calculate and log token usage
-        const tokenUsage = calculateTokenUsage(analysisContent, analysisResult);
+        const tokenUsage = calculateTokenUsage(analysisContent, finalResult);
         const timeUsed = Date.now() - startTime;
 
         console.log("\n=== API Call Statistics ===");
@@ -226,13 +326,14 @@ ${pageTitle ? `标题：${pageTitle}\n` : ''}文本内容：${analysisContent}
         console.log(`Output Tokens: ${tokenUsage.outputTokens}`);
         console.log(`Total Tokens: ${tokenUsage.totalTokens}`);
         console.log(`Processing Time: ${timeUsed}ms`);
-        console.log("Analysis Result:", JSON.stringify(analysisResult, null, 2));
+        console.log(`Language: ${lang}`);
+        console.log("Analysis Result:", JSON.stringify(finalResult, null, 2));
         console.log("==================\n");
 
         // Return success response
         res.json({
             status: "success",
-            data: analysisResult,
+            data: finalResult,
         });
 
     } catch (error) {

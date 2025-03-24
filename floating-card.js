@@ -1,0 +1,1 @@
+document.getElementById('loading-text').textContent = getMessage('loadingText', '正在核查...'); 
