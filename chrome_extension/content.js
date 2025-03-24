@@ -27,18 +27,13 @@ window.addEventListener('popstate', () => handleUrlChange());
 // 处理 URL 变化
 function handleUrlChange() {
   removeFloatingCard();
-  try {
-    chrome.runtime.sendMessage({ 
-      type: 'URL_CHANGED',
-      oldUrl: lastUrl,
-      newUrl: location.href
-    });
-  } catch (error) {
-    // 忽略扩展上下文失效错误
-    if (!error.message.includes('Extension context invalidated')) {
-      console.error('URL变化处理错误:', error);
-    }
-  }
+  
+  // 使用安全发送函数
+  sendMessageSafely({ 
+    type: 'URL_CHANGED',
+    oldUrl: lastUrl,
+    newUrl: location.href
+  });
 }
 
 // 移除浮动卡片
@@ -52,13 +47,25 @@ function removeFloatingCard() {
 // 合并所有消息监听逻辑到一个统一的监听器
 function initializeMessageListeners() {
   try {
-    if (!chrome.runtime) {
-      console.warn('chrome.runtime 不可用');
+    if (!isExtensionContextValid()) {
+      console.warn('扩展上下文无效，跳过消息监听器初始化');
       return;
     }
 
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('Content script received message:', message);
+
+      // 添加对PING消息的处理
+      if (message.type === 'PING') {
+        sendResponse({ ready: true });
+        return true;
+      }
+      
+      // 添加对静默PING的处理（不记录日志）
+      if (message.type === 'SILENT_PING') {
+        sendResponse({ ready: true });
+        return true;
+      }
 
       switch (message.type) {
         case 'SHOW_RESULT':
@@ -126,10 +133,7 @@ function initializeMessageListeners() {
     });
 
   } catch (error) {
-    // 忽略扩展上下文失效错误
-    if (!error.message.includes('Extension context invalidated')) {
-      console.error('消息监听器设置错误:', error);
-    }
+    console.warn('设置消息监听器失败:', error.message);
   }
 }
 
@@ -140,10 +144,12 @@ function initialize() {
     document.addEventListener('DOMContentLoaded', () => {
       initializeMessageListeners();
       initializeUrlObserver();
+      signalContentReady();
     });
   } else {
     initializeMessageListeners();
     initializeUrlObserver();
+    signalContentReady();
   }
 
   // 监听 History API 变化
@@ -175,18 +181,18 @@ function initialize() {
         break;
 
       case 'LANGUAGE_DETECTED':
-        try {
-          chrome.runtime.sendMessage({ 
-            type: 'SET_LANGUAGE',
-            lang: event.data.lang
-          });
-          console.log('将语言偏好发送给background:', event.data.lang);
-        } catch (error) {
-          console.error('发送语言偏好时出错:', error);
-        }
+        // 使用安全发送函数
+        sendMessageSafely({ 
+          type: 'SET_LANGUAGE',
+          lang: event.data.lang
+        });
+        console.log('语言偏好已发送:', event.data.lang);
         break;
     }
   });
+
+  // 添加自动重连机制
+  setupReconnectionMechanism();
 }
 
 // 启动初始化
@@ -201,6 +207,12 @@ function cleanup() {
   if (urlObserver) {
     urlObserver.disconnect();
     urlObserver = null;
+  }
+  
+  // 清除重连定时器
+  if (reconnectTimer) {
+    clearInterval(reconnectTimer);
+    reconnectTimer = null;
   }
   
   // 移除事件监听器
@@ -244,4 +256,80 @@ function extractMainContent(body) {
   const text = clone.innerText.trim();
   // 限制为大约 10000 个字符（约 5000 个汉字）
   return text.length > 10000 ? text.substring(0, 10000) + '...' : text;
+}
+
+// 添加强健的扩展上下文检查函数
+function isExtensionContextValid() {
+  try {
+    // 尝试访问chrome.runtime.id - 如果上下文无效会抛出异常
+    return Boolean(chrome.runtime && chrome.runtime.id);
+  } catch (e) {
+    return false;
+  }
+}
+
+// 安全的消息发送函数
+function sendMessageSafely(message, callback) {
+  try {
+    // 先检查扩展上下文是否有效
+    if (!isExtensionContextValid()) {
+      console.warn('扩展上下文已失效，无法发送消息:', message.type);
+      return;
+    }
+
+    // 使用Promise处理消息发送
+    chrome.runtime.sendMessage(message)
+      .then(response => {
+        if (callback && typeof callback === 'function') {
+          callback(response);
+        }
+      })
+      .catch(error => {
+        // 忽略特定错误类型
+        if (error && (
+            error.message.includes('Extension context invalidated') ||
+            error.message.includes('Receiving end does not exist')
+          )) {
+          console.warn(`消息发送失败(${error.message})，忽略此错误`);
+        } else {
+          console.error('消息发送失败:', error);
+        }
+      });
+  } catch (error) {
+    // 捕获所有其他可能的错误
+    console.warn('发送消息过程中出现异常:', error.message);
+  }
+}
+
+// 添加重连机制
+let reconnectTimer = null;
+function setupReconnectionMechanism() {
+  // 清除任何现有的重连定时器
+  if (reconnectTimer) {
+    clearInterval(reconnectTimer);
+  }
+  
+  // 每30秒尝试重新连接一次
+  reconnectTimer = setInterval(() => {
+    if (isExtensionContextValid()) {
+      console.log('扩展上下文有效，重新初始化监听器');
+      initializeMessageListeners();
+    } else {
+      console.warn('扩展上下文仍然无效，稍后将再次尝试');
+    }
+  }, 30000);
+}
+
+// 新增：通知后台脚本content script已就绪
+function signalContentReady() {
+  setTimeout(() => {
+    if (isExtensionContextValid()) {
+      try {
+        chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY' })
+          .catch(() => console.warn('无法发送content script就绪信号'));
+      } catch (error) {
+        console.warn('发送就绪信号出错:', error);
+      }
+    }
+  }, 100);
 }

@@ -101,6 +101,9 @@ async function initializeExtension() {
   
   // 尝试预热API服务
   await warmupApiService();
+  
+  // 添加定期清理
+  setupPeriodicCleanup();
 }
 
 // 事件监听器初始化
@@ -192,7 +195,17 @@ async function analyzePage(tabId, url) {
     }
 
     analysisManager.addPending(url);
+    
+    // 注入内容脚本并等待就绪信号
+    const scriptInjected = await ensureContentScriptInjected(tabId);
+    if (!scriptInjected) {
+      throw new Error('无法注入内容脚本');
+    }
+    
     await injectFloatingCard(tabId);
+
+    // 添加延迟，确保浮动卡片已加载完成
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     const content = await getPageContent(tabId);
     if (!content?.trim()) {
@@ -202,24 +215,166 @@ async function analyzePage(tabId, url) {
     const result = await analyzeContent(content, url);
     analysisManager.setResult(url, result);
 
-    await Promise.all([
-      notifyResult(tabId, result),
-      updateBadge(tabId, result)
-    ]);
+    // 使用安全发送函数
+    await safelyNotifyResult(tabId, result);
+    await updateBadge(tabId, result);
 
   } catch (error) {
-    await Promise.all([
-      notifyError(tabId, error),
-      updateErrorBadge(tabId)
-    ]);
+    await safelyNotifyError(tabId, error);
+    await updateErrorBadge(tabId);
   } finally {
     analysisManager.removePending(url);
   }
 }
 
+// 新增: 确保内容脚本已注入的函数
+async function ensureContentScriptInjected(tabId) {
+  try {
+    // 检查标签页是否存在
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!tab) {
+      console.warn('标签页不存在，无法注入脚本');
+      return false;
+    }
+    
+    // 检查URL是否是扩展可以操作的URL
+    if (!tab.url || !tab.url.startsWith('http')) {
+      console.warn('标签页URL不允许注入脚本:', tab.url);
+      return false;
+    }
+    
+    // 注入content script
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content.js']
+    }).catch(error => {
+      console.error('注入内容脚本失败:', error);
+      return false;
+    });
+    
+    // 等待脚本准备就绪
+    return await waitForContentScript(tabId);
+  } catch (error) {
+    console.error('确保内容脚本注入时出错:', error);
+    return false;
+  }
+}
+
+// 新增: 等待内容脚本准备就绪
+async function waitForContentScript(tabId, maxAttempts = 3) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      // 发送ping消息检查内容脚本是否就绪
+      const response = await chrome.tabs.sendMessage(tabId, { type: 'PING' })
+        .catch(() => ({ ready: false }));
+      
+      if (response && response.ready) {
+        console.log('内容脚本已就绪');
+        return true;
+      }
+      
+      // 等待一段时间后再次尝试
+      await new Promise(resolve => setTimeout(resolve, 200 * (attempt + 1)));
+    } catch (error) {
+      console.warn(`等待内容脚本就绪失败 (尝试 ${attempt+1}/${maxAttempts}):`, error);
+    }
+  }
+  
+  // 最终检查 - 如果所有尝试都失败，则使用静默检查
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: 'SILENT_PING' });
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+// 修改: 安全地发送分析结果
+async function safelyNotifyResult(tabId, result) {
+  try {
+    // 检查标签页是否存在
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!tab) {
+      console.warn('标签页不存在，无法发送结果');
+      return;
+    }
+    
+    // 使用 Promise.race 和超时机制
+    const sendMessagePromise = chrome.tabs.sendMessage(tabId, {
+      type: 'SHOW_RESULT',
+      data: result
+    });
+    
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('发送结果超时')), 2000);
+    });
+    
+    await Promise.race([sendMessagePromise, timeoutPromise])
+      .catch(error => {
+        // 如果是连接错误，重新尝试注入脚本
+        if (error.message.includes('Receiving end does not exist')) {
+          console.warn('接收端不存在，尝试重新注入脚本');
+          return ensureContentScriptInjected(tabId)
+            .then(success => {
+              if (success) {
+                // 延迟后再次尝试发送
+                return new Promise(resolve => {
+                  setTimeout(() => {
+                    chrome.tabs.sendMessage(tabId, {
+                      type: 'SHOW_RESULT',
+                      data: result
+                    }).then(resolve).catch(() => resolve());
+                  }, 300);
+                });
+              }
+            });
+        }
+        console.error('发送结果失败:', error);
+      });
+    
+    console.log('结果已发送到内容脚本');
+  } catch (error) {
+    console.error('安全发送结果失败:', error);
+    // 即使出错也不抛出异常，避免中断流程
+  }
+}
+
+// 修改: 安全地发送错误
+async function safelyNotifyError(tabId, error) {
+  try {
+    // 检查标签页是否存在
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!tab) {
+      console.warn('标签页不存在，无法发送错误');
+      return;
+    }
+    
+    // 重新注入内容脚本（如果需要）
+    await ensureContentScriptInjected(tabId).catch(() => false);
+    
+    // 延迟发送，确保内容脚本已就绪
+    setTimeout(async () => {
+      try {
+        await chrome.tabs.sendMessage(tabId, {
+          type: 'SHOW_ERROR',
+          error: error.message || '发生未知错误'
+        }).catch(err => {
+          console.warn('发送错误失败，忽略此错误:', err);
+        });
+        console.log('错误已发送到内容脚本');
+      } catch (sendError) {
+        console.warn('延迟发送错误失败:', sendError);
+      }
+    }, 300);
+  } catch (error) {
+    console.error('安全发送错误失败:', error);
+    // 不抛出异常
+  }
+}
+
 // API 调用 - 添加重试机制
-async function analyzeContent(content, url) {
-  const lang = detectUserLanguage();
+async function analyzeContent(content, url, retryCount = 0) {
+  const lang = userLanguage || 'en';
   console.log(`发送API请求，使用语言: ${lang}`);
   
   try {
@@ -228,7 +383,6 @@ async function analyzeContent(content, url) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         content: content.substring(0, CONFIG.CONTENT_MAX_LENGTH),
-        title: document.title || '',
         url: url || '',
         lang: lang
       })
@@ -240,8 +394,8 @@ async function analyzeContent(content, url) {
 
     const result = await response.json();
     console.log(`API返回结果，检查语言一致性`);
-    if (result.fact_check && result.fact_check.verification_results) {
-      console.log(`验证结果示例:`, result.fact_check.verification_results[0]);
+    if (result.data && result.data.fact_check && result.data.fact_check.verification_results) {
+      console.log(`验证结果示例:`, result.data.fact_check.verification_results[0]);
     }
     return result.data || result;
   } catch (error) {
@@ -249,8 +403,13 @@ async function analyzeContent(content, url) {
     
     // 如果是首次请求且失败，可能是服务正在启动
     if (retryCount < 2) { // 最多重试2次，总共3次尝试
+      // 获取当前标签页
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
       // 显示服务启动中的消息
-      notifyServiceWaking(tab.id);
+      if (tab?.id) {
+        await notifyServiceWaking(tab.id).catch(() => {});
+      }
       
       // 指数退避重试 - 等待时间随重试次数增加
       const waitTime = 1500 * Math.pow(2, retryCount); // 1.5秒, 3秒, 6秒
@@ -331,51 +490,6 @@ async function getPageContent(tabId) {
   }
 }
 
-// 发送分析结果到内容脚本
-async function notifyResult(tabId, result) {
-  try {
-    // 先检查标签页是否存在
-    const tab = await chrome.tabs.get(tabId).catch(() => null);
-    if (!tab) {
-      throw new Error('标签页不存在');
-    }
-
-    // 确保内容脚本已注入
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: ['content.js']
-    }).catch(() => {});
-
-    // 延迟发送消息，确保内容脚本已准备就绪
-    setTimeout(async () => {
-      try {
-        await chrome.tabs.sendMessage(tabId, {
-          type: 'SHOW_RESULT',
-          data: result
-        });
-        console.log('Analysis result sent to content script');
-      } catch (error) {
-        console.error('发送结果失败:', error);
-      }
-    }, 500);
-  } catch (error) {
-    console.error('通知结果失败:', error);
-  }
-}
-
-// 发送错误到内容脚本
-async function notifyError(tabId, error) {
-  try {
-    await chrome.tabs.sendMessage(tabId, {
-      type: 'SHOW_ERROR',
-      error: error.message || '发生未知错误'
-    });
-    console.log('Error sent to content script');
-  } catch (error) {
-    console.error('发送错误失败:', error);
-  }
-}
-
 async function updateBadge(tabId, result) {
   try {
     if (result && typeof result.score === 'number') {
@@ -437,6 +551,31 @@ async function cleanupTab(tabId) {
   } catch (error) {
     // 忽略错误，标签页可能已关闭
   }
+}
+
+// 添加定期清理机制
+function setupPeriodicCleanup() {
+  // 每小时清理一次不再需要的结果缓存
+  setInterval(() => {
+    const now = Date.now();
+    const MAX_AGE = 3600000; // 1小时
+    
+    // 清理旧结果
+    for (const [url, data] of analysisManager.results.entries()) {
+      if (now - data.timestamp > MAX_AGE) {
+        analysisManager.results.delete(url);
+      }
+    }
+    
+    // 清理超时的待处理请求
+    for (const [url, timestamp] of analysisManager.pending.entries()) {
+      if (now - timestamp > 120000) { // 2分钟
+        analysisManager.pending.delete(url);
+      }
+    }
+    
+    console.log('已清理过期缓存数据');
+  }, 3600000); // 1小时间隔
 }
 
 // 启动扩展
