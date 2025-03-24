@@ -1,7 +1,6 @@
 // 语言检测功能
 function detectUserLanguage() {
-  const browserLang = navigator.language || navigator.userLanguage || 'en';
-  return browserLang.startsWith('zh') ? 'zh' : 'en';
+  return 'zh'; // 强制返回中文
 }
 
 // 文本资源字典

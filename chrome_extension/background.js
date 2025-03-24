@@ -201,7 +201,7 @@ async function analyzeContent(content) {
         content: content.substring(0, CONFIG.CONTENT_MAX_LENGTH),
         title: tab.title || '',
         url: tab.url || '',
-        lang: 'en' // 强制使用英文
+        lang: 'en' // 已经设置为英文，保持这样
       })
     });
 
@@ -380,28 +380,6 @@ async function cleanupTab(tabId) {
     // 忽略错误，标签页可能已关闭
   }
 }
-
-// 强制使用中文
-document.addEventListener('DOMContentLoaded', function() {
-  const elements = {
-    'Information Evaluation': '信息评估指标',
-    'Source Evaluation': '信息来源评估',
-    'Fact Checking': '事实核查', 
-    'Factuality': '真实性',
-    'Objectivity': '客观性',
-    'Reliability': '可靠性',
-    'Bias': '偏见'
-  };
-  
-  // 替换所有英文标题
-  for (const [en, zh] of Object.entries(elements)) {
-    document.querySelectorAll(`*:contains('${en}')`).forEach(el => {
-      if (el.childElementCount === 0 || el.tagName === 'BUTTON') {
-        el.textContent = el.textContent.replace(en, zh);
-      }
-    });
-  }
-});
 
 // 启动扩展
 chrome.runtime.onInstalled.addListener(initializeExtension);
