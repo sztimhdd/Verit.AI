@@ -288,6 +288,24 @@ function initializeFloatingCard() {
       width: 400,
       height: 600
     }, '*');
+    
+    // 添加额外的滚动容器处理
+    const cardBody = document.getElementById('result-content');
+    if (cardBody) {
+      // 确保高度计算正确，强制设置样式
+      setTimeout(() => {
+        cardBody.style.maxHeight = '460px';
+        cardBody.style.overflowY = 'auto';
+        
+        // 检查内容高度是否超过容器
+        if (cardBody.scrollHeight > cardBody.clientHeight) {
+          console.log('内容需要滚动，高度:', cardBody.scrollHeight);
+          // 强制更新滚动状态
+          cardBody.scrollTop = 1;
+          cardBody.scrollTop = 0;
+        }
+      }, 100);
+    }
   }
 
   // 初始化为加载状态

@@ -47,8 +47,10 @@
       background-color: white;
       overflow: hidden;
       position: relative;
-      border-radius: 0; /* 移除卡片自身的圆角，由iframe来提供 */
-      box-shadow: none; /* 移除卡片自身的阴影，由iframe来提供 */
+      border-radius: 0;
+      box-shadow: none;
+      display: flex;
+      flex-direction: column;
     }
 
     /* 加载状态 */
@@ -89,6 +91,7 @@
       padding: 1rem 1.5rem;
       position: relative;
       min-height: 110px; /* 设置最小高度确保评分环有足够空间 */
+      flex-shrink: 0; /* 防止头部被压缩 */
     }
 
     .card-header h1 {
@@ -145,9 +148,12 @@
     .card-body {
       padding: 1.5rem;
       overflow-y: auto !important;
-      height: auto; /* 移除固定高度 */
-      max-height: calc(100% - 110px); /* 动态计算最大高度，根据标题最小高度 */
-      flex-grow: 1; /* 允许内容区域伸展 */
+      max-height: 460px; /* 设置最大高度，留出头部空间 */
+      flex-grow: 1;
+      flex-shrink: 1; /* 允许收缩 */
+      display: block;
+      -webkit-overflow-scrolling: touch; /* 提供更好的移动端滚动体验 */
+      scrollbar-width: thin; /* Firefox滚动条宽度 */
     }
 
     .section {
@@ -434,9 +440,10 @@
       background: rgba(255, 255, 255, 0.5);
     }
 
-    /* 美化滚动条 */
+    /* 修改滚动条样式 */
     .card-body::-webkit-scrollbar {
       width: 6px;
+      display: block; /* 确保滚动条显示 */
     }
 
     .card-body::-webkit-scrollbar-track {
@@ -457,7 +464,7 @@
     .card.result {
       display: flex;
       flex-direction: column;
-      height: 100%;
+      height: 600px;
     }
   </style>
 </head>
