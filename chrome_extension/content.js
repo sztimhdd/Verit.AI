@@ -4,6 +4,7 @@ window.addEventListener('beforeunload', removeFloatingCard);
 // 监听 URL 变化
 let lastUrl = location.href;
 let urlObserver = null;
+let reconnectTimer = null;  // 移到顶部确保在使用前声明
 
 function initializeUrlObserver() {
   if (urlObserver) {
@@ -137,6 +138,24 @@ function initializeMessageListeners() {
   }
 }
 
+// 添加重连机制
+function setupReconnectionMechanism() {
+  // 清除任何现有的重连定时器
+  if (reconnectTimer) {
+    clearInterval(reconnectTimer);
+  }
+  
+  // 每30秒尝试重新连接一次
+  reconnectTimer = setInterval(() => {
+    if (isExtensionContextValid()) {
+      console.log('扩展上下文有效，重新初始化监听器');
+      initializeMessageListeners();
+    } else {
+      console.warn('扩展上下文仍然无效，稍后将再次尝试');
+    }
+  }, 30000);
+}
+
 // 修改 initialize 函数
 function initialize() {
   // 等待 DOM 加载完成
@@ -156,43 +175,42 @@ function initialize() {
   window.addEventListener('popstate', handleUrlChange);
   
   // 监听来自 floating-card 的消息
-  window.addEventListener('message', (event) => {
-    const iframe = document.querySelector('#factChecker-frame');
-    
-    if (!iframe) return;
+  window.addEventListener('message', handleFrameMessages);
 
-    switch (event.data.type) {
-      case 'RESIZE_FRAME':
-        console.log('content.js 接收到 RESIZE_FRAME 消息:', event.data);
-        iframe.style.width = `${event.data.width}px`;
-        iframe.style.height = `${event.data.height}px`;
-        console.log('iframe 样式已更新为:', { width: iframe.style.width, height: iframe.style.height });
-        break;
-        
-      case 'REMOVE_FRAME':
-        removeFloatingCard();
-        break;
-        
-      case 'CARD_READY':
-        // 通知 background.js 卡片已准备就绪
-        if (chrome.runtime) {
-          chrome.runtime.sendMessage({ type: 'CARD_READY' });
-        }
-        break;
-
-      case 'LANGUAGE_DETECTED':
-        // 使用安全发送函数
-        sendMessageSafely({ 
-          type: 'SET_LANGUAGE',
-          lang: event.data.lang
-        });
-        console.log('语言偏好已发送:', event.data.lang);
-        break;
-    }
-  });
-
-  // 添加自动重连机制
+  // 确保setupReconnectionMechanism在使用前已定义
   setupReconnectionMechanism();
+}
+
+// 分离出消息处理函数
+function handleFrameMessages(event) {
+  const iframe = document.querySelector('#factChecker-frame');
+  if (!iframe) return;
+
+  switch (event.data.type) {
+    case 'RESIZE_FRAME':
+      console.log('content.js 接收到 RESIZE_FRAME 消息:', event.data);
+      iframe.style.width = `${event.data.width}px`;
+      iframe.style.height = `${event.data.height}px`;
+      console.log('iframe 样式已更新为:', { width: iframe.style.width, height: iframe.style.height });
+      break;
+    case 'REMOVE_FRAME':
+      removeFloatingCard();
+      break;
+    case 'CARD_READY':
+      // 通知 background.js 卡片已准备就绪
+      if (chrome.runtime) {
+        chrome.runtime.sendMessage({ type: 'CARD_READY' });
+      }
+      break;
+    case 'LANGUAGE_DETECTED':
+      // 使用安全发送函数
+      sendMessageSafely({ 
+        type: 'SET_LANGUAGE',
+        lang: event.data.lang
+      });
+      console.log('语言偏好已发送:', event.data.lang);
+      break;
+  }
 }
 
 // 启动初始化
@@ -224,7 +242,14 @@ function cleanup() {
 window.factCheckerCleanup = cleanup;
 
 // 通知 background script content script 已加载
-chrome.runtime.sendMessage({ action: 'contentScriptReady' });
+try {
+  if (isExtensionContextValid()) {
+    chrome.runtime.sendMessage({ action: 'contentScriptReady' })
+      .catch(error => console.warn('发送就绪信号失败:', error));
+  }
+} catch (error) {
+  console.warn('初始就绪信号发送失败:', error);
+}
 
 function extractMainContent(body) {
   // 移除导航、页眉、页脚等非主要内容
@@ -299,25 +324,6 @@ function sendMessageSafely(message, callback) {
     // 捕获所有其他可能的错误
     console.warn('发送消息过程中出现异常:', error.message);
   }
-}
-
-// 添加重连机制
-let reconnectTimer = null;
-function setupReconnectionMechanism() {
-  // 清除任何现有的重连定时器
-  if (reconnectTimer) {
-    clearInterval(reconnectTimer);
-  }
-  
-  // 每30秒尝试重新连接一次
-  reconnectTimer = setInterval(() => {
-    if (isExtensionContextValid()) {
-      console.log('扩展上下文有效，重新初始化监听器');
-      initializeMessageListeners();
-    } else {
-      console.warn('扩展上下文仍然无效，稍后将再次尝试');
-    }
-  }, 30000);
 }
 
 // 新增：通知后台脚本content script已就绪
