@@ -13,6 +13,7 @@
       --success: #10b981;
       --warning: #f59e0b;
       --danger: #ef4444;
+      --orange: #FF8C00;
       --info: #06b6d4;
       --gray-100: #f3f4f6;
       --gray-200: #e5e7eb;
@@ -23,6 +24,21 @@
       --gray-700: #374151;
       --gray-800: #1f2937;
       --gray-900: #111827;
+      --bg-high: linear-gradient(135deg, #10b981, #34d399);
+      --bg-medium-high: linear-gradient(135deg, #2563eb, #3b82f6);
+      --bg-medium: linear-gradient(135deg, #f59e0b, #fbbf24);
+      --bg-medium-low: linear-gradient(135deg, #ff8c00, #ffa533);
+      --bg-low: linear-gradient(135deg, #dc2626, #ef4444);
+      --text-on-dark: white;
+      --text-on-light: #111827;
+      --color-high: hsl(100, 75%, 45%);
+      --color-medium-high: hsl(75, 75%, 45%);
+      --color-medium: hsl(60, 75%, 45%);
+      --color-medium-low: hsl(30, 75%, 45%);
+      --color-low: hsl(0, 75%, 45%);
+      --text-on-high: white;
+      --text-on-medium: #111827;
+      --text-on-low: white;
     }
 
     * {
@@ -72,9 +88,20 @@
       animation: spin 1s linear infinite;
     }
 
+    .loading-spinner.waking-up {
+      border: 2px solid var(--gray-200);
+      border-top: 2px solid var(--warning);
+      animation: pulse 1.5s ease-in-out infinite alternate, spin 2s linear infinite;
+    }
+
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.7; transform: scale(0.95) rotate(0deg); }
+      100% { opacity: 1; transform: scale(1.05) rotate(360deg); }
     }
 
     .loading-text {
@@ -86,36 +113,37 @@
 
     /* 结果状态 */
     .card-header {
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
       color: white;
       padding: 1rem 1.5rem;
       position: relative;
-      min-height: 110px; /* 设置最小高度确保评分环有足够空间 */
-      flex-shrink: 0; /* 防止头部被压缩 */
+      min-height: 110px;
+      flex-shrink: 0;
+      transition: background 0.3s ease;
     }
 
     .card-header h1 {
       font-size: 1.25rem;
       font-weight: 600;
       margin-bottom: 0.5rem;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
     }
 
     .summary-preview {
       font-size: 0.9rem;
       line-height: 1.5;
       opacity: 0.95;
-      margin-right: 80px; /* 给评分留出空间 */
-      /* 移除固定行数限制，允许完整显示 */
+      margin-right: 80px;
       overflow: visible;
       max-height: none;
-      padding-bottom: 0.5rem; /* 底部增加一些间距 */
+      padding-bottom: 0.5rem;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
     }
 
     .trust-score {
       position: absolute;
       right: 1.5rem;
-      top: 1rem; /* 固定在顶部而不是中间 */
-      transform: none; /* 移除垂直居中变换 */
+      top: 1rem;
+      transform: none;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -138,6 +166,7 @@
       font-size: 1.8rem;
       font-weight: 700;
       color: var(--primary);
+      transition: color 0.3s ease;
     }
 
     .trust-score-label {
@@ -148,12 +177,12 @@
     .card-body {
       padding: 1.5rem;
       overflow-y: auto !important;
-      max-height: 460px; /* 设置最大高度，留出头部空间 */
+      max-height: 460px;
       flex-grow: 1;
-      flex-shrink: 1; /* 允许收缩 */
+      flex-shrink: 1;
       display: block;
-      -webkit-overflow-scrolling: touch; /* 提供更好的移动端滚动体验 */
-      scrollbar-width: thin; /* Firefox滚动条宽度 */
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
     }
 
     .section {
@@ -181,18 +210,22 @@
 
     .flags-container {
       display: flex;
-      gap: 0.8rem;
+      gap: 0.6rem;
       flex-wrap: wrap;
     }
 
     .flag-item {
       background-color: var(--gray-100);
       border-radius: 12px;
-      padding: 0.8rem;
+      padding: 0.7rem 0.5rem;
       flex: 1;
-      min-width: 50px;
+      min-width: 80px;
       text-align: center;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
 
     .flag-icon {
@@ -201,13 +234,17 @@
     }
 
     .flag-title {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: var(--gray-600);
       margin-bottom: 0.25rem;
+      width: 100%;
+      white-space: normal;
+      word-wrap: break-word;
+      hyphens: auto;
     }
 
     .flag-value {
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: 600;
       color: var(--gray-800);
     }
@@ -252,6 +289,16 @@
       align-items: center;
       font-size: 0.7rem;
       font-weight: 600;
+      
+      /* 添加阴影增加视觉效果 */
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    /* 可选：添加悬停效果 */
+    .source-tag:hover .source-credibility {
+      transform: scale(1.1);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
     }
 
     .facts-container {
@@ -281,12 +328,34 @@
       font-size: 0.8rem;
       padding: 0.25rem 0.5rem;
       border-radius: 4px;
-      background-color: var(--warning);
       color: white;
       align-self: flex-start;
       margin-top: 0.3rem;
       display: inline-block;
       max-width: 100%;
+      transition: background-color 0.3s ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    /* 为不同状态预定义类 */
+    .fact-status-true {
+      background-color: var(--success);
+    }
+
+    .fact-status-partially {
+      background-color: var(--warning);
+    }
+
+    .fact-status-false {
+      background-color: var(--danger);
+    }
+
+    .fact-status-unverified {
+      background-color: var(--gray-500);
+    }
+
+    .fact-status-misleading {
+      background-color: var(--orange);
     }
 
     .exaggerations-container {
@@ -443,7 +512,7 @@
     /* 修改滚动条样式 */
     .card-body::-webkit-scrollbar {
       width: 6px;
-      display: block; /* 确保滚动条显示 */
+      display: block;
     }
 
     .card-body::-webkit-scrollbar-track {
@@ -465,6 +534,41 @@
       display: flex;
       flex-direction: column;
       height: 600px;
+    }
+
+    /* 添加不同信任级别的背景渐变色 */
+    .header-high {
+      background: linear-gradient(135deg, var(--success), #3dd391);
+    }
+
+    .header-medium-high {
+      background: linear-gradient(135deg, #66bb6a, var(--primary-light));
+    }
+
+    .header-medium {
+      background: linear-gradient(135deg, var(--warning), #ffc857);
+    }
+
+    .header-medium-low {
+      background: linear-gradient(135deg, var(--orange), #ffae42);
+    }
+
+    .header-low {
+      background: linear-gradient(135deg, #ff6b6b, var(--danger));
+    }
+
+    /* 英文界面特定样式 */
+    .lang-en .flag-title {
+      font-size: 0.7rem; /* 英文进一步减小字体 */
+      line-height: 1.1;  /* 减小行高 */
+    }
+
+    .lang-en .flags-container {
+      gap: 0.5rem; /* 为英文界面进一步减少间距 */
+    }
+
+    .lang-en .flag-item {
+      padding: 0.6rem 0.4rem; /* 英文界面减少内边距 */
     }
   </style>
 </head>

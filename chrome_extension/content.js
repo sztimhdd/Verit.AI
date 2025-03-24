@@ -109,6 +109,17 @@ function initializeMessageListeners() {
           removeFloatingCard();
           sendResponse({ success: true });
           break;
+
+        case 'SERVICE_WAKING':
+          const frame = document.querySelector('#factChecker-frame');
+          if (frame) {
+            frame.contentWindow.postMessage({
+              type: 'SERVICE_WAKING',
+              message: message.message
+            }, '*');
+          }
+          sendResponse({ success: true });
+          break;
       }
 
       return true; // 保持消息通道开放
@@ -160,6 +171,18 @@ function initialize() {
         // 通知 background.js 卡片已准备就绪
         if (chrome.runtime) {
           chrome.runtime.sendMessage({ type: 'CARD_READY' });
+        }
+        break;
+
+      case 'LANGUAGE_DETECTED':
+        try {
+          chrome.runtime.sendMessage({ 
+            type: 'SET_LANGUAGE',
+            lang: event.data.lang
+          });
+          console.log('将语言偏好发送给background:', event.data.lang);
+        } catch (error) {
+          console.error('发送语言偏好时出错:', error);
         }
         break;
     }

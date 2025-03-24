@@ -64,20 +64,23 @@ async function fetchWebContent(url) {
     }
 }
 
-// 添加翻译功能 - 新增
+// 修改翻译功能以确保关键状态文本的一致性
 async function translateToZh(analysisResult) {
     try {
         // 构建翻译提示词
         const translationPrompt = `
             请将以下JSON格式的事实核查结果从英文翻译成中文，保持JSON结构不变。
             只翻译值部分，不要翻译键名。
-            特别是以下关键术语的翻译:
+            特别是以下关键术语必须严格按照下面的映射进行翻译:
             - "High" -> "高"
             - "Medium" -> "中"
             - "Low" -> "低"
             - "True" -> "真实"
             - "Partially True" -> "部分真实"
             - "False" -> "虚假"
+            - "Misleading" -> "误导"
+            - "Unverified" -> "需要核实"
+            - "Not enough evidence" -> "证据不足"
             
             ${JSON.stringify(analysisResult)}
         `;
@@ -351,6 +354,11 @@ app.post("/api/extension/analyze", async (req, res) => {
 // Test route
 app.get('/', (req, res) => {
     res.json({ message: 'Server is running' });
+});
+
+// 添加健康检查端点
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
 // Start server

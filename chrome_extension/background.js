@@ -58,6 +58,9 @@ const analysisState = {
 // 在文件顶部添加防重复提交跟踪
 const pendingAnalysis = new Map(); // 记录正在分析的URL
 
+// 添加语言偏好存储
+let userLanguage = 'en'; // 默认英文
+
 // 内联 handleError 函数
 function handleError(error) {
   console.error('Error:', error);
@@ -67,6 +70,27 @@ function handleError(error) {
   };
 }
 
+// 添加API服务预热函数
+async function warmupApiService() {
+  try {
+    const response = await fetch(`${CONFIG.API_URL.split('/api/')[0]}/health`, {
+      method: 'GET',
+      cache: 'no-cache'
+    });
+    
+    if (response.ok) {
+      console.log('API服务已预热');
+      return true;
+    }
+    
+    console.log('API服务预热请求发送，但服务可能仍在启动');
+    return false;
+  } catch (error) {
+    console.log('API服务预热失败，可能处于休眠状态');
+    return false;
+  }
+}
+
 // 初始化扩展
 async function initializeExtension() {
   // 注册事件监听器
@@ -74,12 +98,18 @@ async function initializeExtension() {
   
   // 清理现有卡片
   await cleanupExistingCards();
+  
+  // 尝试预热API服务
+  await warmupApiService();
 }
 
 // 事件监听器初始化
 function initializeEventListeners() {
   // 只保留扩展图标点击事件
   chrome.action.onClicked.addListener(async (tab) => {
+    // 首先尝试预热服务
+    warmupApiService().catch(() => {}); // 静默失败，将在实际分析时重试
+    
     if (tab?.url && !analysisManager.isPending(tab.url)) {
       await analyzePage(tab.id, tab.url);
     }
@@ -118,6 +148,12 @@ const messageHandlers = {
     if (tab?.url && !analysisManager.isPending(tab.url)) {
       await analyzePage(tab.id, tab.url);
     }
+    return { success: true };
+  },
+
+  SET_LANGUAGE: async (message) => {
+    userLanguage = message.lang;
+    console.log('语言偏好已设置为:', userLanguage);
     return { success: true };
   }
 };
@@ -163,7 +199,7 @@ async function analyzePage(tabId, url) {
       throw new Error('无法获取页面内容');
     }
 
-    const result = await analyzeContent(content);
+    const result = await analyzeContent(content, url);
     analysisManager.setResult(url, result);
 
     await Promise.all([
@@ -181,27 +217,20 @@ async function analyzePage(tabId, url) {
   }
 }
 
-// API 调用 - 添加语言参数
-async function analyzeContent(content) {
+// API 调用 - 添加重试机制
+async function analyzeContent(content, url) {
+  const lang = detectUserLanguage();
+  console.log(`发送API请求，使用语言: ${lang}`);
+  
   try {
-    // 获取当前活动标签页的信息
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab) {
-      throw new Error('无法获取当前标签页信息');
-    }
-
-    // 获取浏览器语言
-    const browserLang = navigator.language || navigator.userLanguage || 'en';
-    const userLang = browserLang.startsWith('zh') ? 'zh' : 'en';
-
     const response = await fetch(CONFIG.API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         content: content.substring(0, CONFIG.CONTENT_MAX_LENGTH),
-        title: tab.title || '',
-        url: tab.url || '',
-        lang: 'en' // 已经设置为英文，保持这样
+        title: document.title || '',
+        url: url || '',
+        lang: lang
       })
     });
 
@@ -210,10 +239,39 @@ async function analyzeContent(content) {
     }
 
     const result = await response.json();
+    console.log(`API返回结果，检查语言一致性`);
+    if (result.fact_check && result.fact_check.verification_results) {
+      console.log(`验证结果示例:`, result.fact_check.verification_results[0]);
+    }
     return result.data || result;
   } catch (error) {
-    console.error('API调用失败:', error);
-    throw new Error('分析服务暂时不可用');
+    console.error(`API调用失败 (尝试 ${retryCount + 1}/3):`, error);
+    
+    // 如果是首次请求且失败，可能是服务正在启动
+    if (retryCount < 2) { // 最多重试2次，总共3次尝试
+      // 显示服务启动中的消息
+      notifyServiceWaking(tab.id);
+      
+      // 指数退避重试 - 等待时间随重试次数增加
+      const waitTime = 1500 * Math.pow(2, retryCount); // 1.5秒, 3秒, 6秒
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      
+      return analyzeContent(content, url, retryCount + 1);
+    }
+    
+    throw new Error('分析服务暂时不可用，请稍后再试');
+  }
+}
+
+// 添加新函数 - 通知用户服务正在启动
+async function notifyServiceWaking(tabId) {
+  try {
+    await chrome.tabs.sendMessage(tabId, {
+      type: 'SERVICE_WAKING',
+      message: '服务正在启动中，请稍候...'
+    });
+  } catch (error) {
+    console.error('发送服务启动通知失败:', error);
   }
 }
 
