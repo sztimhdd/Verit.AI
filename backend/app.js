@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import * as modelManager from './model-manager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -22,7 +23,12 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Initialize Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+// 初始化模型管理器
+(async function() {
+    await modelManager.initialize(genAI);
+    console.log("模型管理器已初始化完成");
+})();
 
 // Function to fetch web content
 async function fetchWebContent(url) {
@@ -65,7 +71,7 @@ async function fetchWebContent(url) {
 }
 
 // 修改翻译功能以确保关键状态文本的一致性
-async function translateToZh(analysisResult) {
+async function translateToZh(analysisResult, modelName) {
     try {
         // 构建翻译提示词
         const translationPrompt = `
@@ -84,6 +90,9 @@ async function translateToZh(analysisResult) {
             
             ${JSON.stringify(analysisResult)}
         `;
+        
+        // 使用当前活跃模型进行翻译
+        const model = genAI.getGenerativeModel({ model: modelName });
         
         // 调用Gemini API翻译
         const translationResult = await model.generateContent({
@@ -158,7 +167,14 @@ app.post("/api/extension/analyze", async (req, res) => {
             });
         }
 
-        // 修改英文分析Prompt
+        // 获取最佳模型配置
+        const modelConfig = await modelManager.getModelConfig(analysisContent, genAI);
+        const activeModel = modelConfig.model;
+        const useGrounding = modelConfig.tools.length > 0;
+        
+        console.log(`使用模型: ${activeModel}, 使用Grounding: ${useGrounding}`);
+
+        // 分析Prompt
         const prompt = `You are a professional fact checker. Please analyze the following content with multi-dimensional analysis.
 
         First, carefully read the entire text, identifying key information, claims, and information sources.
@@ -245,10 +261,15 @@ app.post("/api/extension/analyze", async (req, res) => {
         console.log(`Time: ${new Date().toLocaleString()}`);
         console.log(`Content Length: ${analysisContent.length} characters`);
         console.log(`Language: ${lang}`);
+        console.log(`Using Model: ${activeModel} with Grounding: ${useGrounding}`);
 
-        // Call Gemini API
+        // 获取指定模型实例
+        const model = genAI.getGenerativeModel({ model: activeModel });
+
+        // Call Gemini API with dynamic model configuration
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
+            tools: modelConfig.tools,
             generationConfig: {
                 temperature: 0.1,
                 topK: 40,
@@ -269,6 +290,9 @@ app.post("/api/extension/analyze", async (req, res) => {
 
         const response = await result.response;
         const text = response.text().trim();
+
+        // 记录API使用情况
+        await modelManager.recordUsage(response, useGrounding);
 
         // Parse JSON response
         let analysisResult;
@@ -317,7 +341,7 @@ app.post("/api/extension/analyze", async (req, res) => {
         let finalResult = analysisResult;
         if (needsTranslation) {
             console.log("Translating results to Chinese...");
-            finalResult = await translateToZh(analysisResult);
+            finalResult = await translateToZh(analysisResult, activeModel);
         }
 
         // Calculate and log token usage
@@ -330,7 +354,7 @@ app.post("/api/extension/analyze", async (req, res) => {
         console.log(`Total Tokens: ${tokenUsage.totalTokens}`);
         console.log(`Processing Time: ${timeUsed}ms`);
         console.log(`Language: ${lang}`);
-        console.log("Analysis Result:", JSON.stringify(finalResult, null, 2));
+        console.log(`Model: ${activeModel}, Grounding: ${useGrounding}`);
         console.log("==================\n");
 
         // Return success response
