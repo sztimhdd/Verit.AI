@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Oracle AI Fact Checker",
+  "name": "Verit.ai Fact Checker",
   "version": "1.0.0",
-  "description": "AI-powered fact checking tool",
+  "description": "Get trustworthy information assessments in seconds with just one click",
   "permissions": [
     "activeTab",
     "scripting",
@@ -22,7 +22,7 @@
     }
   ],
   "action": {
-    "default_title": "Oracle AI Fact Checker"
+    "default_title": "Verit.ai - Your AI Fact Checker"
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
@@ -33,5 +33,10 @@
       "content.js"
     ],
     "matches": ["<all_urls>"]
-  }]
+  }],
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  }
 }
