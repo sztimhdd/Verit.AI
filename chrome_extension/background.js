@@ -73,21 +73,41 @@ function handleError(error) {
 // 添加API服务预热函数
 async function warmupApiService() {
   try {
-    const response = await fetch(`${CONFIG.API_URL.split('/api/')[0]}/health`, {
+    console.log('尝试预热API服务...');
+    
+    // 构建健康检查URL
+    const healthUrl = `${CONFIG.API_URL.split('/api/')[0]}/health`;
+    console.log(`健康检查URL: ${healthUrl}`);
+    
+    const response = await fetch(healthUrl, {
       method: 'GET',
-      cache: 'no-cache'
+      headers: { 'Content-Type': 'application/json' }
     });
     
+    // 检查服务的健康状态
     if (response.ok) {
-      console.log('API服务已预热');
-      return true;
+      const healthData = await response.json();
+      console.log('健康检查结果:', healthData);
+      
+      // 检查服务是否已就绪
+      if (healthData.ready === true) {
+        console.log('API服务已就绪');
+        return { ready: true };
+      } else {
+        console.log('API服务正在初始化中...');
+        return { ready: false, initializing: true };
+      }
+    } else if (response.status === 503) {
+      // 服务正在启动但尚未就绪
+      console.log('API服务正在启动中，尚未就绪');
+      return { ready: false, initializing: true };
+    } else {
+      console.error(`健康检查失败: ${response.status}`);
+      return { ready: false, error: `状态码: ${response.status}` };
     }
-    
-    console.log('API服务预热请求发送，但服务可能仍在启动');
-    return false;
   } catch (error) {
-    console.log('API服务预热失败，可能处于休眠状态');
-    return false;
+    console.error('API预热失败:', error);
+    return { ready: false, error: error.message };
   }
 }
 
@@ -377,6 +397,14 @@ async function analyzeContent(content, url, retryCount = 0) {
   const lang = userLanguage || 'en';
   console.log(`发送API请求，使用语言: ${lang}`);
   
+  // 首次请求前先检查服务就绪状态
+  if (retryCount === 0) {
+    const serviceStatus = await warmupApiService();
+    if (!serviceStatus.ready && serviceStatus.initializing) {
+      console.log('检测到服务尚未就绪，进入等待模式');
+    }
+  }
+  
   try {
     const response = await fetch(CONFIG.API_URL, {
       method: 'POST',
@@ -388,8 +416,15 @@ async function analyzeContent(content, url, retryCount = 0) {
       })
     });
 
+    // 处理不同的错误状态码
     if (!response.ok) {
-      throw new Error(`API请求失败: ${response.status}`);
+      // 如果服务未就绪，返回503
+      if (response.status === 503) {
+        console.log('服务尚未就绪，等待后重试');
+        throw new Error('API服务正在启动中，请稍候');
+      } else {
+        throw new Error(`API请求失败: ${response.status}`);
+      }
     }
 
     const result = await response.json();
@@ -399,10 +434,10 @@ async function analyzeContent(content, url, retryCount = 0) {
     }
     return result.data || result;
   } catch (error) {
-    console.error(`API调用失败 (尝试 ${retryCount + 1}/3):`, error);
+    console.error(`API调用失败 (尝试 ${retryCount + 1}/5):`, error);
     
-    // 如果是首次请求且失败，可能是服务正在启动
-    if (retryCount < 2) { // 最多重试2次，总共3次尝试
+    // 如果在合理的重试次数内
+    if (retryCount < 4) { // 最多重试4次，总共5次尝试
       // 获取当前标签页
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       
@@ -411,9 +446,23 @@ async function analyzeContent(content, url, retryCount = 0) {
         await notifyServiceWaking(tab.id).catch(() => {});
       }
       
-      // 指数退避重试 - 等待时间随重试次数增加
-      const waitTime = 1500 * Math.pow(2, retryCount); // 1.5秒, 3秒, 6秒
+      // 使用更智能的指数退避
+      // 服务未就绪(503)时使用更长的等待时间
+      const baseWaitTime = error.message.includes('启动中') ? 3000 : 1500;
+      const waitTime = baseWaitTime * Math.pow(2, retryCount); // 从3秒开始，直到48秒
+      console.log(`等待 ${waitTime/1000} 秒后重试...`);
+      
       await new Promise(resolve => setTimeout(resolve, waitTime));
+      
+      // 重试前再次检查服务状态
+      if (retryCount >= 1) {
+        const status = await warmupApiService();
+        if (!status.ready) {
+          console.log(`服务检查: 仍未就绪，继续等待`);
+        } else {
+          console.log(`服务检查: 已就绪，继续请求`);
+        }
+      }
       
       return analyzeContent(content, url, retryCount + 1);
     }
@@ -422,12 +471,12 @@ async function analyzeContent(content, url, retryCount = 0) {
   }
 }
 
-// 添加新函数 - 通知用户服务正在启动
+// 更新通知服务启动函数
 async function notifyServiceWaking(tabId) {
   try {
     await chrome.tabs.sendMessage(tabId, {
       type: 'SERVICE_WAKING',
-      message: '服务正在启动中，请稍候...'
+      message: '服务正在启动中，这可能需要10-20秒钟...'
     });
   } catch (error) {
     console.error('发送服务启动通知失败:', error);

@@ -342,13 +342,52 @@ function initializeFloatingCard() {
 
     if (event.data.type === 'SERVICE_WAKING') {
       // 更新加载状态文本
-      document.querySelector('.loading-text').textContent = getText('serviceWaking');
+      const loadingText = document.querySelector('.loading-text');
+      loadingText.textContent = getText('serviceWaking');
       
-      // 可选：更改加载动画样式，使其看起来更像"启动中"
+      // 服务启动状态适配
       document.querySelector('.loading-spinner').classList.add('waking-up');
+      
+      // 添加启动计时器
+      let startTime = Date.now();
+      let waitSeconds = 0;
+      
+      // 清除任何现有的计时器
+      if (window.wakingTimer) clearInterval(window.wakingTimer);
+      
+      // 创建新的计时器，每秒更新一次
+      window.wakingTimer = setInterval(() => {
+        waitSeconds = Math.floor((Date.now() - startTime) / 1000);
+        
+        // 根据等待时间优化提示
+        if (waitSeconds < 10) {
+          loadingText.textContent = `${getText('serviceWaking')} (${waitSeconds}秒)`;
+        } else if (waitSeconds < 20) {
+          loadingText.textContent = `${getText('serviceWaking')} (${waitSeconds}秒) 即将就绪...`;
+        } else if (waitSeconds < 30) {
+          loadingText.textContent = `正在努力启动服务... (${waitSeconds}秒)`;
+        } else {
+          loadingText.textContent = `服务启动时间较长，请耐心等待... (${waitSeconds}秒)`;
+          
+          // 添加脉动效果增强视觉反馈
+          if (!document.querySelector('.loading-spinner').classList.contains('long-wait')) {
+            document.querySelector('.loading-spinner').classList.add('long-wait');
+          }
+        }
+      }, 1000);
     }
 
     if (event.data.type === 'UPDATE_RESULT') {
+      // 当结果更新时，清除任何启动计时器
+      if (window.wakingTimer) {
+        clearInterval(window.wakingTimer);
+        window.wakingTimer = null;
+      }
+      
+      // 恢复常规样式
+      document.querySelector('.loading-spinner').classList.remove('waking-up');
+      document.querySelector('.loading-spinner').classList.remove('long-wait');
+      
       const result = event.data.data;
       console.log('更新结果:', result);
 
@@ -804,9 +843,30 @@ function initializeFloatingCard() {
     }
   }
 
+  // 添加新样式
+  const addStyles = () => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .loading-spinner.long-wait {
+        border: 2px solid var(--gray-200);
+        border-top: 2px solid var(--danger);
+        animation: pulse-urgent 1s ease-in-out infinite alternate, spin 1.5s linear infinite;
+      }
+      
+      @keyframes pulse-urgent {
+        0% { opacity: 0.8; transform: scale(0.9) rotate(0deg); box-shadow: 0 0 5px rgba(220, 53, 69, 0.5); }
+        100% { opacity: 1; transform: scale(1.1) rotate(360deg); box-shadow: 0 0 15px rgba(220, 53, 69, 0.8); }
+      }
+    `;
+    document.head.appendChild(style);
+  };
+
   // 初始化为加载状态
   setCardState('loading');
   window.parent.postMessage({ type: 'CARD_READY' }, '*');
+  
+  // 添加新样式
+  addStyles();
 }
 
 // 当DOM加载完成后初始化

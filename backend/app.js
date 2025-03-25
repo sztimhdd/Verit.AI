@@ -16,6 +16,11 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 4000;
 
+// 服务初始化和就绪状态管理
+let serviceReady = false;
+let pendingRequests = [];
+let initializationError = null;
+
 // Enable CORS and request body limits
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -26,9 +31,59 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // 初始化模型管理器
 (async function() {
-    await modelManager.initialize(genAI);
-    console.log("模型管理器已初始化完成");
+    try {
+        console.log("开始初始化模型管理器...");
+        await modelManager.initialize(genAI);
+        console.log("模型管理器已初始化完成");
+        
+        // 设置服务为就绪状态
+        serviceReady = true;
+        
+        // 处理所有等待中的请求
+        console.log(`处理 ${pendingRequests.length} 个等待中的请求`);
+        processPendingRequests();
+    } catch (error) {
+        console.error("初始化失败:", error);
+        initializationError = error;
+    }
 })();
+
+// 处理等待中的请求
+function processPendingRequests() {
+    pendingRequests.forEach(({req, res}) => {
+        processAnalysisRequest(req, res)
+            .catch(error => console.error("处理队列请求失败:", error));
+    });
+    pendingRequests = [];
+}
+
+// 确保服务就绪的中间件
+function ensureServiceReady(req, res, next) {
+    if (serviceReady) {
+        next();
+    } else if (initializationError) {
+        res.status(503).json({
+            status: "error",
+            error: {
+                message: "服务初始化失败，请稍后再试",
+                details: initializationError.message
+            }
+        });
+    } else {
+        console.log("服务尚未就绪，将请求加入队列");
+        // 如果是分析请求，加入队列
+        if (req.path === "/api/extension/analyze") {
+            pendingRequests.push({req, res});
+            console.log(`请求已加入队列，当前队列长度: ${pendingRequests.length}`);
+        } else {
+            // 其他请求返回服务尚未就绪
+            res.status(503).json({
+                status: "error",
+                message: "服务正在启动中，请稍后再试"
+            });
+        }
+    }
+}
 
 // Function to fetch web content
 async function fetchWebContent(url) {
@@ -141,8 +196,8 @@ function calculateTokenUsage(content, response) {
     };
 }
 
-// Chrome Extension API endpoint
-app.post("/api/extension/analyze", async (req, res) => {
+// 主要分析处理函数
+async function processAnalysisRequest(req, res) {
     const startTime = Date.now();
     try {
         const { content, url, lang = "en" } = req.body;
@@ -170,7 +225,8 @@ app.post("/api/extension/analyze", async (req, res) => {
         // 获取最佳模型配置
         const modelConfig = await modelManager.getModelConfig(analysisContent, genAI);
         const activeModel = modelConfig.model;
-        const useGrounding = modelConfig.tools.length > 0;
+        // 检查是否使用Grounding的逻辑更新
+        const useGrounding = modelConfig.searchParams?.searchQueries?.enabled || false;
         
         console.log(`使用模型: ${activeModel}, 使用Grounding: ${useGrounding}`);
 
@@ -266,27 +322,41 @@ app.post("/api/extension/analyze", async (req, res) => {
         // 获取指定模型实例
         const model = genAI.getGenerativeModel({ model: activeModel });
 
-        // Call Gemini API with dynamic model configuration
-        const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            tools: modelConfig.tools,
-            generationConfig: {
-                temperature: 0.1,
-                topK: 40,
-                topP: 0.8,
-                maxOutputTokens: 4096,
+        // 构建请求配置选项
+        const generationConfig = {
+            temperature: 0.1,
+            topK: 40,
+            topP: 0.8,
+            maxOutputTokens: 4096,
+        };
+
+        // 构建安全设置
+        const safetySettings = [
+            {
+                category: "HARM_CATEGORY_HARASSMENT",
+                threshold: "BLOCK_MEDIUM_AND_ABOVE"
             },
-            safetySettings: [
-                {
-                    category: "HARM_CATEGORY_HARASSMENT",
-                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                },
-                {
-                    category: "HARM_CATEGORY_HATE_SPEECH",
-                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                }
-            ]
-        });
+            {
+                category: "HARM_CATEGORY_HATE_SPEECH",
+                threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            }
+        ];
+
+        // Call Gemini API with dynamic model configuration - 适配API v0.2.0
+        let apiParams = {
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: generationConfig,
+            safetySettings: safetySettings
+        };
+
+        // 添加搜索参数（如果提供）
+        if (modelConfig.searchParams) {
+            console.log('使用搜索参数:', modelConfig.searchParams);
+            apiParams.searchParams = modelConfig.searchParams;
+        }
+
+        // 调用Gemini API
+        const result = await model.generateContent(apiParams);
 
         const response = await result.response;
         const text = response.text().trim();
@@ -373,16 +443,47 @@ app.post("/api/extension/analyze", async (req, res) => {
             }
         });
     }
+}
+
+// 应用服务就绪中间件
+app.use(ensureServiceReady);
+
+// Chrome Extension API endpoint
+app.post("/api/extension/analyze", async (req, res) => {
+    // 由于中间件已经处理了服务就绪状态，这里直接处理请求
+    await processAnalysisRequest(req, res);
 });
 
 // Test route
 app.get('/', (req, res) => {
-    res.json({ message: 'Server is running' });
+    res.json({ 
+        message: 'Server is running',
+        ready: serviceReady
+    });
 });
 
-// 添加健康检查端点
+// 添加健康检查端点 - 返回实际就绪状态
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+  if (serviceReady) {
+    res.status(200).json({ 
+      status: 'OK', 
+      ready: true,
+      timestamp: new Date().toISOString() 
+    });
+  } else if (initializationError) {
+    res.status(503).json({ 
+      status: 'ERROR', 
+      ready: false,
+      error: initializationError.message,
+      timestamp: new Date().toISOString() 
+    });
+  } else {
+    res.status(503).json({ 
+      status: 'INITIALIZING', 
+      ready: false,
+      timestamp: new Date().toISOString() 
+    });
+  }
 });
 
 // Start server

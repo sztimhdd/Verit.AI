@@ -78,10 +78,71 @@ async function getModelConfig(content, genAI) {
   const useGrounding = modelState.currentModel === CONFIG.DEFAULT_MODEL && 
                      modelState.groundingCount < CONFIG.DAILY_GROUNDING_LIMIT;
   
-  return {
-    model: modelState.currentModel,
-    tools: useGrounding ? [{ googleSearchRetrieval: {} }] : []
-  };
+  // 检查 Gemini API SDK 版本兼容性
+  // 当前使用的是 @google/generative-ai 0.2.0 版本
+  // 检查API版本兼容性 - v0.2.0不支持tools参数
+  try {
+    // 尝试获取SDK版本
+    const sdkVersion = await getSdkVersion(genAI);
+    
+    console.log(`检测到Google Generative AI SDK版本: ${sdkVersion || '未知'}`);
+    
+    // v0.2.0版本需要使用searchQueries.enabled而不是tools参数
+    if (useGrounding) {
+      console.log(`启用Grounding, 使用兼容API方式, 模型: ${modelState.currentModel}`);
+      return {
+        model: modelState.currentModel,
+        // v0.2.0 API版本兼容方式
+        searchParams: {
+          searchQueries: {
+            enabled: true
+          }
+        },
+        // 保留空tools以保持API返回格式一致性
+        tools: []
+      };
+    } else {
+      console.log(`不使用Grounding, 模型: ${modelState.currentModel}`);
+      return {
+        model: modelState.currentModel,
+        // 不使用搜索特性
+        searchParams: {
+          searchQueries: {
+            enabled: false
+          }
+        },
+        tools: []
+      };
+    }
+  } catch (error) {
+    console.warn("API版本检测失败，使用兼容配置", error);
+    
+    // 安全回退 - 此格式在大多数版本中兼容
+    return {
+      model: modelState.currentModel,
+      // 按照是否使用Grounding返回searchParams
+      searchParams: useGrounding ? {
+        searchQueries: {
+          enabled: true
+        }
+      } : undefined,
+      tools: []
+    };
+  }
+}
+
+// 尝试检测SDK版本
+async function getSdkVersion(genAI) {
+  try {
+    // 对于v0.2.0，无法直接获取版本，使用特征检测
+    // 检查是否存在特征函数/属性
+    const isV02x = typeof genAI.models?.countTokens === 'function';
+    
+    return isV02x ? "~0.2.x" : "未知";
+  } catch (error) {
+    console.warn("无法检测SDK版本", error);
+    return "未知";
+  }
 }
 
 // 记录API调用后的使用情况
