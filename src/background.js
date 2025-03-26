@@ -22,6 +22,14 @@ function detectUserLanguage() {
 // 在扩展启动时检测语言
 detectUserLanguage();
 
+// 将URL替换为实际的API地址
+const API_URL = 'https://factchecker-ai-backend.railway.app/api/extension/analyze';
+// 或从环境变量获取
+// const API_URL = chrome.runtime.getURL('config.json')
+//   .then(resp => fetch(resp))
+//   .then(data => data.json())
+//   .then(config => config.API_URL);
+
 // 在发送API请求前获取语言设置
 async function analyzeContent(content, url, title) {
   try {
@@ -37,7 +45,7 @@ async function analyzeContent(content, url, title) {
     };
     
     // 调用API
-    const response = await fetch('https://your-api-endpoint.com/analyze', {
+    const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -57,5 +65,27 @@ async function analyzeContent(content, url, title) {
     throw error;
   }
 }
+
+// 添加消息监听，处理语言变更
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'LANGUAGE_CHANGED') {
+    userLanguage = message.language;
+    console.log(`语言已更改为: ${userLanguage}`);
+    
+    // 通知所有活动标签页
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach(tab => {
+        try {
+          chrome.tabs.sendMessage(tab.id, { action: 'LANGUAGE_UPDATED', language: userLanguage });
+        } catch (e) {
+          // 忽略不可发送消息的标签页
+        }
+      });
+    });
+    
+    sendResponse({ success: true });
+  }
+  return true; // 保持消息通道开放，支持异步响应
+});
 
 // 其他代码... 

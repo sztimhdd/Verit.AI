@@ -112,5 +112,17 @@
   "version": {
     "message": "版本",
     "description": "版本标签"
+  },
+  "apiError": {
+    "message": "API连接错误，请稍后再试",
+    "description": "API连接错误提示"
+  },
+  "contentError": {
+    "message": "无法提取页面内容",
+    "description": "内容提取错误提示"
+  },
+  "networkError": {
+    "message": "网络连接失败",
+    "description": "网络错误提示"
   }
 } 
