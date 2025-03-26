@@ -16,12 +16,23 @@ function createFloatingCard() {
     return Promise.resolve(state.floatingCard);
   }
 
-  // 创建iframe
+  // 检查并移除可能存在的旧卡片
+  const existingFrame = document.getElementById('veritai-floating-card-frame') || 
+                        document.getElementById('factChecker-frame');
+  if (existingFrame && existingFrame.parentNode) {
+    try {
+      existingFrame.parentNode.removeChild(existingFrame);
+    } catch (e) {
+      if (existingFrame.remove) {
+        existingFrame.remove();
+      }
+    }
+  }
+
+  // 创建新iframe
   const iframe = document.createElement('iframe');
-  iframe.id = 'veritai-floating-card-frame';
+  iframe.id = 'veritai-floating-card-frame'; // 统一使用这个ID
   iframe.src = chrome.runtime.getURL('floating-card.html');
-  
-  // 使用外部样式而不是内联样式
   iframe.classList.add('veritai-floating-card-frame');
   
   // 添加到页面
@@ -90,20 +101,55 @@ async function showFloatingCard(data) {
 // 隐藏浮动卡片
 function hideFloatingCard() {
   console.log('执行隐藏浮动卡片');
-  if (state.floatingCard) {
-    state.floatingCard.classList.remove('veritai-frame-visible');
+  
+  // 查找所有可能的浮动卡片元素
+  const iframeById = document.getElementById('veritai-floating-card-frame');
+  const iframeByClass = document.querySelector('.veritai-floating-card-frame');
+  const factCheckerFrame = document.getElementById('factChecker-frame');
+  
+  // 确定要移除的元素
+  const frameToRemove = state.floatingCard || iframeById || iframeByClass || factCheckerFrame;
+  
+  if (frameToRemove) {
+    // 先隐藏元素
+    frameToRemove.classList.remove('veritai-frame-visible');
     
+    // 在动画完成后移除元素
     setTimeout(() => {
       try {
-        document.body.removeChild(state.floatingCard);
+        // 检查元素是否仍在DOM中
+        if (frameToRemove.parentNode) {
+          frameToRemove.parentNode.removeChild(frameToRemove);
+          console.log('浮动卡片已成功移除');
+        } else {
+          console.log('浮动卡片已不在DOM中');
+        }
+        
+        // 重置状态
         state.floatingCard = null;
         state.isCardVisible = false;
-        console.log('浮动卡片已成功移除');
       } catch (error) {
         console.error('移除浮动卡片失败:', error);
+        
+        // 尝试备用移除方法
+        try {
+          if (frameToRemove && frameToRemove.remove) {
+            frameToRemove.remove();
+            console.log('使用备用方法移除浮动卡片');
+          }
+          
+          // 重置状态
+          state.floatingCard = null;
+          state.isCardVisible = false;
+        } catch (backupError) {
+          console.error('备用移除方法也失败:', backupError);
+        }
       }
     }, 300);
+  } else {
+    console.log('未找到浮动卡片元素');
   }
+  
   return { success: true };
 }
 
@@ -168,19 +214,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // 监听来自iframe的消息
 window.addEventListener('message', (event) => {
+  console.log('收到来自浮动卡片的消息:', event.data);
+  
+  // 兼容两种消息格式
+  const msgType = event.data.type || event.data.action;
+  
   // 确保消息来自我们的iframe
-  if (state.floatingCard && event.source === state.floatingCard.contentWindow) {
-    console.log('收到来自浮动卡片的消息:', event.data);
+  if ((state.floatingCard && event.source === state.floatingCard.contentWindow) || 
+      document.getElementById('veritai-floating-card-frame') || 
+      document.getElementById('factChecker-frame')) {
     
-    // 检查多种可能的消息格式
-    const msgType = event.data.type || event.data.action;
-    
+    // 处理关闭消息
     if (msgType === 'REMOVE_FRAME' || msgType === 'CLOSE_CARD') {
       console.log('处理关闭卡片请求');
       hideFloatingCard();
     }
     
-    // 其他消息处理...
+    // ... 其他消息处理
   }
 });
 
@@ -266,9 +316,35 @@ function handleUrlChange() {
 
 // 移除浮动卡片
 function removeFloatingCard() {
-  const frame = document.getElementById('factChecker-frame');
-  if (frame) {
-    frame.remove();
+  try {
+    // 查找所有可能的浮动卡片元素
+    const frames = [
+      document.getElementById('veritai-floating-card-frame'),
+      document.querySelector('.veritai-floating-card-frame'),
+      document.getElementById('factChecker-frame')
+    ];
+    
+    // 移除找到的每个元素
+    frames.forEach(frame => {
+      if (frame && frame.parentNode) {
+        try {
+          frame.parentNode.removeChild(frame);
+        } catch (e) {
+          // 如果removeChild失败，尝试使用remove方法
+          if (frame.remove) {
+            frame.remove();
+          }
+        }
+      }
+    });
+    
+    // 重置状态
+    if (state) {
+      state.floatingCard = null;
+      state.isCardVisible = false;
+    }
+  } catch (error) {
+    console.error('移除浮动卡片时出错:', error);
   }
 }
 
