@@ -6,14 +6,208 @@
 ## 系统架构
 ```mermaid
 graph TB
-    A[Web前端] --> |HTTP请求| B[Node.js后端]
-    Z[Chrome扩展] --> |HTTP请求| B
-    B --> C[内容解析器]
-    C --> D[缓存检查]
-    D -->|新内容| E[Gemini API分析]
-    E --> F[结果生成器]
-    F --> G[HTML报告]
-    F --> H[JSON响应]
+    A[API请求] --> B[服务就绪状态检查]
+    B --> |就绪| C[模型管理器]
+    B --> |未就绪| D[请求队列]
+    D --> |服务就绪后| C
+    C --> |选择最佳模型| E[Gemini API]
+    E --> F[结果处理]
+    F --> G[响应]
+```
+
+## 后端API架构升级
+
+### 模型管理系统
+
+#### 模型配置与调度
+```yaml
+可用模型:
+  - gemini-2.0-flash:
+      特点: 高级推理 + Google Search Grounding
+      使用场景: 默认模型，需要外部验证时
+  - gemini-1.5-flash:
+      特点: 基础推理能力
+      使用场景: 备选模型，无需外部验证时
+
+调度策略:
+  优先级:
+    1. gemini-2.0-flash + Grounding
+    2. gemini-2.0-flash (无Grounding)
+    3. gemini-1.5-flash
+  
+  切换条件:
+    - 达到Grounding每日限额(500次)时禁用Grounding
+    - API调用失败时降级到下一优先级
+    - 每日00:00重置到最高优先级
+```
+
+#### 模型状态管理
+```typescript
+interface ModelState {
+  currentModel: 'gemini-2.0-flash' | 'gemini-1.5-flash';
+  useGrounding: boolean;
+  groundingCount: number;
+  lastReset: string; // ISO时间
+  dailyQuota: {
+    grounding: number;
+    total: number;
+  }
+}
+
+interface ModelConfig {
+  modelName: string;
+  temperature: number;
+  topK: number;
+  topP: number;
+  tools?: {
+    googleSearchRetrieval: Record<string, never>;
+  }
+}
+```
+
+### API响应结构优化
+
+#### 分析结果格式
+```typescript
+interface AnalysisResult {
+  score: number;          // 0-100
+  flags: {
+    factuality: '高' | '中' | '低';
+    objectivity: '高' | '中' | '低';
+    reliability: '高' | '中' | '低';
+    bias: '高' | '中' | '低';
+  };
+  source_verification: {
+    sources_found: string[];
+    credibility_scores: number[];
+    overall_source_credibility: string;
+  };
+  entity_verification: {
+    entities_found: string[];
+    accuracy_assessment: string;
+    corrections: string[];
+  };
+  fact_check: {
+    claims_identified: string[];
+    verification_results: string[];
+    overall_factual_accuracy: string;
+  };
+  exaggeration_check: {
+    exaggerations_found: string[];
+    corrections: string[];
+    severity_assessment: string;
+  };
+  summary: string;
+  sources: Array<{
+    title: string;
+    url: string;
+  }>;
+}
+```
+
+### 服务状态管理
+
+#### 健康检查接口
+```typescript
+// GET /api/health
+interface HealthCheckResponse {
+  status: 'OK' | 'ERROR' | 'INITIALIZING';
+  ready: boolean;
+  currentModel: string;
+  groundingEnabled: boolean;
+  timestamp: string;
+  quotaStatus: {
+    groundingRemaining: number;
+    resetTime: string;
+  };
+}
+```
+
+#### 错误处理策略
+```yaml
+重试机制:
+  最大重试次数: 5
+  重试间隔: 指数退避 (1.5s, 3s, 6s, 12s, 24s)
+  触发条件:
+    - API超时
+    - 服务未就绪
+    - 配额限制临时超出
+
+降级策略:
+  条件与行为:
+    - Grounding调用失败: 
+        1. 禁用Grounding重试
+        2. 若仍失败则切换模型
+    - 模型调用失败:
+        1. 切换到备用模型
+        2. 若仍失败则返回错误
+```
+
+### 性能优化
+
+#### 请求处理优化
+```javascript
+const OPTIMIZATION_CONFIG = {
+  // 并发控制
+  MAX_CONCURRENT_REQUESTS: 5,
+  REQUEST_TIMEOUT: 30000,
+  
+  // 队列管理
+  MAX_QUEUE_SIZE: 100,
+  QUEUE_TIMEOUT: 60000,
+  
+  // Token估算
+  CHAR_TO_TOKEN_RATIO: 4,
+  MAX_INPUT_LENGTH: 30000,
+  
+  // 缓存设置
+  CACHE_TTL: 7 * 24 * 60 * 60, // 7天
+  MAX_CACHE_ITEMS: 1000
+};
+```
+
+#### 缓存策略
+```yaml
+缓存机制:
+  存储位置: backend/cache/
+  缓存内容:
+    - 分析结果
+    - 模型状态
+    - 配额计数
+  过期策略:
+    - 分析结果: 7天
+    - 模型状态: 24小时
+    - 配额计数: 24小时
+```
+
+### 部署配置
+
+#### 环境变量
+```yaml
+必需变量:
+  - GEMINI_API_KEY: Google API密钥
+  - NODE_ENV: 运行环境(development/production)
+  - PORT: 服务端口
+
+可选变量:
+  - DAILY_GROUNDING_LIMIT: 每日Grounding限额
+  - MAX_RETRY_COUNT: 最大重试次数
+  - CACHE_TTL: 缓存过期时间
+```
+
+#### 监控指标
+```yaml
+性能指标:
+  - API响应时间
+  - 请求成功率
+  - 模型切换频率
+  - 缓存命中率
+  - Grounding使用量
+
+告警阈值:
+  - 响应时间 > 10s
+  - 成功率 < 95%
+  - 连续失败 > 3次
 ```
 
 ## 技术栈
@@ -56,7 +250,11 @@ API集成:
   - Content Script: 页面内容获取
   - Popup: 结果展示界面
 ```
-
+模型特性与使用场景
+| 模型 | 特性 | 使用场景 |
+|------|------|----------|
+| gemini-2.0-flash | 更强大的推理能力 + Google Search Grounding | 默认模型，提供高质量事实核查 |
+| gemini-1.5-flash | 基本推理能力，不使用外部搜索 | 接近配额限制或首选模型失败时的备选项 |
 
 ## 功能模块
 
@@ -933,64 +1131,4 @@ function validateApiResponse(data: any): ValidationResult {
 
     for (const [section, fields] of Object.entries(requiredArrays)) {
         if (!data[section]) {
-            return { isValid: false, error: `缺少 ${section} 部分` };
-        }
-
-        for (const field of fields) {
-            if (!Array.isArray(data[section][field])) {
-                return { isValid: false, error: `${section}.${field} 不是数组` };
-            }
-        }
-    }
-
-    return { isValid: true };
-}
-
-// 数据结构完整性检查
-function validateArrayLengths(data: any): boolean {
-    // 实体验证数组长度检查
-    const entityVerification = data.entity_verification;
-    if (entityVerification.entities_found.length !== entityVerification.corrections.length) {
-        console.error('实体验证数组长度不匹配');
-        return false;
-    }
-
-    // 事实核查数组长度检查
-    const factCheck = data.fact_check;
-    if (factCheck.claims_identified.length !== factCheck.verification_results.length) {
-        console.error('事实核查数组长度不匹配');
-        return false;
-    }
-
-    // 夸张表述数组长度检查
-    const exaggerationCheck = data.exaggeration_check;
-    if (exaggerationCheck.exaggerations_found.length !== exaggerationCheck.corrections.length) {
-        console.error('夸张表述数组长度不匹配');
-        return false;
-    }
-
-    return true;
-}
-
-// API响应数据标准化函数
-function normalizeApiResponse(data: any): ApiResponse {
-    // 确保所有数组都有值
-    return {
-        ...data,
-        entity_verification: {
-            entities_found: data.entity_verification.entities_found || [],
-            corrections: data.entity_verification.corrections || [],
-            accuracy_assessment: data.entity_verification.accuracy_assessment || '未知'
-        },
-        fact_check: {
-            claims_identified: data.fact_check.claims_identified || [],
-            verification_results: data.fact_check.verification_results || [],
-            overall_factual_accuracy: data.fact_check.overall_factual_accuracy || '未知'
-        },
-        exaggeration_check: {
-            exaggerations_found: data.exaggeration_check.exaggerations_found || [],
-            corrections: data.exaggeration_check.corrections || [],
-            severity_assessment: data.exaggeration_check.severity_assessment || '未知'
-        }
-    };
-}
+            return { isValid: false, error: `
