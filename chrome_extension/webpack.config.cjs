@@ -43,11 +43,12 @@ module.exports = {
         { from: 'manifest.json' },
         { from: 'public/popup.html', to: 'popup.html' },
         { from: 'src/floating-card/floating-card.html', to: 'floating-card.html' },
-        { from: 'public/_locales', to: '_locales' },
+        // { from: 'public/_locales', to: '_locales' },
+        { from: '_locales', to: '_locales' },
         { from: 'public/icons', to: 'icons' },
         { from: 'styles/popup.css', to: 'styles/popup.css' },
         { from: 'src/content/content.css', to: 'styles/content.css' },
-        { 
+        {
           from: 'node_modules/crypto-js/crypto-js.js',
           to: 'lib/crypto-js.js'
         },

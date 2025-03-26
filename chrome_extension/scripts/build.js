@@ -15,7 +15,7 @@ try {
 // 运行webpack构建
 console.log('🚀 开始构建扩展...');
 try {
-  execSync('npx webpack --config webpack.config.cjs', { 
+  execSync('npx webpack --config webpack.config.cjs', {
     stdio: 'inherit',
     cwd: path.resolve(__dirname, '..')
   });
