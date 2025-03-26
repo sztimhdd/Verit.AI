@@ -13,11 +13,12 @@ RUN npm install
 # 复制所有文件
 COPY . .
 
-# 暴露端口
-EXPOSE 3000
+# 暴露Railway分配的端口
+EXPOSE 8080
 
-# 设置环境变量确保正确的监听地址
+# 设置环境变量确保正确的监听地址和端口
 ENV HOST=0.0.0.0
+ENV PORT=8080
 
 # 启动Node.js服务器
 CMD ["npm", "start"]

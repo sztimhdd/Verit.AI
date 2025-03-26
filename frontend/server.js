@@ -1,7 +1,8 @@
 const express = require('express');
 const path = require('path');
 const app = express();
-const PORT = process.env.PORT || 3000;
+// 使用Railway分配的PORT (8080)
+const PORT = process.env.PORT || 8080;
 
 // 设置静态文件目录
 app.use(express.static('./'));
