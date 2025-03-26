@@ -36,7 +36,7 @@ module.exports = {
   },
   plugins: [
     new webpack.DefinePlugin({
-      'process.env.API_URL': JSON.stringify('http://localhost:4000')
+      'process.env.API_URL': JSON.stringify('https://veritai-api.up.railway.app')
     }),
     new CopyPlugin({
       patterns: [
