@@ -1,0 +1,10 @@
+{
+  "build": {
+    "builder": "nixpacks",
+    "buildCommand": "npm install"
+  },
+  "deploy": {
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+} 
