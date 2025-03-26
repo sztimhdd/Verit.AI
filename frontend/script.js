@@ -1,6 +1,6 @@
 // 配置
 const CONFIG = {
-    API_BASE_URL: process.env.BACKEND_API_URL || 'https://veritai-api.up.railway.app'
+    API_BASE_URL: 'https://veritai-api.up.railway.app'
 };
 
 // DOM 元素
