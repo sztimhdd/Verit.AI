@@ -1,0 +1,116 @@
+{
+  "extName": {
+    "message": "Oracle AI 辟谣助手",
+    "description": "扩展名称"
+  },
+  "extDesc": {
+    "message": "使用 Google Gemini AI 进行网页内容事实核查",
+    "description": "扩展描述"
+  },
+  "serviceStatus": {
+    "message": "服务状态: $STATUS$",
+    "description": "服务状态指示",
+    "placeholders": {
+      "status": {
+        "content": "$1",
+        "example": "正常"
+      }
+    }
+  },
+  "statusReady": {
+    "message": "正常",
+    "description": "服务状态正常"
+  },
+  "statusInitializing": {
+    "message": "启动中",
+    "description": "服务状态初始化中"
+  },
+  "statusError": {
+    "message": "错误",
+    "description": "服务状态错误"
+  },
+  "analyze": {
+    "message": "开始核查",
+    "description": "分析按钮文本"
+  },
+  "analyzing": {
+    "message": "核查中...",
+    "description": "分析中状态文本"
+  },
+  "feedback": {
+    "message": "提供反馈",
+    "description": "反馈按钮文本"
+  },
+  "description": {
+    "message": "使用先进的 AI 技术帮助您快速核实网页内容的可信度。",
+    "description": "扩展描述"
+  },
+  "close": {
+    "message": "关闭",
+    "description": "关闭按钮文本"
+  },
+  "factualityHigh": {
+    "message": "高",
+    "description": "事实性高"
+  },
+  "factualityMedium": {
+    "message": "中",
+    "description": "事实性中"
+  },
+  "factualityLow": {
+    "message": "低",
+    "description": "事实性低"
+  },
+  "factuality": {
+    "message": "事实性",
+    "description": "事实性标签"
+  },
+  "objectivity": {
+    "message": "客观性",
+    "description": "客观性标签"
+  },
+  "reliability": {
+    "message": "可靠性",
+    "description": "可靠性标签"
+  },
+  "bias": {
+    "message": "偏见",
+    "description": "偏见标签"
+  },
+  "summary": {
+    "message": "摘要",
+    "description": "摘要标签"
+  },
+  "sources": {
+    "message": "来源",
+    "description": "来源标签"
+  },
+  "resultTitle": {
+    "message": "内容核查结果",
+    "description": "结果标题"
+  },
+  "errorAnalyzing": {
+    "message": "内容分析失败",
+    "description": "分析错误"
+  },
+  "tryAgain": {
+    "message": "重试",
+    "description": "重试按钮"
+  },
+  "settings": {
+    "message": "设置",
+    "description": "设置按钮"
+  },
+  "language": {
+    "message": "语言",
+    "description": "语言设置"
+  },
+  "about": {
+    "message": "关于",
+    "description": "关于按钮"
+  },
+  "version": {
+    "message": "版本",
+    "description": "版本标签"
+  }
+} 

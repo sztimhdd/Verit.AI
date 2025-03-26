@@ -1,0 +1,116 @@
+{
+  "extName": {
+    "message": "Oracle AI Fact Checker",
+    "description": "Extension name"
+  },
+  "extDesc": {
+    "message": "Verify web content factuality using Google Gemini AI",
+    "description": "Extension description"
+  },
+  "serviceStatus": {
+    "message": "Service Status: $STATUS$",
+    "description": "Service status indicator",
+    "placeholders": {
+      "status": {
+        "content": "$1",
+        "example": "Ready"
+      }
+    }
+  },
+  "statusReady": {
+    "message": "Ready",
+    "description": "Service status ready"
+  },
+  "statusInitializing": {
+    "message": "Initializing",
+    "description": "Service status initializing"
+  },
+  "statusError": {
+    "message": "Error",
+    "description": "Service status error"
+  },
+  "analyze": {
+    "message": "Analyze",
+    "description": "Analysis button text"
+  },
+  "analyzing": {
+    "message": "Analyzing...",
+    "description": "Analyzing status text"
+  },
+  "feedback": {
+    "message": "Feedback",
+    "description": "Feedback button text"
+  },
+  "description": {
+    "message": "Use advanced AI technology to quickly verify the credibility of web content.",
+    "description": "Extension description"
+  },
+  "close": {
+    "message": "Close",
+    "description": "Close button text"
+  },
+  "factualityHigh": {
+    "message": "High",
+    "description": "Factuality high"
+  },
+  "factualityMedium": {
+    "message": "Medium",
+    "description": "Factuality medium"
+  },
+  "factualityLow": {
+    "message": "Low",
+    "description": "Factuality low"
+  },
+  "factuality": {
+    "message": "Factuality",
+    "description": "Factuality label"
+  },
+  "objectivity": {
+    "message": "Objectivity",
+    "description": "Objectivity label"
+  },
+  "reliability": {
+    "message": "Reliability",
+    "description": "Reliability label"
+  },
+  "bias": {
+    "message": "Bias",
+    "description": "Bias label"
+  },
+  "summary": {
+    "message": "Summary",
+    "description": "Summary label"
+  },
+  "sources": {
+    "message": "Sources",
+    "description": "Sources label"
+  },
+  "resultTitle": {
+    "message": "Content Analysis Result",
+    "description": "Result title"
+  },
+  "errorAnalyzing": {
+    "message": "Analysis Failed",
+    "description": "Analysis error"
+  },
+  "tryAgain": {
+    "message": "Try Again",
+    "description": "Retry button"
+  },
+  "settings": {
+    "message": "Settings",
+    "description": "Settings button"
+  },
+  "language": {
+    "message": "Language",
+    "description": "Language setting"
+  },
+  "about": {
+    "message": "About",
+    "description": "About button"
+  },
+  "version": {
+    "message": "Version",
+    "description": "Version label"
+  }
+} 
