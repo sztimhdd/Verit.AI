@@ -1,16 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "Verit.ai Fact Checker",
-  "version": "1.0.0",
-  "description": "__MSG_extDescription__",
-  "default_locale": "en",
+  "name": "__MSG_appName__",
+  "version": "0.1.0",
+  "description": "__MSG_appDesc__",
+  "default_locale": "zh",
   "permissions": [
+    "storage",
     "activeTab",
-    "storage"
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
-    "http://localhost:3000/*",
-    "https://api.verit.ai/*"
+    "http://localhost:4000/*",
+    "http://0.0.0.0:4000/*",
+    "http://127.0.0.1:4000/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -41,12 +44,16 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com"
   },
-  "web_accessible_resources": [{
-    "resources": [
-      "icons/*",
-      "styles/*",
-      "floating-card.html"
-    ],
-    "matches": ["<all_urls>"]
-  }]
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "floating-card.html", 
+        "floating-card.js",
+        "styles/*.css",
+        "icons/*.png",
+        "lib/*.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

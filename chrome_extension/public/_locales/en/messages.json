@@ -1,0 +1,112 @@
+{
+  "extName": {
+    "message": "Verit.ai Fact Checker"
+  },
+  "extDescription": {
+    "message": "Verify web content credibility using advanced AI technology"
+  },
+  "appName": {
+    "message": "VeritAI Fact Checker",
+    "description": "The name of the extension"
+  },
+  "appDesc": {
+    "message": "Check facts on web pages with AI-powered analysis.",
+    "description": "The description of the extension"
+  },
+  "popupTitle": {
+    "message": "VeritAI Fact Checker",
+    "description": "Title shown in the popup"
+  },
+  "analyzeButton": {
+    "message": "Analyze This Page",
+    "description": "Button text to analyze the current page"
+  },
+  "serviceOnline": {
+    "message": "Service Online",
+    "description": "Status text when the service is online"
+  },
+  "serviceOffline": {
+    "message": "Service Offline",
+    "description": "Status text when the service is offline"
+  },
+  "checkingStatus": {
+    "message": "Checking Status...",
+    "description": "Status text when checking service status"
+  },
+  "loadingText": {
+    "message": "Analyzing content...",
+    "description": "Text shown while loading analysis"
+  },
+  "errorTitle": {
+    "message": "Error",
+    "description": "Title for error messages"
+  },
+  "networkError": {
+    "message": "Connection error. Please check your internet connection.",
+    "description": "Error message for network issues"
+  },
+  "serverError": {
+    "message": "Server error. Please try again later.",
+    "description": "Error message for server issues"
+  },
+  "quotaExceeded": {
+    "message": "Daily limit exceeded. Please try again tomorrow.",
+    "description": "Error message for quota issues"
+  },
+  "retryButton": {
+    "message": "Retry",
+    "description": "Text for retry button"
+  },
+  "groundingRemaining": {
+    "message": "Grounding Requests:",
+    "description": "Label for remaining grounding requests"
+  },
+  "gemini20Remaining": {
+    "message": "Gemini 2.0 Tokens:",
+    "description": "Label for remaining Gemini 2.0 tokens"
+  },
+  "gemini15Remaining": {
+    "message": "Gemini 1.5 Tokens:",
+    "description": "Label for remaining Gemini 1.5 tokens"
+  },
+  "privacyLink": {
+    "message": "Privacy",
+    "description": "Text for privacy policy link"
+  },
+  "helpLink": {
+    "message": "Help",
+    "description": "Text for help link"
+  },
+  "cardTitle": {
+    "message": "Fact Analysis",
+    "description": "Title for the floating card"
+  },
+  "statusVerified": {
+    "message": "Verified",
+    "description": "Status when content is verified"
+  },
+  "statusUnverified": {
+    "message": "Unverified",
+    "description": "Status when content cannot be verified"
+  },
+  "statusIncorrect": {
+    "message": "Incorrect",
+    "description": "Status when content is incorrect"
+  },
+  "statusAnalyzing": {
+    "message": "Analyzing",
+    "description": "Status when content is being analyzed"
+  },
+  "sourceTitle": {
+    "message": "Sources:",
+    "description": "Title for the sources section"
+  },
+  "poweredBy": {
+    "message": "Powered by",
+    "description": "Text for powered by section"
+  },
+  "close": {
+    "message": "Close",
+    "description": "Text for close button"
+  }
+} 

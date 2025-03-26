@@ -1,620 +1,199 @@
-/* 删除 logo 相关的 CSS */
-/* .logo {
-  width: 32px;
-  height: 32px;
-  margin-right: 10px;
-} */
+/* styles/popup.css */
 
-/* 其他样式保持不变 */
-
-:root {
-  --status-ready: #4CAF50;
-  --status-initializing: #FFC107;
-  --status-error: #F44336;
-  --button-primary: #2196F3;
-  --button-hover: #1976D2;
-  --button-disabled: #BDBDBD;
-}
-
+/* 基础样式 */
 body {
-  width: 480px;
-  margin: 0;
-  padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background-color: #fff;
+    font-family: 'Arial', sans-serif;
+    color: #333;
+    background-color: #f4f7f9; /* 淡灰色背景 */
 }
-
-.container {
-  padding: 20px;
-}
-
-/* 头部样式 */
-.header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.header-icon {
-  font-size: 24px;
-  color: var(--button-primary);
-  margin-right: 12px;
-}
-
-.header-icon.critical { background-color: #dc3545; color: white; }
-.header-icon.warning { background-color: #ffc107; color: #000; }
-.header-icon.safe { background-color: #28a745; color: white; }
-
-.header-content h1 {
-  margin: 0;
-  font-size: 24px;
-  color: #333;
-}
-
-.header-content p {
-  margin: 4px 0 0;
-  color: #666;
-  font-size: 14px;
-}
-
-/* 评分展示 */
-.score-summary {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 24px;
-  gap: 12px;
-}
-
-.score-item {
-  flex: 1;
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 16px;
-  text-align: center;
-}
-
-.score-number {
-  font-size: 32px;
-  font-weight: bold;
-  margin-bottom: 8px;
-}
-
-.score-label {
-  font-size: 12px;
-  color: #666;
-  text-transform: uppercase;
-}
-
-/* 严重程度指标 */
-.severity-indicators {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 24px;
-}
-
-.severity-item {
-  flex: 1;
-  padding: 8px;
-  border-radius: 4px;
-  text-align: center;
-  font-size: 13px;
-}
-
-.severity-critical { background-color: #fde8e8; color: #dc3545; }
-.severity-high { background-color: #fff3cd; color: #856404; }
-.severity-medium { background-color: #e8f4f8; color: #0c5460; }
-.severity-low { background-color: #e8f5e9; color: #155724; }
-
-/* 详细分析卡片 */
-.analysis-card {
-  background: #fff;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  margin-bottom: 16px;
-  overflow: hidden;
-}
-
-.analysis-card-header {
-  background: #f8f9fa;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.analysis-card-header h3 {
-  margin: 0;
-  font-size: 16px;
-  color: #333;
-}
-
-.analysis-card-content {
-  padding: 16px;
-}
-
-.analysis-list-item {
-  padding: 12px 0;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.analysis-list-item:last-child {
-  border-bottom: none;
-}
-
-/* 进度指示器 */
-.progress-bar {
-  height: 4px;
-  background-color: #e9ecef;
-  border-radius: 2px;
-  overflow: hidden;
-  margin: 8px 0;
-}
-
-.progress-fill {
-  height: 100%;
-  background-color: #007bff;
-  transition: width 0.3s ease;
-}
-
-/* 状态标签 */
-.status-tag {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-critical { background-color: #fde8e8; color: #dc3545; }
-.status-warning { background-color: #fff3cd; color: #856404; }
-.status-info { background-color: #e8f4f8; color: #0c5460; }
-
-/* 加载状态 */
-.loading-state {
-  text-align: center;
-  padding: 24px;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  margin: 0 auto 16px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* 错误状态 */
-.error-state {
-  text-align: center;
-  padding: 24px;
-  color: #e74c3c;
-}
-
-#retryButton {
-  margin-top: 16px;
-  padding: 8px 16px;
-  background-color: #3498db;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-/* 分数显示 */
-.score-section {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.score-display {
-  background-color: white;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-/* 指标网格 */
-.flags-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.flag-item {
-  background-color: white;
-  padding: 12px;
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.flag-label {
-  display: block;
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 4px;
-}
-
-.flag-value {
-  font-size: 16px;
-  font-weight: bold;
-}
-
-/* 列表样式 */
-.source-list, .entity-list, .claims-list, .exaggeration-list {
-  margin-bottom: 12px;
-}
-
-.list-item {
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
-}
-
-.list-item:last-child {
-  border-bottom: none;
-}
-
-/* 评估结果 */
-.assessment {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-}
-
-.label {
-  color: #666;
-}
-
-.value {
-  font-weight: bold;
-}
-
-/* 摘要部分 */
-.summary-section {
-  background-color: white;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-/* 来源列表 */
-.sources-section {
-  background-color: white;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-#referencesList {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-#referencesList li {
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
-}
-
-#referencesList li:last-child {
-  border-bottom: none;
-}
-
-#referencesList a {
-  color: #3498db;
-  text-decoration: none;
-}
-
-#referencesList a:hover {
-  text-decoration: underline;
-}
-
-/* 页脚 */
-.footer {
-  text-align: center;
-  padding: 16px 0;
-  color: #666;
-  font-size: 12px;
-}
-
-/* 评分颜色 */
-.score-high { color: #2ecc71; }
-.score-medium { color: #f1c40f; }
-.score-low { color: #e74c3c; }
 
 .popup-container {
-  width: 320px;
-  min-height: 200px;
-  padding: 16px;
+    width: 300px; /* 稍微调整宽度 */
+    padding: 0; /* 移除 container padding，在内部元素上添加 */
+    border-radius: 8px;
+    overflow: hidden; /* 确保内容不超出容器 */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /*  হালকা ছায়া */
 }
 
-/* 头部样式 */
+/* 头部区域 */
 .popup-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
+    background-color: #fff; /* 白色头部背景 */
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #e0e0e0; /* 底部边框 */
 }
 
-.logo {
-  width: 32px;
-  height: 32px;
-  margin-right: 12px;
+.popup-header .logo {
+    width: 24px;
+    height: 24px;
+    margin-right: 10px;
 }
 
 .popup-header h1 {
-  margin: 0;
-  font-size: 18px;
-  color: #1a1a1a;
+    font-size: 18px;
+    font-weight: 500;
+    margin: 0;
 }
 
-/* 服务状态样式 */
+/* 服务状态区域 */
 .service-status {
-  margin-bottom: 20px;
+    padding: 10px 20px;
+    background-color: #fff;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* 将状态和图标放在两端 */
 }
 
 .status-indicator {
-  display: flex;
-  align-items: center;
-  padding: 8px;
-  border-radius: 6px;
-  background: #f5f5f5;
+    display: flex;
+    align-items: center;
 }
 
 .status-icon {
-  font-size: 8px;
-  margin-right: 8px;
+    margin-right: 8px;
+    font-size: 16px;
 }
 
-.status-icon.ready { 
-  color: var(--status-ready); 
+.status-icon-success {
+    color: #4CAF50; /* 绿色成功图标 */
 }
 
-.status-icon.initializing { 
-  color: var(--status-initializing);
-  animation: pulse 1s infinite;
+.status-icon-initializing {
+    color: #FFC107; /* 黄色初始化图标 */
 }
 
-.status-icon.error { 
-  color: var(--status-error); 
+.status-icon-error {
+    color: #F44336; /* 红色错误图标 */
 }
 
-/* 操作区域样式 */
+.status-indicator-success .status-text {
+    color: #4CAF50;
+}
+
+.status-indicator-initializing .status-text {
+    color: #FFC107;
+}
+
+.status-indicator-error .status-text {
+    color: #F44336;
+}
+
+/* 操作区域 */
 .action-section {
-  margin-bottom: 20px;
+    padding: 20px;
+    background-color: #fff;
+    text-align: center;
 }
 
 .primary-button {
-  width: 100%;
-  padding: 12px;
-  border: none;
-  border-radius: 6px;
-  background: var(--button-primary);
-  color: white;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background-color 0.2s;
+    background-color: #2196F3; /* 蓝色主按钮 */
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
 }
 
 .primary-button:hover {
-  background: var(--button-hover);
+    background-color: #1976D2; /* 鼠标悬停时的颜色 */
 }
 
-.primary-button:disabled {
-  background: var(--button-disabled);
-  cursor: not-allowed;
-}
-
-/* 加载指示器 */
 .loading-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
+    color: #777;
+    font-size: 14px;
 }
 
-.loading-indicator i {
-  color: var(--button-primary);
-  font-size: 20px;
-  margin-right: 8px;
+.spinner {
+    border: 2px solid #ccc;
+    border-top: 2px solid #333;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    animation: spin 1s linear infinite;
+    margin-right: 5px;
 }
 
-/* 错误状态样式 */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 错误区域 */
 .error-section {
-  padding: 16px;
-  margin-bottom: 20px;
-  border-radius: 6px;
-  background: #fee2e2;
+    padding: 20px;
+    background-color: #fff;
+    border-top: 1px solid #e0e0e0;
+    text-align: center;
 }
 
-.error-message {
-  color: var(--status-error);
-  margin: 0 0 12px 0;
-}
-
-.retry-button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  background: var(--status-error);
-  color: white;
-  cursor: pointer;
-}
-
-/* 项目信息样式 */
-.info-section {
-  margin-bottom: 20px;
-  padding: 12px;
-  background: #f8f9fa;
-  border-radius: 6px;
-}
-
-.info-text {
-  margin: 0;
-  font-size: 14px;
-  color: #666;
-  line-height: 1.5;
-}
-
-/* 反馈区域样式 */
-.popup-footer {
-  text-align: center;
-  padding-top: 12px;
-  border-top: 1px solid #eee;
-}
-
-.feedback-button {
-  color: var(--button-primary);
-  text-decoration: none;
-  font-size: 14px;
-}
-
-.feedback-button:hover {
-  text-decoration: underline;
-}
-
-.hidden {
-  display: none !important;
-}
-
-/* 响应式调整 */
-@media (max-width: 360px) {
-  .popup-container {
-    width: 280px;
-  }
-}
-
-/* 按钮图标样式 */
-.primary-button i {
-  margin-right: 8px;
-}
-
-/* 信息区域图标 */
-.info-section {
-  display: flex;
-  align-items: flex-start;
-}
-
-.info-icon {
-  color: var(--button-primary);
-  font-size: 16px;
-  margin-right: 12px;
-  margin-top: 2px;
-}
-
-/* 错误区域图标 */
-.error-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.error-container {
+    /* 可以添加错误容器的样式 */
 }
 
 .error-icon {
-  color: var(--status-error);
-  font-size: 24px;
-  margin-bottom: 12px;
+    font-size: 28px;
+    color: #F44336;
+    margin-bottom: 10px;
 }
 
-/* 重试按钮图标 */
-.retry-button i {
-  margin-right: 6px;
+.error-message {
+    color: #555;
+    font-size: 14px;
+    margin-bottom: 15px;
 }
 
-/* 反馈按钮图标 */
-.feedback-button i {
-  margin-right: 6px;
+.retry-button {
+    background-color: #4CAF50; /* 绿色重试按钮 */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
 }
 
-/* 添加动画效果 */
-@keyframes pulse {
-  0% { opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { opacity: 0.6; }
+.retry-button:hover {
+    background-color: #43A047; /* 鼠标悬停时的颜色 */
 }
 
-/* 替换之前的 spinner 样式为 Font Awesome 动画 */
-.loading-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 8px;
+/* 信息区域 */
+.info-section {
+    padding: 15px 20px;
+    background-color: #fff;
+    border-top: 1px solid #e0e0e0;
+    font-size: 14px;
+    color: #555;
+    text-align: center;
 }
 
-.loading-indicator i {
-  color: var(--button-primary);
-  font-size: 20px;
-  margin-right: 8px;
+/* 底部反馈区域 */
+.popup-footer {
+    background-color: #fff;
+    padding: 15px 20px;
+    border-top: 1px solid #e0e0e0;
+    text-align: center;
 }
 
-/* 其他样式保持不变 */
-
-/* 添加过渡动画 */
-.status-indicator,
-.primary-button,
-.error-section {
-  transition: all 0.3s ease;
+.feedback-button {
+    color: #777;
+    text-decoration: none;
+    font-size: 13px;
 }
 
-/* 添加悬停效果 */
-.primary-button:not(:disabled):hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+.feedback-button:hover {
+    color: #333;
 }
 
-/* 添加点击效果 */
-.primary-button:not(:disabled):active {
-  transform: translateY(1px);
-}
-
-/* 优化加载动画 */
-.loading-indicator i {
-  animation: spin 1s linear infinite, pulse 1s ease-in-out infinite alternate;
-}
-
-@keyframes pulse {
-  from { opacity: 0.6; }
-  to { opacity: 1; }
-}
-
-/* 配额信息样式 */
-.quota-info {
-  margin-top: 8px;
-  padding: 8px;
-  background: #f8f9fa;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.quota-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.quota-item:last-child {
-  margin-bottom: 0;
-}
-
-.quota-item i {
-  margin-right: 8px;
-  color: var(--button-primary);
-}
-
-/* 错误状态样式增强 */
-.error-section {
-  background: #fee2e2;
-  border-left: 4px solid var(--status-error);
-}
-
-.error-details {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #666;
+/* 隐藏类 */
+.hidden {
+    display: none !important;
 } 

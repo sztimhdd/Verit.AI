@@ -1,11 +1,12 @@
 {
-  "name": "oracle-ai-fact-checker",
+  "name": "veritai-fact-checker",
   "version": "1.0.0",
   "description": "AI-powered fact checking Chrome extension using Google Gemini AI",
-  "main": "background.js",
+  "main": "src/background/background.js",
   "scripts": {
     "dev": "webpack --mode development --watch",
-    "build": "webpack --mode production",
+    "build": "node scripts/build.js",
+    "clean": "rimraf dist",
     "test": "node tests/popup.test.js",
     "test:watch": "nodemon tests/popup.test.js"
   },
@@ -19,6 +20,11 @@
     "@babel/preset-env": "^7.26.9",
     "babel-loader": "^9.2.1",
     "copy-webpack-plugin": "^12.0.2",
+    "copyfiles": "^2.4.1",
+    "css-loader": "^7.1.2",
+    "mini-css-extract-plugin": "^2.9.2",
+    "rimraf": "^5.0.10",
+    "style-loader": "^4.0.0",
     "webpack": "^5.98.0",
     "webpack-cli": "^5.1.4"
   }

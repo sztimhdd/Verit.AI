@@ -1,3 +1,209 @@
+/**
+ * VeritAI Fact Checker - 内容脚本
+ */
+
+// 全局状态
+const state = {
+  floatingCard: null,
+  isCardVisible: false,
+  currentData: null,
+  language: 'zh' // 默认语言
+};
+
+// 创建浮动卡片
+function createFloatingCard() {
+  if (state.floatingCard) {
+    return Promise.resolve(state.floatingCard);
+  }
+
+  // 创建iframe
+  const iframe = document.createElement('iframe');
+  iframe.id = 'veritai-floating-card-frame';
+  iframe.src = chrome.runtime.getURL('floating-card.html');
+  
+  // 使用外部样式而不是内联样式
+  iframe.classList.add('veritai-floating-card-frame');
+  
+  // 添加到页面
+  document.body.appendChild(iframe);
+  state.floatingCard = iframe;
+
+  // 等待iframe加载完成
+  return new Promise((resolve) => {
+    iframe.onload = () => {
+      setTimeout(() => {
+        iframe.classList.add('veritai-frame-visible');
+      }, 100);
+      resolve(iframe);
+    };
+  });
+}
+
+// 显示浮动卡片
+async function showFloatingCard(data) {
+  try {
+    const iframe = await createFloatingCard();
+    state.isCardVisible = true;
+    state.currentData = data;
+
+    // 等待几毫秒确保iframe已完全加载
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // 向iframe发送数据
+        iframe.contentWindow.postMessage({
+          action: 'UPDATE_CONTENT',
+          data: data,
+          language: state.language
+        }, '*');
+        resolve({ success: true });
+      }, 300);
+    });
+  } catch (error) {
+    console.error('显示浮动卡片失败:', error);
+    return Promise.resolve({ success: false, error: error.message });
+  }
+}
+
+// 隐藏浮动卡片
+function hideFloatingCard() {
+  if (state.floatingCard) {
+    state.floatingCard.classList.remove('veritai-frame-visible');
+    
+    setTimeout(() => {
+      try {
+        document.body.removeChild(state.floatingCard);
+        state.floatingCard = null;
+        state.isCardVisible = false;
+      } catch (error) {
+        console.error('移除浮动卡片失败:', error);
+      }
+    }, 300);
+  }
+  return { success: true };
+}
+
+// 设置语言
+function setLanguage(lang) {
+  state.language = lang;
+  
+  // 如果卡片已显示，更新语言
+  if (state.isCardVisible && state.floatingCard && state.currentData) {
+    state.floatingCard.contentWindow.postMessage({
+      action: 'SET_LANGUAGE',
+      language: lang
+    }, '*');
+  }
+  return { success: true };
+}
+
+// 消息监听
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('接收到消息:', message.action);
+  
+  // 立即响应基本确认
+  let immediateResponse = { success: false, error: '未知操作' };
+  
+  try {
+    switch (message.action) {
+      case 'showFloatingCard':
+        immediateResponse = { success: true, processing: true };
+        showFloatingCard(message.data)
+          .then(response => sendResponse(response))
+          .catch(error => sendResponse({ success: false, error: error.message }));
+        break;
+  
+      case 'hideFloatingCard':
+        immediateResponse = hideFloatingCard();
+        break;
+  
+      case 'setLanguage':
+        immediateResponse = setLanguage(message.language);
+        break;
+        
+      case 'ping':
+        // 用于检查内容脚本是否已加载
+        immediateResponse = { success: true };
+        break;
+        
+      default:
+        // 未知操作
+        break;
+    }
+  } catch (error) {
+    console.error('处理消息出错:', error);
+    immediateResponse = { success: false, error: error.message };
+  }
+  
+  // 对于需要异步处理的消息，返回true
+  if (message.action === 'showFloatingCard') {
+    sendResponse(immediateResponse);
+    return true;
+  }
+  
+  // 对于同步处理的消息，直接返回结果
+  sendResponse(immediateResponse);
+  return false;
+});
+
+// 监听来自iframe的消息
+window.addEventListener('message', (event) => {
+  // 确保消息来自我们的iframe
+  if (state.floatingCard && event.source === state.floatingCard.contentWindow) {
+    const { action } = event.data;
+    
+    switch (action) {
+      case 'CLOSE_CARD':
+        hideFloatingCard();
+        break;
+        
+      case 'SET_LANGUAGE':
+        setLanguage(event.data.language);
+        break;
+    }
+  }
+});
+
+// 初始化
+function init() {
+  console.log('VeritAI Fact Checker内容脚本已加载');
+  
+  // 添加样式
+  const style = document.createElement('style');
+  style.textContent = `
+    .veritai-floating-card-frame {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 350px;
+      height: 450px;
+      border: none;
+      z-index: 2147483647;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      border-radius: 8px;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      opacity: 0;
+      transform: translateY(-10px);
+      background-color: white;
+    }
+    
+    .veritai-frame-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // 从存储中获取语言设置
+  chrome.storage.local.get('language', (result) => {
+    if (result.language) {
+      state.language = result.language;
+    }
+  });
+}
+
+// 启动
+init();
+
 // 监听页面卸载事件
 window.addEventListener('beforeunload', removeFloatingCard);
 
@@ -331,7 +537,7 @@ function signalContentReady() {
   setTimeout(() => {
     if (isExtensionContextValid()) {
       try {
-        chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY' })
+        chrome.runtime.sendMessage({ action: 'contentScriptReady' })
           .catch(() => console.warn('无法发送content script就绪信号'));
       } catch (error) {
         console.warn('发送就绪信号出错:', error);

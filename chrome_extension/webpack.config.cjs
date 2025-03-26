@@ -5,9 +5,10 @@ const TerserPlugin = require('terser-webpack-plugin');
 
 module.exports = {
   entry: {
-    background: './background.js',
-    'floating-card': './floating-card.js',
-    content: './content.js'
+    background: './src/background/background.js',
+    'floating-card': './src/floating-card/floating-card.js',
+    content: './src/content/content.js',
+    popup: './public/popup.js'
   },
   output: {
     filename: '[name].js',
@@ -40,18 +41,24 @@ module.exports = {
     new CopyPlugin({
       patterns: [
         { from: 'manifest.json' },
-        { from: 'floating-card.html' },
+        { from: 'public/popup.html', to: 'popup.html' },
+        { from: 'src/floating-card/floating-card.html', to: 'floating-card.html' },
+        { from: 'public/_locales', to: '_locales' },
+        { from: 'public/icons', to: 'icons' },
+        { from: 'styles/popup.css', to: 'styles/popup.css' },
+        { from: 'src/floating-card/floating-card.css', to: 'styles/floating-card.css' },
+        { from: 'src/content/content.css', to: 'styles/content.css' },
         { 
           from: 'node_modules/crypto-js/crypto-js.js',
-          to: 'crypto-js.js'
+          to: 'lib/crypto-js.js'
         },
         {
           from: 'node_modules/@google/generative-ai/dist/index.js',
-          to: 'generative-ai.js'
+          to: 'lib/generative-ai.js'
         },
         {
           from: 'node_modules/@mozilla/readability/Readability.js',
-          to: 'readability.js'
+          to: 'lib/readability.js'
         }
       ]
     })
@@ -73,6 +80,10 @@ module.exports = {
             ]
           }
         }
+      },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader']
       }
     ]
   }

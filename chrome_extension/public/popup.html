@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>VeritAI Fact Checker</title>
+    <link rel="stylesheet" href="styles/popup.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ... 内部样式 ... */
+    </style>
+</head>
+<body>
+    <div class="popup-container">
+        <header class="popup-header">
+            <img src="icons/icon48.png" alt="Logo" class="logo">
+            <h1>Verit.ai Fact Checker</h1>
+        </header>
+
+        <div class="service-status">
+            <div class="status-indicator" id="statusIndicator">
+                <span class="status-icon"></span>
+                <span class="status-text" data-i18n="serviceStatus">服务状态: 正常</span>
+            </div>
+        </div>
+
+        <div class="action-section">
+            <button id="analyzeButton" class="primary-button" data-i18n="analyze">
+                开始核查
+            </button>
+            <div class="loading-indicator hidden" id="loadingIndicator">
+                <span class="spinner"></span>
+                <span data-i18n="analyzing">核查中...</span>
+            </div>
+        </div>
+
+        <div class="error-section hidden" id="errorSection">
+            <div class="error-container">
+                <i class="fas fa-exclamation-triangle error-icon"></i>
+                <p class="error-message" id="errorMessage"></p>
+                <button id="retryButton" class="retry-button hidden" data-i18n="retryButton">重试</button>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <p class="info-text" data-i18n="description">
+                Verit.ai 使用先进的 AI 技术帮助您快速核实网页内容的可信度。
+            </p>
+        </div>
+
+        <footer class="popup-footer">
+            <a href="https://forms.gle/yourFeedbackForm"
+               target="_blank"
+               class="feedback-button"
+               data-i18n="feedback">
+                提供反馈
+            </a>
+        </footer>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html> 

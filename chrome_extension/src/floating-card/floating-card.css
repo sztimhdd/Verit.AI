@@ -1,0 +1,207 @@
+.floating-card {
+  position: fixed;
+  width: 350px;
+  max-height: 500px;
+  overflow-y: auto;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  z-index: 10000;
+  font-family: 'Arial', sans-serif;
+  right: 20px;
+  top: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  margin: 0;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: #999;
+}
+
+.close-button:hover {
+  color: #333;
+}
+
+.card-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.content-paragraph {
+  margin-bottom: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #444;
+}
+
+.fact-status {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-weight: bold;
+}
+
+.fact-status-icon {
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+.status-verified {
+  background-color: #e6f7e6;
+  color: #2e7d32;
+}
+
+.status-unverified {
+  background-color: #fff9e6;
+  color: #ff8f00;
+}
+
+.status-incorrect {
+  background-color: #fee6e6;
+  color: #d32f2f;
+}
+
+.status-analyzing {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.analysis-details {
+  background-color: #f9f9f9;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.source-list {
+  margin-top: 10px;
+}
+
+.source-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.source-index {
+  min-width: 20px;
+  height: 20px;
+  background-color: #1976d2;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  margin-right: 8px;
+}
+
+.source-link {
+  color: #1976d2;
+  text-decoration: none;
+  font-size: 13px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.source-link:hover {
+  text-decoration: underline;
+}
+
+.loading-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #1976d2;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-message {
+  padding: 12px;
+  background-color: #fee6e6;
+  color: #d32f2f;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+  font-size: 12px;
+  color: #666;
+}
+
+.powered-by {
+  display: flex;
+  align-items: center;
+}
+
+.verit-logo {
+  height: 14px;
+  margin-left: 4px;
+}
+
+.language-switcher {
+  display: flex;
+  align-items: center;
+}
+
+.lang-option {
+  margin-left: 8px;
+  cursor: pointer;
+}
+
+.lang-option.active {
+  font-weight: bold;
+  color: #1976d2;
+}
+
+/* 响应式调整 */
+@media (max-width: 480px) {
+  .floating-card {
+    width: 300px;
+    max-height: 450px;
+  }
+} 
