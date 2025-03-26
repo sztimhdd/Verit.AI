@@ -89,8 +89,14 @@ const quotaTracker = {
     }
 };
 
+// 设置CORS，允许前端域名访问
+app.use(cors({
+  origin: ['https://veritai.up.railway.app', 'http://localhost:8080'],
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
+
 // Enable CORS and request body limits
-app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 

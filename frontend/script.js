@@ -1,6 +1,6 @@
 // 配置
 const CONFIG = {
-    API_BASE_URL: 'https://veritai-api.up.railway.app'
+    API_BASE_URL: ''  // 留空使用相对路径
 };
 
 // DOM 元素
@@ -72,7 +72,7 @@ const APIService = {
     async checkHealth() {
         try {
             console.log(`[${new Date().toLocaleTimeString()}] 执行健康检查...`);
-            const response = await fetch(`${CONFIG.API_BASE_URL}/health`);
+            const response = await fetch(`/health`);  // 使用相对路径
             const status = await response.json();
             return UIState.updateServiceStatus(status.ready ? 'running' : 'initializing');
         } catch (error) {
@@ -84,7 +84,7 @@ const APIService = {
     async analyze(input) {
         const isUrl = input.startsWith('http://') || input.startsWith('https://');
         
-        const response = await fetch(`${CONFIG.API_BASE_URL}/api/extension/analyze`, {
+        const response = await fetch(`/api/extension/analyze`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -220,14 +220,14 @@ async function handleSubmit(event) {
 async function analyzeUrl(url) {
     try {
         // 先检查服务是否就绪
-        const healthCheck = await fetch(`${CONFIG.API_BASE_URL}/health`);
+        const healthCheck = await fetch(`/health`);
         const healthStatus = await healthCheck.json();
         
         if (!healthStatus.ready) {
             throw new Error('后端服务正在启动中，请稍后再试');
         }
 
-        const response = await fetch(`${CONFIG.API_BASE_URL}/api/extension/analyze`, {
+        const response = await fetch(`/api/extension/analyze`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -268,7 +268,7 @@ async function analyzeContent() {
         showLoading();
         
         // 检查后端服务是否就绪
-        const healthCheck = await fetch(`${CONFIG.API_BASE_URL}/health`);
+        const healthCheck = await fetch(`/health`);
         const healthStatus = await healthCheck.json();
         
         if (!healthStatus.ready) {
@@ -276,7 +276,7 @@ async function analyzeContent() {
             return;
         }
 
-        const response = await fetch(`${CONFIG.API_BASE_URL}/api/extension/analyze`, {
+        const response = await fetch(`/api/extension/analyze`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

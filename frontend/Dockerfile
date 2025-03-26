@@ -7,8 +7,8 @@ WORKDIR /app
 # 复制package.json和package-lock.json
 COPY package*.json ./
 
-# 安装依赖
-RUN npm install
+# 安装依赖 - 特别添加http-proxy-middleware
+RUN npm install http-proxy-middleware && npm install
 
 # 复制所有文件
 COPY . .
