@@ -125,59 +125,6 @@ async function fetchWebContent(url) {
     }
 }
 
-// 修改翻译功能以确保关键状态文本的一致性
-async function translateToZh(analysisResult, modelName) {
-    try {
-        // 构建翻译提示词
-        const translationPrompt = `
-            请将以下JSON格式的事实核查结果从英文翻译成中文，保持JSON结构不变。
-            只翻译值部分，不要翻译键名。
-            特别是以下关键术语必须严格按照下面的映射进行翻译:
-            - "High" -> "高"
-            - "Medium" -> "中"
-            - "Low" -> "低"
-            - "True" -> "真实"
-            - "Partially True" -> "部分真实"
-            - "False" -> "虚假"
-            - "Misleading" -> "误导"
-            - "Unverified" -> "需要核实"
-            - "Not enough evidence" -> "证据不足"
-            
-            ${JSON.stringify(analysisResult)}
-        `;
-        
-        // 使用当前活跃模型进行翻译
-        const model = genAI.getGenerativeModel({ model: modelName });
-        
-        // 调用Gemini API翻译
-        const translationResult = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: translationPrompt }] }],
-            generationConfig: {
-                temperature: 0.1,
-                maxOutputTokens: 4096,
-            }
-        });
-        
-        // 解析返回结果
-        const text = translationResult.response.text().trim();
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        
-        if (jsonMatch) {
-            try {
-                return JSON.parse(jsonMatch[0]);
-            } catch (parseError) {
-                console.error("Translation JSON Parse Error:", parseError);
-                return analysisResult; // 解析失败时返回原始结果
-            }
-        }
-        
-        return analysisResult; // 未找到JSON时返回原始结果
-    } catch (error) {
-        console.error("Translation API Error:", error);
-        return analysisResult; // 出错时返回原始结果
-    }
-}
-
 // Token usage statistics function
 function calculateTokenUsage(content, response) {
     const inputTokens = content.split("").reduce((count, char) => {
@@ -225,16 +172,22 @@ async function processAnalysisRequest(req, res) {
         // 获取最佳模型配置
         const modelConfig = await modelManager.getModelConfig(analysisContent, genAI);
         const activeModel = modelConfig.model;
-        // 检查是否使用Grounding的逻辑更新
-        const useGrounding = modelConfig.searchParams?.searchQueries?.enabled || false;
+        const useGrounding = modelConfig.useGrounding || false;
         
         console.log(`使用模型: ${activeModel}, 使用Grounding: ${useGrounding}`);
 
         // 分析Prompt
-        const prompt = `You are a professional fact checker. Please analyze the following content with multi-dimensional analysis.
+        let prompt = `You are a professional fact checker. Please analyze the following content with multi-dimensional analysis.
 
         First, carefully read the entire text, identifying key information, claims, and information sources.
-        Then, think through your analysis process step by step:
+        Then, think through your analysis process step by step:`;
+        
+        // 如果使用Grounding，添加特殊的搜索引擎查询提示
+        if (useGrounding) {
+            prompt += `\n\nThis task requires factual accuracy. Use web search extensively to verify all information and claims. Search for sources, check facts, and validate entities.`;
+        }
+        
+        prompt += `
 
         1. Source verification:
            - Identify all information sources mentioned (journals, research papers, institutions, etc.)
@@ -319,18 +272,13 @@ async function processAnalysisRequest(req, res) {
         console.log(`Language: ${lang}`);
         console.log(`Using Model: ${activeModel} with Grounding: ${useGrounding}`);
 
-        // 获取指定模型实例
-        const model = genAI.getGenerativeModel({ model: activeModel });
-
-        // 构建请求配置选项
+        // 准备生成配置
         const generationConfig = {
             temperature: 0.1,
-            topK: 40,
-            topP: 0.8,
-            maxOutputTokens: 4096,
+            maxOutputTokens: 4096
         };
 
-        // 构建安全设置
+        // 准备安全设置
         const safetySettings = [
             {
                 category: "HARM_CATEGORY_HARASSMENT",
@@ -342,96 +290,216 @@ async function processAnalysisRequest(req, res) {
             }
         ];
 
-        // Call Gemini API with dynamic model configuration - 适配API v0.2.0
-        let apiParams = {
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: generationConfig,
-            safetySettings: safetySettings
-        };
-
-        // 添加搜索参数（如果提供）
-        if (modelConfig.searchParams) {
-            console.log('使用搜索参数:', modelConfig.searchParams);
-            apiParams.searchParams = modelConfig.searchParams;
-        }
-
-        // 调用Gemini API
-        const result = await model.generateContent(apiParams);
-
-        const response = await result.response;
-        const text = response.text().trim();
-
-        // 记录API使用情况
-        await modelManager.recordUsage(response, useGrounding);
-
-        // Parse JSON response
-        let analysisResult;
         try {
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (!jsonMatch) {
-                throw new Error("No valid JSON found in response");
+            // 按照最新的API文档构建请求
+            // 参考: https://ai.google.dev/api/generate-content
+            const model = genAI.getGenerativeModel({ model: activeModel });
+            
+            // 构建请求内容
+            const requestParams = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: generationConfig,
+                safetySettings: safetySettings
+            };
+            
+            // 如果启用了Grounding，添加tools参数
+            if (modelConfig.tools && modelConfig.tools.length > 0) {
+                requestParams.tools = modelConfig.tools;
+                console.log("启用网络搜索工具:", JSON.stringify(modelConfig.tools));
             }
-            analysisResult = JSON.parse(jsonMatch[0]);
-        } catch (parseError) {
-            console.error("JSON Parse Error:", parseError);
-            console.log("Raw Response:", text);
-            return res.status(500).json({
-                status: "error",
-                error: {
-                    message: "Failed to parse analysis result",
-                    details: parseError.message,
-                },
-            });
-        }
+            
+            // 调用API生成内容
+            const result = await model.generateContent(requestParams);
+            
+            // 获取响应结果
+            const response = result.response;
+            let text = "";
+            
+            // 提取响应文本
+            if (typeof response.text === 'function') {
+                text = response.text().trim();
+            } else if (response.text) {
+                text = response.text.trim();
+            } else {
+                throw new Error("无法从响应中提取文本");
+            }
 
-        // Validate response format
-        const requiredFields = [
-            "score",
-            "flags",
-            "source_verification",
-            "entity_verification",
-            "fact_check",
-            "exaggeration_check",
-            "summary",
-            "sources"
-        ];
+            // 记录API使用情况
+            await modelManager.recordUsage(response, useGrounding);
 
-        for (const field of requiredFields) {
-            if (!analysisResult[field]) {
+            // 解析JSON响应
+            let analysisResult;
+            try {
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) {
+                    throw new Error("No valid JSON found in response");
+                }
+                analysisResult = JSON.parse(jsonMatch[0]);
+            } catch (parseError) {
+                console.error("JSON Parse Error:", parseError);
+                console.log("Raw Response:", text);
                 return res.status(500).json({
                     status: "error",
                     error: {
-                        message: `Missing required field: ${field}`,
+                        message: "Failed to parse analysis result",
+                        details: parseError.message,
                     },
                 });
             }
+
+            // 验证响应格式
+            const requiredFields = [
+                "score",
+                "flags",
+                "source_verification",
+                "entity_verification",
+                "fact_check",
+                "exaggeration_check",
+                "summary",
+                "sources"
+            ];
+
+            for (const field of requiredFields) {
+                if (!analysisResult[field]) {
+                    return res.status(500).json({
+                        status: "error",
+                        error: {
+                            message: `Missing required field: ${field}`,
+                        },
+                    });
+                }
+            }
+
+            // 如果需要中文，对结果进行翻译
+            let finalResult = analysisResult;
+            if (needsTranslation) {
+                console.log("Translating results to Chinese...");
+                finalResult = await translateToZhSimplified(analysisResult, activeModel, model);
+            }
+
+            // 计算和记录token使用情况
+            const tokenUsage = calculateTokenUsage(analysisContent, finalResult);
+            const timeUsed = Date.now() - startTime;
+
+            console.log("\n=== API Call Statistics ===");
+            console.log(`Input Tokens: ${tokenUsage.inputTokens}`);
+            console.log(`Output Tokens: ${tokenUsage.outputTokens}`);
+            console.log(`Total Tokens: ${tokenUsage.totalTokens}`);
+            console.log(`Processing Time: ${timeUsed}ms`);
+            console.log(`Language: ${lang}`);
+            console.log(`Model: ${activeModel}, Grounding: ${useGrounding}`);
+            console.log("==================\n");
+
+            // 返回成功响应
+            res.json({
+                status: "success",
+                data: finalResult,
+            });
+            
+        } catch (apiError) {
+            console.error("Gemini API Error:", apiError);
+            
+            // 如果是第一次尝试，并且启用了Grounding，尝试禁用Grounding重试
+            if (useGrounding) {
+                console.log("API调用失败，尝试禁用Grounding后重试...");
+                
+                try {
+                    // 获取模型实例
+                    const model = genAI.getGenerativeModel({ model: activeModel });
+                    
+                    // 使用更简单的提示词，禁用Grounding
+                    const simplePrompt = prompt.replace(/This task requires factual accuracy.*extensively/g, '');
+                    
+                    // 简化的请求参数，不包含tools
+                    const fallbackRequest = {
+                        contents: [{ role: "user", parts: [{ text: simplePrompt }] }],
+                        generationConfig: generationConfig,
+                        safetySettings: safetySettings
+                    };
+                    
+                    // 调用API
+                    const result = await model.generateContent(fallbackRequest);
+                    const response = result.response;
+                    let text = "";
+                    
+                    // 提取响应文本
+                    if (typeof response.text === 'function') {
+                        text = response.text().trim();
+                    } else if (response.text) {
+                        text = response.text.trim();
+                    } else {
+                        throw new Error("无法从回退响应中提取文本");
+                    }
+                    
+                    // 记录使用情况，标记为未使用Grounding
+                    await modelManager.recordUsage(response, false);
+                    
+                    // 处理响应
+                    let analysisResult;
+                    try {
+                        const jsonMatch = text.match(/\{[\s\S]*\}/);
+                        if (!jsonMatch) {
+                            throw new Error("No valid JSON found in response");
+                        }
+                        analysisResult = JSON.parse(jsonMatch[0]);
+                        
+                        // 验证所需字段
+                        const requiredFields = [
+                            "score",
+                            "flags",
+                            "source_verification",
+                            "entity_verification",
+                            "fact_check",
+                            "exaggeration_check",
+                            "summary",
+                            "sources"
+                        ];
+
+                        for (const field of requiredFields) {
+                            if (!analysisResult[field]) {
+                                throw new Error(`Missing required field: ${field}`);
+                            }
+                        }
+                        
+                        // 如果需要中文，对结果进行翻译
+                        let finalResult = analysisResult;
+                        if (needsTranslation) {
+                            console.log("回退模式：翻译结果为中文...");
+                            finalResult = await translateToZhSimplified(analysisResult, activeModel, model);
+                        }
+                        
+                        // 计算和记录token使用情况
+                        const tokenUsage = calculateTokenUsage(analysisContent, finalResult);
+                        const timeUsed = Date.now() - startTime;
+
+                        console.log("\n=== 回退API调用统计 ===");
+                        console.log(`输入Token: ${tokenUsage.inputTokens}`);
+                        console.log(`输出Token: ${tokenUsage.outputTokens}`);
+                        console.log(`总Token: ${tokenUsage.totalTokens}`);
+                        console.log(`处理时间: ${timeUsed}ms`);
+                        console.log(`语言: ${lang}`);
+                        console.log(`模型: ${activeModel}, 使用Grounding: false (回退模式)`);
+                        console.log("==================\n");
+                        
+                        // 返回成功响应
+                        return res.json({
+                            status: "success",
+                            data: finalResult,
+                        });
+                        
+                    } catch (parseError) {
+                        console.error("回退模式解析失败:", parseError);
+                        throw parseError; // 继续向外层抛出异常
+                    }
+                    
+                } catch (fallbackError) {
+                    console.error("回退模式API调用也失败:", fallbackError);
+                    throw apiError; // 继续抛出原始错误
+                }
+            } else {
+                throw apiError; // 如果没启用Grounding，直接抛出错误
+            }
         }
-
-        // 如果需要中文，对结果进行翻译
-        let finalResult = analysisResult;
-        if (needsTranslation) {
-            console.log("Translating results to Chinese...");
-            finalResult = await translateToZh(analysisResult, activeModel);
-        }
-
-        // Calculate and log token usage
-        const tokenUsage = calculateTokenUsage(analysisContent, finalResult);
-        const timeUsed = Date.now() - startTime;
-
-        console.log("\n=== API Call Statistics ===");
-        console.log(`Input Tokens: ${tokenUsage.inputTokens}`);
-        console.log(`Output Tokens: ${tokenUsage.outputTokens}`);
-        console.log(`Total Tokens: ${tokenUsage.totalTokens}`);
-        console.log(`Processing Time: ${timeUsed}ms`);
-        console.log(`Language: ${lang}`);
-        console.log(`Model: ${activeModel}, Grounding: ${useGrounding}`);
-        console.log("==================\n");
-
-        // Return success response
-        res.json({
-            status: "success",
-            data: finalResult,
-        });
 
     } catch (error) {
         console.error("API Error:", error);
@@ -442,6 +510,67 @@ async function processAnalysisRequest(req, res) {
                 details: error.stack
             }
         });
+    }
+}
+
+// 简化的翻译功能 - 适配最新API
+async function translateToZhSimplified(analysisResult, modelName, model) {
+    try {
+        // 构建翻译提示词
+        const translationPrompt = `
+            请将以下JSON格式的事实核查结果从英文翻译成中文，保持JSON结构不变。
+            只翻译值部分，不要翻译键名。
+            特别是以下关键术语必须严格按照下面的映射进行翻译:
+            - "High" -> "高"
+            - "Medium" -> "中"
+            - "Low" -> "低"
+            - "True" -> "真实"
+            - "Partially True" -> "部分真实"
+            - "False" -> "虚假"
+            - "Misleading" -> "误导"
+            - "Unverified" -> "需要核实"
+            - "Not enough evidence" -> "证据不足"
+            
+            ${JSON.stringify(analysisResult)}
+        `;
+        
+        // 使用最新API文档的调用方式
+        const translationResult = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: translationPrompt }] }],
+            generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 4096,
+            }
+        });
+        
+        // 获取响应文本
+        const response = translationResult.response;
+        let text = "";
+        
+        if (typeof response.text === 'function') {
+            text = response.text().trim();
+        } else if (response.text) {
+            text = response.text.trim();
+        } else {
+            throw new Error("无法从翻译响应中提取文本");
+        }
+        
+        // 解析返回结果
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        
+        if (jsonMatch) {
+            try {
+                return JSON.parse(jsonMatch[0]);
+            } catch (parseError) {
+                console.error("Translation JSON Parse Error:", parseError);
+                return analysisResult; // 解析失败时返回原始结果
+            }
+        }
+        
+        return analysisResult; // 未找到JSON时返回原始结果
+    } catch (error) {
+        console.error("Translation API Error:", error);
+        return analysisResult; // 出错时返回原始结果
     }
 }
 
