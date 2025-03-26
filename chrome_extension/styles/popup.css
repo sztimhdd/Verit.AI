@@ -7,6 +7,15 @@
 
 /* 其他样式保持不变 */
 
+:root {
+  --status-ready: #4CAF50;
+  --status-initializing: #FFC107;
+  --status-error: #F44336;
+  --button-primary: #2196F3;
+  --button-hover: #1976D2;
+  --button-disabled: #BDBDBD;
+}
+
 body {
   width: 480px;
   margin: 0;
@@ -27,14 +36,9 @@ body {
 }
 
 .header-icon {
-  width: 48px;
-  height: 48px;
-  margin-right: 16px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 24px;
+  color: var(--button-primary);
+  margin-right: 12px;
 }
 
 .header-icon.critical { background-color: #dc3545; color: white; }
@@ -324,4 +328,293 @@ body {
 /* 评分颜色 */
 .score-high { color: #2ecc71; }
 .score-medium { color: #f1c40f; }
-.score-low { color: #e74c3c; } 
+.score-low { color: #e74c3c; }
+
+.popup-container {
+  width: 320px;
+  min-height: 200px;
+  padding: 16px;
+}
+
+/* 头部样式 */
+.popup-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.logo {
+  width: 32px;
+  height: 32px;
+  margin-right: 12px;
+}
+
+.popup-header h1 {
+  margin: 0;
+  font-size: 18px;
+  color: #1a1a1a;
+}
+
+/* 服务状态样式 */
+.service-status {
+  margin-bottom: 20px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-radius: 6px;
+  background: #f5f5f5;
+}
+
+.status-icon {
+  font-size: 8px;
+  margin-right: 8px;
+}
+
+.status-icon.ready { 
+  color: var(--status-ready); 
+}
+
+.status-icon.initializing { 
+  color: var(--status-initializing);
+  animation: pulse 1s infinite;
+}
+
+.status-icon.error { 
+  color: var(--status-error); 
+}
+
+/* 操作区域样式 */
+.action-section {
+  margin-bottom: 20px;
+}
+
+.primary-button {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--button-primary);
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.primary-button:hover {
+  background: var(--button-hover);
+}
+
+.primary-button:disabled {
+  background: var(--button-disabled);
+  cursor: not-allowed;
+}
+
+/* 加载指示器 */
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.loading-indicator i {
+  color: var(--button-primary);
+  font-size: 20px;
+  margin-right: 8px;
+}
+
+/* 错误状态样式 */
+.error-section {
+  padding: 16px;
+  margin-bottom: 20px;
+  border-radius: 6px;
+  background: #fee2e2;
+}
+
+.error-message {
+  color: var(--status-error);
+  margin: 0 0 12px 0;
+}
+
+.retry-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background: var(--status-error);
+  color: white;
+  cursor: pointer;
+}
+
+/* 项目信息样式 */
+.info-section {
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.info-text {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+  line-height: 1.5;
+}
+
+/* 反馈区域样式 */
+.popup-footer {
+  text-align: center;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.feedback-button {
+  color: var(--button-primary);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.feedback-button:hover {
+  text-decoration: underline;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* 响应式调整 */
+@media (max-width: 360px) {
+  .popup-container {
+    width: 280px;
+  }
+}
+
+/* 按钮图标样式 */
+.primary-button i {
+  margin-right: 8px;
+}
+
+/* 信息区域图标 */
+.info-section {
+  display: flex;
+  align-items: flex-start;
+}
+
+.info-icon {
+  color: var(--button-primary);
+  font-size: 16px;
+  margin-right: 12px;
+  margin-top: 2px;
+}
+
+/* 错误区域图标 */
+.error-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.error-icon {
+  color: var(--status-error);
+  font-size: 24px;
+  margin-bottom: 12px;
+}
+
+/* 重试按钮图标 */
+.retry-button i {
+  margin-right: 6px;
+}
+
+/* 反馈按钮图标 */
+.feedback-button i {
+  margin-right: 6px;
+}
+
+/* 添加动画效果 */
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+/* 替换之前的 spinner 样式为 Font Awesome 动画 */
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.loading-indicator i {
+  color: var(--button-primary);
+  font-size: 20px;
+  margin-right: 8px;
+}
+
+/* 其他样式保持不变 */
+
+/* 添加过渡动画 */
+.status-indicator,
+.primary-button,
+.error-section {
+  transition: all 0.3s ease;
+}
+
+/* 添加悬停效果 */
+.primary-button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+}
+
+/* 添加点击效果 */
+.primary-button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+/* 优化加载动画 */
+.loading-indicator i {
+  animation: spin 1s linear infinite, pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+  from { opacity: 0.6; }
+  to { opacity: 1; }
+}
+
+/* 配额信息样式 */
+.quota-info {
+  margin-top: 8px;
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.quota-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.quota-item:last-child {
+  margin-bottom: 0;
+}
+
+.quota-item i {
+  margin-right: 8px;
+  color: var(--button-primary);
+}
+
+/* 错误状态样式增强 */
+.error-section {
+  background: #fee2e2;
+  border-left: 4px solid var(--status-error);
+}
+
+.error-details {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #666;
+} 

@@ -5,7 +5,9 @@
   "main": "background.js",
   "scripts": {
     "dev": "webpack --mode development --watch",
-    "build": "webpack --mode production"
+    "build": "webpack --mode production",
+    "test": "node tests/popup.test.js",
+    "test:watch": "nodemon tests/popup.test.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.1.3",

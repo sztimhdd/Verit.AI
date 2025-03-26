@@ -1131,3 +1131,4 @@ function validateApiResponse(data: any): ValidationResult {
     for (const [section, fields] of Object.entries(requiredArrays)) {
         if (!data[section]) {
             return { isValid: false, error: `
+```
