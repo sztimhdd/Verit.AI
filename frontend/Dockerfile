@@ -16,5 +16,8 @@ COPY . .
 # 暴露端口
 EXPOSE 3000
 
+# 设置环境变量确保正确的监听地址
+ENV HOST=0.0.0.0
+
 # 启动Node.js服务器
 CMD ["npm", "start"]
