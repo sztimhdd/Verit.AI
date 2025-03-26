@@ -1,152 +1,132 @@
-.floating-card {
-  position: fixed;
-  width: 350px;
-  max-height: 500px;
-  overflow-y: auto;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  z-index: 10000;
+/* 浮动卡片样式 */
+:root {
+  --primary-color: #2196F3;
+  --secondary-color: #4CAF50;
+  --danger-color: #F44336;
+  --warning-color: #FFC107;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-500: #6b7280;
+  --gray-700: #374151;
+  --gray-900: #111827;
+}
+
+body {
   font-family: 'Arial', sans-serif;
-  right: 20px;
-  top: 20px;
-  padding: 16px;
+  margin: 0;
+  padding: 0;
+  background-color: white;
+  color: var(--gray-700);
+  font-size: 14px;
+  overflow: hidden;
+}
+
+.card {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #f0f0f0;
+  position: relative;
+  padding: 16px;
+  background: linear-gradient(135deg, #2196F3, #4CAF50);
+  color: white;
 }
 
-.card-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
-  margin: 0;
+.card-header h1 {
+  font-size: 18px;
+  margin: 0 0 4px 0;
+  font-weight: 600;
 }
 
 .close-button {
-  background: none;
-  border: none;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-size: 18px;
-  color: #999;
+  color: white;
+  border: none;
+  font-size: 14px;
 }
 
 .close-button:hover {
-  color: #333;
+  background: rgba(255, 255, 255, 0.5);
 }
 
-.card-content {
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.content-paragraph {
-  margin-bottom: 12px;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #444;
-}
-
-.fact-status {
+.loading-container {
   display: flex;
-  align-items: center;
-  padding: 8px;
-  border-radius: 4px;
-  margin-bottom: 12px;
-  font-weight: bold;
-}
-
-.fact-status-icon {
-  margin-right: 8px;
-  font-size: 16px;
-}
-
-.status-verified {
-  background-color: #e6f7e6;
-  color: #2e7d32;
-}
-
-.status-unverified {
-  background-color: #fff9e6;
-  color: #ff8f00;
-}
-
-.status-incorrect {
-  background-color: #fee6e6;
-  color: #d32f2f;
-}
-
-.status-analyzing {
-  background-color: #e3f2fd;
-  color: #1976d2;
-}
-
-.analysis-details {
-  background-color: #f9f9f9;
-  padding: 10px;
-  border-radius: 4px;
-  font-size: 13px;
-}
-
-.source-list {
-  margin-top: 10px;
-}
-
-.source-item {
-  display: flex;
-  align-items: flex-start;
-  margin-bottom: 8px;
-}
-
-.source-index {
-  min-width: 20px;
-  height: 20px;
-  background-color: #1976d2;
-  color: white;
-  border-radius: 50%;
-  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  margin-right: 8px;
-}
-
-.source-link {
-  color: #1976d2;
-  text-decoration: none;
-  font-size: 13px;
-  line-height: 1.4;
-  word-break: break-word;
-}
-
-.source-link:hover {
-  text-decoration: underline;
-}
-
-.loading-indicator {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  height: 100%;
   padding: 20px;
 }
 
-.spinner {
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #1976d2;
+.loading-spinner {
+  border: 3px solid var(--gray-200);
+  border-top: 3px solid var(--primary-color);
   border-radius: 50%;
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+.loading-text {
+  color: var(--gray-700);
+  font-size: 16px;
+}
+
+.result-container {
+  height: 100%;
+  overflow: auto;
+}
+
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 20px;
+  text-align: center;
+}
+
+.error-icon {
+  color: var(--danger-color);
+  font-size: 36px;
+  margin-bottom: 16px;
+}
+
+.error-message {
+  color: var(--gray-700);
+  margin-bottom: 16px;
+}
+
+.retry-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.retry-button:hover {
+  opacity: 0.9;
 }
 
 @keyframes spin {
@@ -154,54 +134,33 @@
   100% { transform: rotate(360deg); }
 }
 
-.error-message {
-  padding: 12px;
-  background-color: #fee6e6;
-  color: #d32f2f;
-  border-radius: 4px;
-  font-size: 14px;
+/* 结果内容样式 */
+.result-content {
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.section {
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 500;
   margin-bottom: 12px;
-}
-
-.card-footer {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 12px;
-  padding-top: 8px;
-  border-top: 1px solid #f0f0f0;
-  font-size: 12px;
-  color: #666;
-}
-
-.powered-by {
+  color: var(--gray-900);
   display: flex;
   align-items: center;
 }
 
-.verit-logo {
-  height: 14px;
-  margin-left: 4px;
+.section-title i {
+  margin-right: 8px;
+  color: var(--primary-color);
 }
 
-.language-switcher {
-  display: flex;
-  align-items: center;
-}
-
-.lang-option {
-  margin-left: 8px;
-  cursor: pointer;
-}
-
-.lang-option.active {
-  font-weight: bold;
-  color: #1976d2;
-}
-
-/* 响应式调整 */
-@media (max-width: 480px) {
-  .floating-card {
-    width: 300px;
-    max-height: 450px;
+/* 添加响应式设计 */
+@media (max-width: 400px) {
+  .card {
+    border-radius: 0;
   }
 } 

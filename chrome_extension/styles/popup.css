@@ -102,23 +102,29 @@ body {
     background-color: #1976D2; /* 鼠标悬停时的颜色 */
 }
 
+/* 分析按钮状态 */
+.primary-button:disabled {
+    background-color: var(--button-disabled);
+    cursor: not-allowed;
+}
+
+/* 加载指示器 */
 .loading-indicator {
     display: flex;
     align-items: center;
     justify-content: center;
     margin-top: 10px;
     color: #777;
-    font-size: 14px;
 }
 
 .spinner {
-    border: 2px solid #ccc;
-    border-top: 2px solid #333;
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3498db;
     border-radius: 50%;
-    width: 16px;
-    height: 16px;
     animation: spin 1s linear infinite;
-    margin-right: 5px;
 }
 
 @keyframes spin {
@@ -128,41 +134,31 @@ body {
 
 /* 错误区域 */
 .error-section {
-    padding: 20px;
-    background-color: #fff;
-    border-top: 1px solid #e0e0e0;
-    text-align: center;
-}
-
-.error-container {
-    /* 可以添加错误容器的样式 */
-}
-
-.error-icon {
-    font-size: 28px;
-    color: #F44336;
-    margin-bottom: 10px;
+    margin-top: 16px;
+    padding: 12px;
+    background-color: #fff3f3;
+    border-radius: 4px;
+    border: 1px solid #ffcdd2;
 }
 
 .error-message {
-    color: #555;
+    color: #d32f2f;
+    margin-bottom: 8px;
     font-size: 14px;
-    margin-bottom: 15px;
 }
 
 .retry-button {
-    background-color: #4CAF50; /* 绿色重试按钮 */
+    background-color: #4caf50;
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
+    padding: 8px 16px;
+    border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
-    transition: background-color 0.3s ease;
 }
 
 .retry-button:hover {
-    background-color: #43A047; /* 鼠标悬停时的颜色 */
+    background-color: #43a047;
 }
 
 /* 信息区域 */

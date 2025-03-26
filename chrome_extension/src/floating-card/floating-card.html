@@ -3,9 +3,8 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-  <title>Fact Analysis</title>
-  <link rel="stylesheet" href="styles/floating-card.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <title>事实核查报告</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
   <style>
     :root {
       --primary: #2563eb;
@@ -574,58 +573,42 @@
   </style>
 </head>
 <body>
-  <div class="floating-card">
+  <!-- 加载状态 -->
+  <div id="loading-state" class="card loading">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">正在核查...</div>
+  </div>
+
+  <!-- 结果状态 -->
+  <div id="result-state" class="card result" style="display: none;">
+    <button id="close-btn" class="close-btn"><i class="fas fa-times"></i></button>
     <div class="card-header">
-      <h3 class="card-title" data-i18n="cardTitle">事实分析</h3>
-      <button class="close-button" id="closeCard">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
-    
-    <div class="card-content">
-      <!-- 分析中状态 -->
-      <div id="analyzing-state" class="analysis-state">
-        <div class="fact-status status-analyzing">
-          <i class="fact-status-icon fas fa-spinner fa-spin"></i>
-          <span data-i18n="statusAnalyzing">分析中</span>
-        </div>
-        <div class="loading-indicator">
-          <div class="spinner"></div>
-        </div>
+      <h1>事实核查报告</h1>
+      <div class="summary-preview" id="summary-preview">
+        <!-- 这里将显示总结内容的前两行 -->
       </div>
-      
-      <!-- 结果状态 -->
-      <div id="result-state" class="analysis-state" style="display:none;">
-        <div id="fact-status-container" class="fact-status">
-          <i id="fact-status-icon" class="fact-status-icon"></i>
-          <span id="fact-status-text"></span>
+      <div class="trust-score">
+        <div class="score-circle">
+          <svg class="progress-ring" height="70" width="70">
+            <circle class="progress-ring__background" cx="35" cy="35" r="30"></circle>
+            <circle id="score-circle" class="progress-ring__circle" cx="35" cy="35" r="30" stroke-dasharray="188.5" stroke-dashoffset="0"></circle>
+          </svg>
+          <div id="score-value" class="score-value">0</div>
         </div>
-        
-        <div class="content-paragraph" id="highlighted-text"></div>
-        
-        <div class="analysis-details" id="analysis-details"></div>
-        
-        <div class="source-list" id="source-list">
-          <h4 data-i18n="sourceTitle">来源：</h4>
-          <!-- 来源项将被动态添加 -->
-        </div>
-      </div>
-      
-      <!-- 错误状态 -->
-      <div id="error-state" class="analysis-state" style="display:none;">
-        <div class="error-message" id="error-message"></div>
       </div>
     </div>
-    
-    <div class="card-footer">
-      <div class="powered-by">
-        <span data-i18n="poweredBy">技术支持</span>
-        <span>VeritAI</span>
-      </div>
-      <div class="language-switcher">
-        <span class="lang-option" data-lang="en">EN</span>
-        <span class="lang-option active" data-lang="zh">中</span>
-      </div>
+    <div class="card-body" id="result-content">
+      <!-- 此处内容将由JavaScript动态生成 -->
+    </div>
+  </div>
+
+  <!-- 错误状态 -->
+  <div id="error-state" class="card error" style="display: none;">
+    <button id="close-btn-error" class="close-btn"><i class="fas fa-times"></i></button>
+    <div class="error-container">
+      <div class="error-icon"><i class="fas fa-exclamation-circle"></i></div>
+      <div id="error-message" class="error-message">分析过程中出现错误，请重试。</div>
+      <button id="retry-btn" class="retry-button">重新核查</button>
     </div>
   </div>
 

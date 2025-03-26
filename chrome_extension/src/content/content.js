@@ -39,17 +39,40 @@ function createFloatingCard() {
   });
 }
 
+// 提取页面内容
+function extractContent() {
+  try {
+    const content = document.body.innerText;
+    const title = document.title;
+    const url = window.location.href;
+    return {
+      success: true,
+      data: { content, title, url }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
 // 显示浮动卡片
 async function showFloatingCard(data) {
   try {
+    if (!data) {
+      throw new Error('无效的分析数据');
+    }
+
+    // 1. 创建或获取浮动卡片
     const iframe = await createFloatingCard();
     state.isCardVisible = true;
     state.currentData = data;
 
-    // 等待几毫秒确保iframe已完全加载
+    // 2. 等待iframe加载完成
     return new Promise((resolve) => {
       setTimeout(() => {
-        // 向iframe发送数据
+        // 3. 向iframe发送数据
         iframe.contentWindow.postMessage({
           action: 'UPDATE_CONTENT',
           data: data,
@@ -60,12 +83,13 @@ async function showFloatingCard(data) {
     });
   } catch (error) {
     console.error('显示浮动卡片失败:', error);
-    return Promise.resolve({ success: false, error: error.message });
+    return { success: false, error: error.message };
   }
 }
 
 // 隐藏浮动卡片
 function hideFloatingCard() {
+  console.log('执行隐藏浮动卡片');
   if (state.floatingCard) {
     state.floatingCard.classList.remove('veritai-frame-visible');
     
@@ -74,6 +98,7 @@ function hideFloatingCard() {
         document.body.removeChild(state.floatingCard);
         state.floatingCard = null;
         state.isCardVisible = false;
+        console.log('浮动卡片已成功移除');
       } catch (error) {
         console.error('移除浮动卡片失败:', error);
       }
@@ -96,70 +121,66 @@ function setLanguage(lang) {
   return { success: true };
 }
 
-// 消息监听
+// 消息处理
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('接收到消息:', message.action);
-  
-  // 立即响应基本确认
-  let immediateResponse = { success: false, error: '未知操作' };
-  
-  try {
-    switch (message.action) {
-      case 'showFloatingCard':
-        immediateResponse = { success: true, processing: true };
+  console.log('Content script received message:', message.action);
+
+  switch (message.action) {
+    case 'EXTRACT_CONTENT':
+      sendResponse(extractContent());
+      break;
+
+    case 'showFloatingCard':
+      if (message.data) {
         showFloatingCard(message.data)
           .then(response => sendResponse(response))
-          .catch(error => sendResponse({ success: false, error: error.message }));
-        break;
-  
-      case 'hideFloatingCard':
-        immediateResponse = hideFloatingCard();
-        break;
-  
-      case 'setLanguage':
-        immediateResponse = setLanguage(message.language);
-        break;
+          .catch(error => sendResponse({ 
+            success: false, 
+            error: error.message 
+          }));
+        return true; // 保持消息通道开放
+      } else {
+        sendResponse({ 
+          success: false, 
+          error: '无效的分析数据' 
+        });
+      }
+      break;
+
+    case 'hideFloatingCard':
+      sendResponse(hideFloatingCard());
+      break;
+
+    case 'setLanguage':
+      sendResponse(setLanguage(message.language));
+      break;
         
-      case 'ping':
-        // 用于检查内容脚本是否已加载
-        immediateResponse = { success: true };
-        break;
+    case 'ping':
+      // 用于检查内容脚本是否已加载
+      sendResponse({ success: true });
+      break;
         
-      default:
-        // 未知操作
-        break;
-    }
-  } catch (error) {
-    console.error('处理消息出错:', error);
-    immediateResponse = { success: false, error: error.message };
+    default:
+      // 未知操作
+      break;
   }
-  
-  // 对于需要异步处理的消息，返回true
-  if (message.action === 'showFloatingCard') {
-    sendResponse(immediateResponse);
-    return true;
-  }
-  
-  // 对于同步处理的消息，直接返回结果
-  sendResponse(immediateResponse);
-  return false;
 });
 
 // 监听来自iframe的消息
 window.addEventListener('message', (event) => {
   // 确保消息来自我们的iframe
   if (state.floatingCard && event.source === state.floatingCard.contentWindow) {
-    const { action } = event.data;
+    console.log('收到来自浮动卡片的消息:', event.data);
     
-    switch (action) {
-      case 'CLOSE_CARD':
-        hideFloatingCard();
-        break;
-        
-      case 'SET_LANGUAGE':
-        setLanguage(event.data.language);
-        break;
+    // 检查多种可能的消息格式
+    const msgType = event.data.type || event.data.action;
+    
+    if (msgType === 'REMOVE_FRAME' || msgType === 'CLOSE_CARD') {
+      console.log('处理关闭卡片请求');
+      hideFloatingCard();
     }
+    
+    // 其他消息处理...
   }
 });
 
@@ -299,24 +320,6 @@ function initializeMessageListeners() {
             }, '*');
           }
           sendResponse({ success: true });
-          break;
-
-        case 'EXTRACT_CONTENT':
-          try {
-            const content = document.body.innerText;
-            const title = document.title;
-            const url = window.location.href;
-            
-            sendResponse({
-              success: true,
-              data: { content, title, url }
-            });
-          } catch (error) {
-            sendResponse({
-              success: false,
-              error: error.message
-            });
-          }
           break;
 
         case 'REMOVE_CARD':
@@ -544,4 +547,20 @@ function signalContentReady() {
       }
     }
   }, 100);
+}
+
+// 统一消息处理函数
+function sendMessageToFloatingCard(message) {
+  if (!state.floatingCard) {
+    console.warn('浮动卡片不存在，无法发送消息');
+    return false;
+  }
+  
+  try {
+    state.floatingCard.contentWindow.postMessage(message, '*');
+    return true;
+  } catch (error) {
+    console.error('向浮动卡片发送消息失败:', error);
+    return false;
+  }
 }

@@ -46,7 +46,6 @@ module.exports = {
         { from: 'public/_locales', to: '_locales' },
         { from: 'public/icons', to: 'icons' },
         { from: 'styles/popup.css', to: 'styles/popup.css' },
-        { from: 'src/floating-card/floating-card.css', to: 'styles/floating-card.css' },
         { from: 'src/content/content.css', to: 'styles/content.css' },
         { 
           from: 'node_modules/crypto-js/crypto-js.js',

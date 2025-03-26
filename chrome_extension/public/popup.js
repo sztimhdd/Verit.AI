@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // const gemini15QuotaDisplay = document.getElementById('gemini15Quota'); //  移除配额信息相关元素引用
 
     let serviceReady = false;
+    let isAnalyzing = false;
 
     // ... existing i18n initialization ...
 
@@ -21,27 +22,30 @@ document.addEventListener('DOMContentLoaded', function () {
         let indicatorClass = '';
 
         if (status === 'ready') {
-            statusText = i18nManager.getText('serviceStatus.ready');
+            statusText = '服务状态: 正常';
             statusIconClass = 'fas fa-check-circle status-icon-success';
             indicatorClass = 'status-indicator-success';
             serviceReady = true;
-            errorSection.classList.add('hidden'); // 隐藏错误区域
-            retryButton.classList.add('hidden'); // 隐藏重试按钮
+            errorSection.classList.add('hidden');
+            retryButton.classList.add('hidden');
+            analyzeButton.disabled = false;
         } else if (status === 'initializing') {
-            statusText = i18nManager.getText('serviceStatus.initializing');
+            statusText = '服务状态: 初始化中';
             statusIconClass = 'fas fa-spinner fa-spin status-icon-initializing';
             indicatorClass = 'status-indicator-initializing';
             serviceReady = false;
-            errorSection.classList.add('hidden'); // 隐藏错误区域
-            retryButton.classList.add('hidden'); // 隐藏重试按钮
+            errorSection.classList.add('hidden');
+            retryButton.classList.add('hidden');
+            analyzeButton.disabled = true;
         } else if (status === 'error') {
-            statusText = i18nManager.getText('serviceStatus.error');
+            statusText = '服务状态: 错误';
             statusIconClass = 'fas fa-times-circle status-icon-error';
             indicatorClass = 'status-indicator-error';
             serviceReady = false;
-            errorSection.classList.remove('hidden'); // 显示错误区域
-            errorMessageDisplay.textContent = error || i18nManager.getText('errors.serviceUnavailable'); // 显示错误信息
-            retryButton.classList.remove('hidden'); // 显示重试按钮
+            errorSection.classList.remove('hidden');
+            errorMessageDisplay.textContent = error || '服务不可用';
+            retryButton.classList.remove('hidden');
+            analyzeButton.disabled = true;
         }
 
         statusIndicator.querySelector('.status-text').textContent = statusText;
@@ -50,30 +54,90 @@ document.addEventListener('DOMContentLoaded', function () {
         statusIndicator.className = `status-indicator ${indicatorClass}`;
     }
 
-
-    // ... existing checkServiceStatus function ...
-
-    // ... existing analyzeContent function ...
-
-    // ... existing updateQuotaDisplay function (remove or comment out) ...
-    /*
-    function updateQuotaDisplay(quota) {
-        if (!quota) return;
-        groundingQuotaDisplay.textContent = quota.groundingRemaining !== undefined ? quota.groundingRemaining : '--';
-        gemini20QuotaDisplay.textContent = quota.gemini20Remaining !== undefined ? quota.gemini20Remaining : '--';
-        gemini15QuotaDisplay.textContent = quota.gemini15Remaining !== undefined ? quota.gemini15Remaining : '--';
-        quotaInfo.classList.remove('hidden');
+    // 检查服务状态
+    async function checkServiceStatus() {
+        try {
+            const response = await chrome.runtime.sendMessage({ action: 'checkServiceStatus' });
+            updateServiceStatusUI(
+                response.isReady ? 'ready' : 'error',
+                response.error
+            );
+        } catch (error) {
+            updateServiceStatusUI('error', error.message);
+        }
     }
-    */
 
-    // ... existing event listeners ...
+    // 开始分析
+    async function startAnalysis() {
+        if (!serviceReady || isAnalyzing) return;
 
-    // 重试按钮事件监听
-    retryButton.addEventListener('click', () => {
-        errorSection.classList.add('hidden'); // 点击重试时隐藏错误区域
-        checkServiceStatus(); // 重新检查服务状态
+        try {
+            // 1. 更新UI状态为分析中
+            isAnalyzing = true;
+            analyzeButton.disabled = true;
+            loadingIndicator.classList.remove('hidden');
+            errorSection.classList.add('hidden');
+
+            // 2. 获取当前标签页
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab) {
+                throw new Error('无法获取当前标签页');
+            }
+
+            // 3. 获取页面内容
+            const contentResponse = await chrome.tabs.sendMessage(tab.id, { 
+                action: 'EXTRACT_CONTENT' 
+            });
+            
+            if (!contentResponse?.success) {
+                throw new Error(contentResponse?.error || '无法获取页面内容');
+            }
+
+            // 4. 发送分析请求
+            const analysisResponse = await chrome.runtime.sendMessage({
+                action: 'analyzeContent',
+                content: contentResponse.data.content,
+                url: tab.url,
+                title: contentResponse.data.title
+            });
+
+            // 5. 处理分析结果
+            if (analysisResponse?.success && analysisResponse?.data) {
+                // 成功：显示浮动卡片
+                await chrome.tabs.sendMessage(tab.id, {
+                    action: 'showFloatingCard',
+                    data: analysisResponse.data
+                });
+                window.close(); // 关闭popup
+            } else {
+                // 分析失败：显示错误信息
+                throw new Error(analysisResponse?.error || '分析失败');
+            }
+
+        } catch (error) {
+            // 6. 错误处理：显示错误信息
+            errorSection.classList.remove('hidden');
+            errorMessageDisplay.textContent = error.message;
+            retryButton.classList.remove('hidden');
+            analyzeButton.disabled = false;
+
+        } finally {
+            // 7. 清理状态
+            isAnalyzing = false;
+            loadingIndicator.classList.add('hidden');
+        }
+    }
+
+    // 重试按钮事件处理
+    retryButton.addEventListener('click', async () => {
+        errorSection.classList.add('hidden');
+        retryButton.classList.add('hidden');
+        await startAnalysis(); // 直接重试分析
     });
 
-    // 初始化检查服务状态
+    // 分析按钮事件处理
+    analyzeButton.addEventListener('click', startAnalysis);
+
+    // 初始化
     checkServiceStatus();
 }); 

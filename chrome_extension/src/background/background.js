@@ -171,35 +171,60 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (!serviceStatus.isReady) {
         await checkServiceStatus();
         if (!serviceStatus.isReady) {
-          sendResponse({ success: false, error: serviceStatus.error || '服务不可用' });
+          sendResponse({ 
+            success: false, 
+            error: serviceStatus.error || '服务不可用' 
+          });
           return;
         }
       }
+
       try {
         const response = await fetch(`${CURRENT_API_URL}/api/extension/analyze`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: request.content, url: request.url, lang: request.lang || 'zh' })
+          body: JSON.stringify({ 
+            content: request.content, 
+            url: request.url,
+            title: request.title,
+            lang: request.lang || 'zh'
+          })
         });
+
         if (response.ok) {
           const result = await response.json();
-          updateQuotaInfo(result.data?.quota); // 更新配额信息
-          sendResponse({ success: true, data: result.data || result });
-          console.log('内容分析成功'); // 简化日志
+          if (result.data) {
+            updateQuotaInfo(result.data.quota);
+            sendResponse({ 
+              success: true, 
+              data: result.data 
+            });
+          } else {
+            sendResponse({ 
+              success: false, 
+              error: '返回数据格式错误' 
+            });
+          }
         } else {
           const errorData = await response.json().catch(() => ({}));
-          console.error('内容分析失败:', response.status, errorData); // 使用 error 级别
-          sendResponse({ success: false, error: errorData.error?.message || errorData.message || `服务器错误: ${response.status}` });
+          console.error('内容分析失败:', response.status, errorData);
+          sendResponse({ 
+            success: false, 
+            error: errorData.error?.message || errorData.message || `服务器错误: ${response.status}` 
+          });
         }
       } catch (error) {
-        console.error('内容分析请求异常:', error.message); // 使用 error 级别
-        sendResponse({ success: false, error: `请求失败: ${error.message}` });
+        console.error('内容分析请求异常:', error);
+        sendResponse({ 
+          success: false, 
+          error: `请求失败: ${error.message}` 
+        });
       }
     } else if (request.action === 'contentScriptReady') {
       sendResponse({ ready: true }); // 发送响应
     }
   })();
-  return true;
+  return true; // 保持消息通道开放
 });
 
 // 初始化扩展
