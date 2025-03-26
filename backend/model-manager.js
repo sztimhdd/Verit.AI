@@ -74,16 +74,30 @@ async function getModelConfig(content, genAI) {
   
   console.log(`基本配置 - 模型: ${modelState.currentModel}, 使用Grounding: ${useGrounding}`);
   
-  // 根据最新API文档构建配置
-  // 参考: https://ai.google.dev/api/generate-content
+  // 修改配置结构以符合最新API
   const modelConfig = {
     model: modelState.currentModel,
-    // 设置是否启用Google搜索工具
-    tools: useGrounding ? [
-      {
-        googleSearchRetrieval: {}  // Google搜索检索工具
-      }
-    ] : []
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens: 4096,
+      // 如果启用Grounding，添加tools配置
+      tools: useGrounding ? [{
+        functionDeclarations: [{
+          name: "searchWeb",
+          description: "Search the web for information",
+          parameters: {
+            type: "object",
+            properties: {
+              query: {
+                type: "string",
+                description: "The search query"
+              }
+            },
+            required: ["query"]
+          }
+        }]
+      }] : undefined
+    }
   };
   
   // 记录是否使用Grounding

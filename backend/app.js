@@ -169,7 +169,7 @@ async function processAnalysisRequest(req, res) {
             });
         }
 
-        // 获取最佳模型配置
+        // 获取模型配置
         const modelConfig = await modelManager.getModelConfig(analysisContent, genAI);
         const activeModel = modelConfig.model;
         const useGrounding = modelConfig.useGrounding || false;
@@ -272,41 +272,35 @@ async function processAnalysisRequest(req, res) {
         console.log(`Language: ${lang}`);
         console.log(`Using Model: ${activeModel} with Grounding: ${useGrounding}`);
 
-        // 准备生成配置
+        // 构建生成配置
         const generationConfig = {
-            temperature: 0.1,
-            maxOutputTokens: 4096
+            ...modelConfig.generationConfig,
+            safetySettings: [
+                {
+                    category: "HARM_CATEGORY_HARASSMENT",
+                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    category: "HARM_CATEGORY_HATE_SPEECH",
+                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                }
+            ]
         };
 
-        // 准备安全设置
-        const safetySettings = [
-            {
-                category: "HARM_CATEGORY_HARASSMENT",
-                threshold: "BLOCK_MEDIUM_AND_ABOVE"
-            },
-            {
-                category: "HARM_CATEGORY_HATE_SPEECH",
-                threshold: "BLOCK_MEDIUM_AND_ABOVE"
-            }
-        ];
-
         try {
-            // 按照最新的API文档构建请求
-            // 参考: https://ai.google.dev/api/generate-content
-            const model = genAI.getGenerativeModel({ model: activeModel });
+            // 获取模型实例
+            const model = genAI.getGenerativeModel({ 
+                model: activeModel,
+                generationConfig: generationConfig
+            });
             
             // 构建请求内容
             const requestParams = {
-                contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: generationConfig,
-                safetySettings: safetySettings
+                contents: [{ 
+                    role: "user", 
+                    parts: [{ text: prompt }] 
+                }]
             };
-            
-            // 如果启用了Grounding，添加tools参数
-            if (modelConfig.tools && modelConfig.tools.length > 0) {
-                requestParams.tools = modelConfig.tools;
-                console.log("启用网络搜索工具:", JSON.stringify(modelConfig.tools));
-            }
             
             // 调用API生成内容
             const result = await model.generateContent(requestParams);
@@ -399,13 +393,20 @@ async function processAnalysisRequest(req, res) {
         } catch (apiError) {
             console.error("Gemini API Error:", apiError);
             
-            // 如果是第一次尝试，并且启用了Grounding，尝试禁用Grounding重试
             if (useGrounding) {
                 console.log("API调用失败，尝试禁用Grounding后重试...");
                 
                 try {
-                    // 获取模型实例
-                    const model = genAI.getGenerativeModel({ model: activeModel });
+                    // 获取无Grounding的模型实例
+                    const fallbackConfig = {
+                        ...generationConfig
+                    };
+                    delete fallbackConfig.tools; // 移除tools配置
+                    
+                    const model = genAI.getGenerativeModel({ 
+                        model: activeModel,
+                        generationConfig: fallbackConfig
+                    });
                     
                     // 使用更简单的提示词，禁用Grounding
                     const simplePrompt = prompt.replace(/This task requires factual accuracy.*extensively/g, '');
@@ -413,8 +414,17 @@ async function processAnalysisRequest(req, res) {
                     // 简化的请求参数，不包含tools
                     const fallbackRequest = {
                         contents: [{ role: "user", parts: [{ text: simplePrompt }] }],
-                        generationConfig: generationConfig,
-                        safetySettings: safetySettings
+                        generationConfig: fallbackConfig,
+                        safetySettings: [
+                            {
+                                category: "HARM_CATEGORY_HARASSMENT",
+                                threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                            },
+                            {
+                                category: "HARM_CATEGORY_HATE_SPEECH",
+                                threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                            }
+                        ]
                     };
                     
                     // 调用API
