@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 事实核查</title>
+    <title>Veri.ai 照谣镜 - AI事实核查</title>
+    <link rel="stylesheet" href="styles/main.css">
     <style>
         :root {
             --primary-color: #4CAF50;
@@ -87,7 +88,9 @@
             margin-bottom: 30px;
         }
 
-        button {
+        .analyze-btn {
+            background-color: var(--primary-color);
+            color: white;
             padding: 15px 30px;
             border: none;
             border-radius: 8px;
@@ -98,19 +101,28 @@
             flex: 1;
         }
 
-        .analyze-btn {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .analyze-btn:hover {
+        .analyze-btn:hover:not(:disabled) {
             background-color: #45a049;
             transform: translateY(-1px);
+        }
+
+        .analyze-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            opacity: 0.7;
         }
 
         .clear-btn {
             background-color: #f5f5f5;
             color: #666;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
         }
 
         .clear-btn:hover {
@@ -150,7 +162,6 @@
         }
 
         .result-container {
-            display: none;
             margin-top: 30px;
             padding: 30px;
             border: 1px solid var(--border-color);
@@ -432,430 +443,102 @@
             background: #d4e9f7;
             text-decoration: underline;
         }
+
+        .status-container {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 8px 16px;
+            border-radius: 4px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .loading-state {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        .error-state {
+            padding: 15px;
+            background-color: #ffebee;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .error-message {
+            color: #f44336;
+            margin: 0;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            transition: background-color 0.3s ease;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
+    <div class="status-container">
+        <span class="status-indicator"></span>
+        <span id="status">服务状态: 检查中...</span>
+    </div>
+    
     <div class="container">
-        <h1>AI 事实核查</h1>
-        <p class="description">输入网页 URL，AI 将自动分析内容的可信度</p>
-        
-        <div class="input-group">
-            <input type="url" id="url" class="url-input" placeholder="请输入需要核查的网页 URL（例如：https://example.com）" required>
+        <h1>Verit.ai 照谣镜 - AI事实核查</h1>
+        <div class="input-section">
+            <input type="text" id="urlInput" placeholder="输入网址或粘贴文本内容" class="url-input">
+            <div class="button-group">
+                <button id="analyzeBtn" class="analyze-btn">开始核查</button>
+                <button id="clearBtn" class="clear-btn">清除</button>
+            </div>
         </div>
 
-        <div class="button-group">
-            <button class="analyze-btn" onclick="analyzeContent()">开始核查</button>
-            <button class="clear-btn" onclick="clearContent()">清除</button>
-                    </div>
-
-        <div class="loading">
-            <div class="loading-spinner"></div>
+        <div id="loadingState" class="loading-state hidden">
+            <div class="spinner"></div>
             <p>正在分析中，请稍候...</p>
-                </div>
-
-        <div class="error-message" id="errorMessage"></div>
-
-        <div class="result-container" id="resultContainer">
-            <div class="score-section">
-                <div class="score-circle" id="scoreCircle"></div>
-                <div class="score-label">总体可信度评分</div>
-            </div>
-            
-            <div class="tags-container" id="tagsContainer">
-                <!-- 标签将通过 JavaScript 动态添加 -->
         </div>
 
-            <div class="summary-section">
-                <h3 class="section-title">内容摘要</h3>
-                <p id="summary"></p>
-            </div>
-
-            <div class="sources-section">
-                <h3 class="section-title">信息来源</h3>
-                <div id="sourcesList"></div>
+        <div id="errorState" class="error-state hidden">
+            <p class="error-message"></p>
         </div>
 
-            <div class="fact-check-section">
-                <h3 class="section-title">事实核查</h3>
-                <div id="factCheckList"></div>
-        </div>
-
-            <div class="exaggeration-section" id="exaggerationSection">
-                <h3 class="section-title">夸张表述</h3>
-                <div id="exaggerationList"></div>
-            </div>
-        </div>
+        <div id="results" class="results-section"></div>
     </div>
 
-    <script>
-        // 配置
-        const CONFIG = {
-            API_URL: 'https://factcheckerai-production.up.railway.app/api/extension/analyze',
-            DEBOUNCE_TIME: 1000
-        };
-
-        // 防抖函数
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        }
-
-        // 显示加载状态
-        function showLoading() {
-            document.querySelector('.loading').style.display = 'block';
-            document.getElementById('resultContainer').style.display = 'none';
-            document.getElementById('errorMessage').style.display = 'none';
-        }
-
-        // 隐藏加载状态
-        function hideLoading() {
-            document.querySelector('.loading').style.display = 'none';
-        }
-
-        // 显示错误信息
-        function showError(message) {
-            const errorElement = document.getElementById('errorMessage');
-            errorElement.textContent = message;
-            errorElement.style.display = 'block';
-            hideLoading();
-        }
-
-        // 清理之前的结果
-        function clearPreviousResults() {
-            const sections = [
-                'entity-section',
-                'fact-check-section',
-                'exaggeration-section',
-                'sources-section'
-            ];
-            
-            sections.forEach(section => {
-                const elements = document.getElementsByClassName(section);
-                Array.from(elements).forEach(element => {
-                    if (element && element.parentNode) {
-                        element.parentNode.removeChild(element);
-                    }
-                });
-            });
-
-            // 清空容器内容，添加元素存在性检查
-            const elementsToEmpty = {
-                'tagsContainer': document.getElementById('tagsContainer'),
-                'summary': document.getElementById('summary'),
-                'sourcesList': document.getElementById('sourcesList'),
-                'factCheckList': document.getElementById('factCheckList'),
-                'exaggerationList': document.getElementById('exaggerationList')
-            };
-
-            Object.entries(elementsToEmpty).forEach(([key, element]) => {
-                if (element) {
-                    element.innerHTML = '';
-                } else {
-                    console.warn(`Element ${key} not found`);
-                }
-            });
-        }
-
-        // 数据验证
-        function validateApiResponse(data) {
-            if (!data) {
-                return { isValid: false, error: '响应数据为空' };
-            }
-
-            const requiredArrays = {
-                'entity_verification': ['entities_found', 'corrections'],
-                'fact_check': ['claims_identified', 'verification_results'],
-                'exaggeration_check': ['exaggerations_found', 'corrections']
-            };
-
-            for (const [section, fields] of Object.entries(requiredArrays)) {
-                if (!data[section]) {
-                    return { isValid: false, error: `缺少 ${section} 部分` };
-                }
-
-                for (const field of fields) {
-                    if (!Array.isArray(data[section][field])) {
-                        return { isValid: false, error: `${section}.${field} 不是数组` };
-                    }
-                }
-            }
-
-            return { isValid: true };
-        }
-
-        // 标准化响应数据
-        function normalizeApiResponse(data) {
-            return {
-                ...data,
-                entity_verification: {
-                    entities_found: data.entity_verification?.entities_found || [],
-                    corrections: data.entity_verification?.corrections || [],
-                    accuracy_assessment: data.entity_verification?.accuracy_assessment || '未知'
-                },
-                fact_check: {
-                    claims_identified: data.fact_check?.claims_identified || [],
-                    verification_results: data.fact_check?.verification_results || [],
-                    overall_factual_accuracy: data.fact_check?.overall_factual_accuracy || '未知'
-                },
-                exaggeration_check: {
-                    exaggerations_found: data.exaggeration_check?.exaggerations_found || [],
-                    corrections: data.exaggeration_check?.corrections || [],
-                    severity_assessment: data.exaggeration_check?.severity_assessment || '未知'
-                }
-            };
-        }
-
-        // 更新评分显示
-        function updateScoreDisplay(score) {
-            const scoreCircle = document.getElementById('scoreCircle');
-            scoreCircle.textContent = score;
-            
-            if (score >= 80) {
-                scoreCircle.style.backgroundColor = '#4CAF50';
-            } else if (score >= 60) {
-                scoreCircle.style.backgroundColor = '#FFC107';
-            } else if (score >= 40) {
-                scoreCircle.style.backgroundColor = '#FF9800';
-            } else {
-                scoreCircle.style.backgroundColor = '#F44336';
-            }
-        }
-
-        // 获取标签颜色
-        function getLevelColor(level) {
-            switch(level) {
-                case '高': return '#4caf50';
-                case '中': return '#ff9800';
-                case '低': return '#f44336';
-                default: return '#757575';
-            }
-        }
-
-        // 获取标签标签
-        function getTagLabel(key) {
-            const labels = {
-                factuality: '事实性',
-                objectivity: '客观性',
-                reliability: '可靠性',
-                bias: '偏见性'
-            };
-            return labels[key] || key;
-        }
-
-        // 更新详细信息显示
-        function updateDetailsDisplay(result) {
-            if (result.status === 'error') {
-                showError(result.error.message);
-                return;
-            }
-
-            const validation = validateApiResponse(result.data);
-            if (!validation.isValid) {
-                showError(validation.error);
-                return;
-            }
-
-            // 清空之前的结果
-            clearPreviousResults();
-
-            // 标准化数据
-            const data = normalizeApiResponse(result.data);
-            
-            // 更新标签
-            const tagsContainer = document.getElementById('tagsContainer');
-            if (tagsContainer) {
-                tagsContainer.innerHTML = Object.entries(data.flags).map(([key, value]) => `
-                    <div class="tag" style="background: ${getLevelColor(value)}20; 
-                                          color: ${getLevelColor(value)}; 
-                                          border: 1px solid ${getLevelColor(value)}">
-                        ${getTagLabel(key)}: ${value}
-                    </div>
-                `).join('');
-            }
-
-            // 更新摘要
-            const summaryElement = document.getElementById('summary');
-            if (summaryElement) {
-                summaryElement.textContent = data.summary;
-            }
-
-            // 更新信息来源
-            const sourcesList = document.getElementById('sourcesList');
-            if (sourcesList) {
-                sourcesList.innerHTML = `
-                    <p style="margin-bottom: 16px;">整体可信度: ${data.source_verification.overall_source_credibility}</p>
-                    ${data.source_verification.sources_found.map((source, index) => `
-                        <div class="source-item">
-                            <span class="source-name">${source}</span>
-                            <span class="source-score">${data.source_verification.credibility_scores[index]}/10</span>
-                        </div>
-                    `).join('')}
-                    ${data.sources.length > 0 ? `
-                        <div style="margin-top: 16px;">
-                            <h4 style="margin-bottom: 8px;">参考来源</h4>
-                            ${data.sources.map(source => `
-                                <div class="source-item">
-                                    <span class="source-name">${source.title}</span>
-                                    <a href="${source.url}" target="_blank" class="source-link">查看来源</a>
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                `;
-            }
-
-            // 更新实体验证
-            const sourcesSection = document.querySelector('.sources-section');
-            if (sourcesSection) {
-                const entitySection = document.createElement('div');
-                entitySection.className = 'entity-section';
-                entitySection.innerHTML = `
-                    <h3 class="section-title">实体验证</h3>
-                    <p>准确性评估: ${data.entity_verification.accuracy_assessment}</p>
-                    ${data.entity_verification.entities_found.length > 0 ? `
-                        <div class="entities-list">
-                            ${data.entity_verification.entities_found.map((entity, index) => `
-                                <div class="entity-item">
-                                    <span class="entity-name">${entity}</span>
-                                    ${data.entity_verification.corrections[index] ? `
-                                        <div class="entity-correction">
-                                            需要更正: ${data.entity_verification.corrections[index]}
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : '<p>未发现需要验证的实体</p>'}
-                `;
-                sourcesSection.after(entitySection);
-            }
-
-            // 更新事实核查
-            const factCheckList = document.getElementById('factCheckList');
-            if (factCheckList) {
-                factCheckList.innerHTML = `
-                    <p style="margin-bottom: 16px;">整体事实准确性: ${data.fact_check.overall_factual_accuracy}</p>
-                    ${data.fact_check.claims_identified.map((claim, index) => `
-                        <div class="fact-check-item">
-                            <div class="claim">${claim}</div>
-                            <div class="verification">${data.fact_check.verification_results[index] || '验证结果待更新'}</div>
-                        </div>
-                    `).join('')}
-                `;
-            }
-
-            // 更新夸张表述
-            const exaggerationSection = document.getElementById('exaggerationSection');
-            const exaggerationList = document.getElementById('exaggerationList');
-            
-            if (exaggerationSection && exaggerationList) {
-                if (data.exaggeration_check.exaggerations_found.length > 0) {
-                    exaggerationSection.style.display = 'block';
-                    exaggerationList.innerHTML = `
-                        <p style="margin-bottom: 16px;">严重程度: ${data.exaggeration_check.severity_assessment}</p>
-                        ${data.exaggeration_check.exaggerations_found.map((exag, index) => `
-                            <div class="exaggeration-item">
-                                <div class="original">原文：${exag}</div>
-                                <div class="correction">建议：${data.exaggeration_check.corrections[index] || '修正建议待更新'}</div>
-                            </div>
-                        `).join('')}
-                    `;
-                } else {
-                    exaggerationSection.style.display = 'none';
-                }
-            }
-
-            // 更新评分显示
-            const scoreCircle = document.getElementById('scoreCircle');
-            if (scoreCircle) {
-                updateScoreDisplay(data.score);
-            }
-
-            // 显示结果容器
-            const resultContainer = document.getElementById('resultContainer');
-            if (resultContainer) {
-                resultContainer.style.display = 'block';
-            }
-        }
-
-        // 验证 URL
-        function isValidUrl(url) {
-            try {
-                new URL(url);
-                return true;
-            } catch {
-                return false;
-            }
-        }
-
-        // 分析内容
-        async function analyzeContent() {
-            const url = document.getElementById('url').value.trim();
-
-            if (!url) {
-                showError('请输入网页 URL');
-                return;
-            }
-
-            if (!isValidUrl(url)) {
-                showError('请输入有效的 URL 地址');
-                return;
-            }
-
-            showLoading();
-
-            try {
-                const response = await fetch(CONFIG.API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        url: url,
-                        lang: 'zh'
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API请求失败: ${response.status}`);
-                }
-
-                const responseData = await response.json();
-                
-                if (responseData.status === 'error') {
-                    throw new Error(responseData.error.message);
-                }
-
-                // 显示结果
-                document.getElementById('resultContainer').style.display = 'block';
-                updateDetailsDisplay(responseData);
-                hideLoading();
-            } catch (error) {
-                showError(error.message || '分析失败，请稍后重试');
-            }
-        }
-
-        // 清除内容
-        function clearContent() {
-            document.getElementById('url').value = '';
-            document.getElementById('resultContainer').style.display = 'none';
-            document.getElementById('errorMessage').style.display = 'none';
-            clearPreviousResults();
-        }
-
-        // 添加回车键提交功能
-        document.getElementById('url').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                analyzeContent();
-            }
-        });
-    </script>
+    <script src="script.js"></script>
 </body>
 </html> 

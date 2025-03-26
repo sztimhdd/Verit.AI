@@ -48,78 +48,106 @@ async function initialize(genAI) {
   }
 }
 
+// 添加日志记录
+async function logModelState() {
+    const timestamp = new Date().toISOString();
+    const stateLog = {
+        timestamp,
+        currentModel: modelState.currentModel,
+        groundingCount: modelState.groundingCount,
+        hourlyTokens: modelState.hourlyTokens,
+        lastReset: modelState.lastReset
+    };
+    
+    try {
+        await fs.appendFile(
+            path.join(process.cwd(), 'logs', 'model_state.log'),
+            JSON.stringify(stateLog) + '\n'
+        );
+    } catch (error) {
+        console.error('模型状态日志写入失败:', error);
+    }
+}
+
 // 获取当前应该使用的模型配置
 async function getModelConfig(content, genAI) {
   // 检查日期重置
   checkDateReset();
   
-  // 简单Token估算
+  // 记录当前状态
+  console.log('\n=== 模型状态检查 ===');
+  console.log('当前模型:', modelState.currentModel);
+  console.log('Grounding使用次数:', modelState.groundingCount);
+  console.log('上次重置时间:', modelState.lastReset);
+  
+  // Token估算
   const estimatedTokens = Math.ceil(content.length / 4);
+  console.log('预估Token数:', estimatedTokens);
   
   // 获取当前小时键
   const hourKey = getCurrentHourKey();
   modelState.hourlyTokens[hourKey] = modelState.hourlyTokens[hourKey] || 0;
-  
-  // 检查是否需要切换模型
-  if (modelState.currentModel === CONFIG.DEFAULT_MODEL && 
-      modelState.hourlyTokens[hourKey] + estimatedTokens > CONFIG.HOURLY_TOKEN_THRESHOLD) {
-    console.log(`即将超过小时Token阈值，切换到 ${CONFIG.FALLBACK_MODEL}`);
-    modelState.currentModel = CONFIG.FALLBACK_MODEL;
-    await saveState();
-  }
+  console.log('当前小时Token使用量:', modelState.hourlyTokens[hourKey]);
   
   // 确定是否使用Grounding
   const useGrounding = modelState.currentModel === CONFIG.DEFAULT_MODEL && 
-                     modelState.groundingCount < CONFIG.DAILY_GROUNDING_LIMIT;
+                      modelState.groundingCount < CONFIG.DAILY_GROUNDING_LIMIT;
   
   console.log(`基本配置 - 模型: ${modelState.currentModel}, 使用Grounding: ${useGrounding}`);
   
-  // 修改配置结构以符合最新API
+  // 返回简化的配置
   const modelConfig = {
     model: modelState.currentModel,
-    generationConfig: {
-      temperature: 0.1,
-      maxOutputTokens: 4096,
-      topK: 16,
-      topP: 0.1
-    }
+    useGrounding: useGrounding
   };
-  
-  // 记录是否使用Grounding
-  modelConfig.useGrounding = useGrounding;
   
   return modelConfig;
 }
 
 // 记录API调用后的使用情况
 async function recordUsage(response, usedGrounding) {
-  // 从响应中获取Token数量（某些版本可能没有此信息）
+  const timestamp = new Date().toISOString();
   let totalTokens = 0;
   
+  console.log('\n=== 记录API使用 ===');
+  
   try {
-    // 尝试从响应中获取token数量
     const promptTokens = response.usageMetadata?.promptTokenCount || 0;
     const outputTokens = response.usageMetadata?.candidatesTokenCount || 0;
     totalTokens = promptTokens + outputTokens;
+    
+    console.log('提示Token:', promptTokens);
+    console.log('输出Token:', outputTokens);
+    console.log('总Token:', totalTokens);
   } catch (error) {
-    // 如果无法获取，使用简单估算
-    console.log("无法从响应中获取Token信息，使用固定值");
-    totalTokens = 1000; // 使用一个合理的固定值
+    console.log('无法获取Token信息，使用估算值');
+    totalTokens = 1000;
   }
   
-  // 更新当前小时的使用量
+  // 更新使用量
   const hourKey = getCurrentHourKey();
   modelState.hourlyTokens[hourKey] = (modelState.hourlyTokens[hourKey] || 0) + totalTokens;
   
-  // 更新Grounding计数
   if (usedGrounding) {
     modelState.groundingCount++;
+    console.log('Grounding使用次数更新:', modelState.groundingCount);
   }
   
-  // 保存状态 (为减少I/O，可考虑实现节流保存)
-  await saveState();
+  // 记录使用情况
+  const usageLog = {
+    timestamp,
+    totalTokens,
+    usedGrounding,
+    hourlyTokens: modelState.hourlyTokens[hourKey],
+    groundingCount: modelState.groundingCount
+  };
   
-  console.log(`API使用记录 - 模型: ${modelState.currentModel}, Token: ${totalTokens}, Grounding计数: ${modelState.groundingCount}`);
+  await fs.appendFile(
+    path.join(process.cwd(), 'logs', 'usage.log'),
+    JSON.stringify(usageLog) + '\n'
+  );
+  
+  console.log('使用记录已保存');
   
   return totalTokens;
 }

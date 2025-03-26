@@ -7,6 +7,8 @@ import { dirname } from 'path';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import * as modelManager from './model-manager.js';
+import fs from 'fs/promises';
+import path from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -21,6 +23,72 @@ let serviceReady = false;
 let pendingRequests = [];
 let initializationError = null;
 
+// 修改配额跟踪对象
+const quotaTracker = {
+    groundingQuota: {
+        daily: 500,  // 免费版每日 500 次 Grounding 请求限制
+        remaining: 500,
+        resetTime: new Date().setHours(24, 0, 0, 0)
+    },
+    gemini20Usage: {  // 改为使用量统计而不是配额限制
+        dailyUsage: 0,
+        resetTime: new Date().setHours(24, 0, 0, 0)
+    },
+    gemini15Usage: {  // 改为使用量统计而不是配额限制
+        dailyUsage: 0,
+        resetTime: new Date().setHours(24, 0, 0, 0)
+    },
+    
+    // 更新使用情况
+    updateQuota(type, tokensUsed = 0) {
+        const now = new Date();
+        
+        // 检查是否需要重置统计
+        Object.values(this).forEach(quota => {
+            if (typeof quota === 'object' && quota.resetTime < now) {
+                if (quota.daily) {  // Grounding 配额
+                    quota.remaining = quota.daily;
+                } else {  // Token 使用量
+                    quota.dailyUsage = 0;
+                }
+                quota.resetTime = new Date().setHours(24, 0, 0, 0);
+            }
+        });
+        
+        // 更新具体使用量
+        switch (type) {
+            case 'grounding':
+                this.groundingQuota.remaining--;
+                break;
+            case 'gemini-2.0':
+                this.gemini20Usage.dailyUsage += tokensUsed;
+                break;
+            case 'gemini-1.5':
+                this.gemini15Usage.dailyUsage += tokensUsed;
+                break;
+        }
+    },
+    
+    // 获取状态日志
+    getStatusLog() {
+        return {
+            grounding: {
+                remaining: this.groundingQuota.remaining,
+                resetIn: new Date(this.groundingQuota.resetTime) - new Date(),
+                limit: this.groundingQuota.daily
+            },
+            gemini20: {
+                dailyUsage: this.gemini20Usage.dailyUsage,
+                resetIn: new Date(this.gemini20Usage.resetTime) - new Date()
+            },
+            gemini15: {
+                dailyUsage: this.gemini15Usage.dailyUsage,
+                resetIn: new Date(this.gemini15Usage.resetTime) - new Date()
+            }
+        };
+    }
+};
+
 // Enable CORS and request body limits
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -29,24 +97,53 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Initialize Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// 初始化模型管理器
-(async function() {
+// 添加日志工具函数
+const LOG_DIR = path.join(process.cwd(), 'logs');
+const LOG_FILE = path.join(LOG_DIR, `api_${new Date().toISOString().split('T')[0]}.log`);
+
+async function logToFile(type, message, data = null) {
+    const timestamp = new Date().toISOString();
+    const logEntry = {
+        timestamp,
+        type,
+        message,
+        data
+    };
+    
     try {
-        console.log("开始初始化模型管理器...");
+        await fs.mkdir(LOG_DIR, { recursive: true });
+        await fs.appendFile(LOG_FILE, JSON.stringify(logEntry) + '\n');
+    } catch (error) {
+        console.error('日志写入失败:', error);
+    }
+}
+
+// 修改初始化函数
+async function initializeService() {
+    try {
+        console.log("开始初始化服务...");
+        
+        // 初始化模型管理器
         await modelManager.initialize(genAI);
-        console.log("模型管理器已初始化完成");
+        console.log("模型管理器初始化完成");
         
         // 设置服务为就绪状态
         serviceReady = true;
+        console.log("服务已就绪");
         
-        // 处理所有等待中的请求
-        console.log(`处理 ${pendingRequests.length} 个等待中的请求`);
-        processPendingRequests();
+        // 处理等待中的请求
+        if (pendingRequests.length > 0) {
+            console.log(`处理 ${pendingRequests.length} 个等待中的请求`);
+            processPendingRequests();
+        }
+        
+        return true;
     } catch (error) {
-        console.error("初始化失败:", error);
+        console.error("服务初始化失败:", error);
         initializationError = error;
+        return false;
     }
-})();
+}
 
 // 处理等待中的请求
 function processPendingRequests() {
@@ -145,10 +242,25 @@ function calculateTokenUsage(content, response) {
 
 // 主要分析处理函数
 async function processAnalysisRequest(req, res) {
+    const requestId = Math.random().toString(36).substring(7);
     const startTime = Date.now();
+    
+    await logToFile('REQUEST_START', `开始处理请求 ${requestId}`, {
+        url: req.body.url,
+        contentLength: req.body.content?.length,
+        lang: req.body.lang
+    });
+
     try {
         const { content, url, lang = "en" } = req.body;
         const needsTranslation = lang === 'zh';
+
+        // 记录请求基本信息
+        console.log(`\n=== 请求 ID: ${requestId} ===`);
+        console.log(`时间: ${new Date().toLocaleString()}`);
+        console.log(`内容长度: ${content?.length || 'N/A'}`);
+        console.log(`URL: ${url || 'N/A'}`);
+        console.log(`语言: ${lang}`);
 
         // If URL is provided but no content, fetch web content
         let analysisContent = content;
@@ -170,11 +282,19 @@ async function processAnalysisRequest(req, res) {
         }
 
         // 获取模型配置
-        const modelConfig = await modelManager.getModelConfig(analysisContent, genAI);
+        const modelConfig = await modelManager.getModelConfig(content || '', genAI);
         const activeModel = modelConfig.model;
-        const useGrounding = modelConfig.useGrounding || false;
+        const useGrounding = modelConfig.useGrounding;
         
+        await logToFile('MODEL_CONFIG', `模型配置 ${requestId}`, {
+            model: activeModel,
+            useGrounding,
+            generationConfig: modelConfig.generationConfig
+        });
+
+        console.log(`\n=== 模型配置 ===`);
         console.log(`使用模型: ${activeModel}, 使用Grounding: ${useGrounding}`);
+        console.log(`生成配置:`, modelConfig.generationConfig);
 
         // 分析Prompt
         let prompt = `You are a professional fact checker. Please analyze the following content with multi-dimensional analysis.
@@ -276,32 +396,74 @@ async function processAnalysisRequest(req, res) {
             // 获取模型实例
             const model = genAI.getGenerativeModel({ 
                 model: activeModel,
-                generationConfig: modelConfig.generationConfig
+                // 如果启用Grounding，直接在模型配置中添加tools
+                tools: useGrounding ? [{ googleSearch: {} }] : undefined
             });
             
-            // 构建请求内容
-            const requestParams = {
+            // 构建生成请求
+            const requestConfig = {
                 contents: [{ 
                     role: "user", 
                     parts: [{ text: prompt }] 
-                }]
+                }],
+                generationConfig: {
+                    temperature: 0.7,
+                    maxOutputTokens: 4096,
+                    topP: 0.8,
+                    topK: 40
+                },
+                safetySettings: [
+                    {
+                        category: "HARM_CATEGORY_HARASSMENT",
+                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                    },
+                    {
+                        category: "HARM_CATEGORY_HATE_SPEECH",
+                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                    }
+                ]
             };
 
-            // 如果启用Grounding，添加Google Search工具
-            if (useGrounding) {
-                requestParams.tools = [{
-                    googleSearchRetrieval: {}
-                }];
+            console.log('\n=== API请求参数 ===');
+            console.log(JSON.stringify(requestConfig, null, 2));
+
+            // 调用API
+            const result = await model.generateContent(requestConfig);
+            const response = result.response;
+            
+            // 计算token使用量并更新配额
+            const tokenUsage = calculateTokenUsage(analysisContent, response);
+            
+            // 更新配额统计
+            if (activeModel === 'gemini-2.0-flash') {
+                quotaTracker.updateQuota('gemini-2.0', tokenUsage.totalTokens);
+                if (useGrounding) {
+                    quotaTracker.updateQuota('grounding');
+                }
+            } else {
+                quotaTracker.updateQuota('gemini-1.5', tokenUsage.totalTokens);
             }
             
-            // 调用API生成内容
-            const result = await model.generateContent(requestParams);
+            // 获取并输出配额状态
+            const quotaStatus = quotaTracker.getStatusLog();
+            console.log('\n=== 配额使用状态 ===');
+            console.log(`Grounding请求剩余: ${quotaStatus.grounding.remaining}/${quotaStatus.grounding.limit}次`);
+            console.log(`Gemini 2.0 今日使用: ${quotaStatus.gemini20.dailyUsage} tokens`);
+            console.log(`Gemini 1.5 今日使用: ${quotaStatus.gemini15.dailyUsage} tokens`);
+            console.log(`下次重置时间: ${new Date(quotaTracker.groundingQuota.resetTime).toLocaleString()}`);
+            console.log('==================\n');
             
-            // 获取响应结果
-            const response = result.response;
-            let text = "";
+            // 记录到日志文件
+            await logToFile('QUOTA_STATUS', '配额使用状态', quotaStatus);
             
+            // 获取grounding元数据（如果有）
+            if (response.candidates && response.candidates[0].groundingMetadata) {
+                console.log('\n=== Grounding 元数据 ===');
+                console.log(response.candidates[0].groundingMetadata);
+            }
+
             // 提取响应文本
+            let text = "";
             if (typeof response.text === 'function') {
                 text = response.text().trim();
             } else if (response.text) {
@@ -309,9 +471,6 @@ async function processAnalysisRequest(req, res) {
             } else {
                 throw new Error("无法从响应中提取文本");
             }
-
-            // 记录API使用情况
-            await modelManager.recordUsage(response, useGrounding);
 
             // 解析JSON响应
             let analysisResult;
@@ -364,7 +523,6 @@ async function processAnalysisRequest(req, res) {
             }
 
             // 计算和记录token使用情况
-            const tokenUsage = calculateTokenUsage(analysisContent, finalResult);
             const timeUsed = Date.now() - startTime;
 
             console.log("\n=== API Call Statistics ===");
@@ -376,6 +534,13 @@ async function processAnalysisRequest(req, res) {
             console.log(`Model: ${activeModel}, Grounding: ${useGrounding}`);
             console.log("==================\n");
 
+            // 记录API响应
+            await logToFile('API_RESPONSE', `API响应 ${requestId}`, {
+                responseTime: timeUsed,
+                hasText: !!text,
+                textLength: text.length
+            });
+
             // 返回成功响应
             res.json({
                 status: "success",
@@ -383,31 +548,29 @@ async function processAnalysisRequest(req, res) {
             });
             
         } catch (apiError) {
-            console.error("Gemini API Error:", apiError);
+            await logToFile('API_ERROR', `API调用错误 ${requestId}`, {
+                error: apiError.message,
+                stack: apiError.stack
+            });
+
+            console.error('\n=== API错误 ===');
+            console.error(apiError);
             
             // 如果启用了Grounding且发生错误，尝试禁用Grounding重试
             if (useGrounding) {
                 console.log("API调用失败，尝试禁用Grounding后重试...");
                 
                 try {
-                    // 获取无Grounding的模型实例
-                    const model = genAI.getGenerativeModel({ 
-                        model: activeModel,
-                        generationConfig: modelConfig.generationConfig
-                    });
+                    const model = genAI.getGenerativeModel({ model: activeModel });
                     
-                    // 使用更简单的提示词，禁用Grounding
-                    const simplePrompt = prompt.replace(/This task requires factual accuracy.*extensively/g, '');
-                    
-                    // 简化的请求参数，不包含tools
+                    // 不包含tools的简单请求
                     const fallbackRequest = {
                         contents: [{ 
                             role: "user", 
-                            parts: [{ text: simplePrompt }] 
+                            parts: [{ text: prompt }] 
                         }]
                     };
                     
-                    // 调用API
                     const result = await model.generateContent(fallbackRequest);
                     
                     // 获取响应结果
@@ -423,10 +586,7 @@ async function processAnalysisRequest(req, res) {
                         throw new Error("无法从回退响应中提取文本");
                     }
                     
-                    // 记录使用情况，标记为未使用Grounding
-                    await modelManager.recordUsage(response, false);
-                    
-                    // 处理响应
+                    // 解析JSON响应
                     let analysisResult;
                     try {
                         const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -473,6 +633,13 @@ async function processAnalysisRequest(req, res) {
                         console.log(`模型: ${activeModel}, 使用Grounding: false (回退模式)`);
                         console.log("==================\n");
                         
+                        // 记录API响应
+                        await logToFile('API_RESPONSE', `API响应 ${requestId}`, {
+                            responseTime: timeUsed,
+                            hasText: !!text,
+                            textLength: text.length
+                        });
+
                         // 返回成功响应
                         return res.json({
                             status: "success",
@@ -494,7 +661,14 @@ async function processAnalysisRequest(req, res) {
         }
 
     } catch (error) {
-        console.error("API Error:", error);
+        await logToFile('REQUEST_ERROR', `请求处理错误 ${requestId}`, {
+            error: error.message,
+            stack: error.stack
+        });
+
+        console.error('\n=== 请求错误 ===');
+        console.error(error);
+
         res.status(500).json({
             status: "error",
             error: {
@@ -502,6 +676,17 @@ async function processAnalysisRequest(req, res) {
                 details: error.stack
             }
         });
+    } finally {
+        const timeUsed = Date.now() - startTime;
+        await logToFile('REQUEST_END', `请求处理完成 ${requestId}`, {
+            timeUsed,
+            timestamp: new Date().toISOString()
+        });
+
+        console.log(`\n=== 请求处理完成 ===`);
+        console.log(`请求ID: ${requestId}`);
+        console.log(`处理时间: ${timeUsed}ms`);
+        console.log('==================\n');
     }
 }
 
@@ -526,14 +711,21 @@ async function translateToZhSimplified(analysisResult, modelName, model) {
             ${JSON.stringify(analysisResult)}
         `;
         
-        // 使用最新API文档的调用方式
-        const translationResult = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: translationPrompt }] }],
+        // 构建翻译请求
+        const requestConfig = {
+            contents: [{ 
+                role: "user", 
+                parts: [{ text: translationPrompt }] 
+            }],
             generationConfig: {
                 temperature: 0.1,
                 maxOutputTokens: 4096,
+                topP: 0.8,
+                topK: 40
             }
-        });
+        };
+
+        const translationResult = await model.generateContent(requestConfig);
         
         // 获取响应文本
         const response = translationResult.response;
@@ -583,31 +775,47 @@ app.get('/', (req, res) => {
     });
 });
 
-// 添加健康检查端点 - 返回实际就绪状态
+// 健康检查端点
 app.get('/health', (req, res) => {
-  if (serviceReady) {
-    res.status(200).json({ 
-      status: 'OK', 
-      ready: true,
-      timestamp: new Date().toISOString() 
-    });
-  } else if (initializationError) {
-    res.status(503).json({ 
-      status: 'ERROR', 
-      ready: false,
-      error: initializationError.message,
-      timestamp: new Date().toISOString() 
-    });
-  } else {
-    res.status(503).json({ 
-      status: 'INITIALIZING', 
-      ready: false,
-      timestamp: new Date().toISOString() 
-    });
-  }
+    console.log("收到健康检查请求");
+    const quotaStatus = quotaTracker.getStatusLog();
+    
+    if (serviceReady) {
+        res.status(200).json({ 
+            status: 'OK', 
+            ready: true,
+            timestamp: new Date().toISOString(),
+            quota: {
+                grounding: quotaStatus.grounding,
+                gemini20: quotaStatus.gemini20,
+                gemini15: quotaStatus.gemini15
+            }
+        });
+    } else if (initializationError) {
+        res.status(503).json({ 
+            status: 'ERROR', 
+            ready: false,
+            error: initializationError.message,
+            timestamp: new Date().toISOString() 
+        });
+    } else {
+        res.status(503).json({ 
+            status: 'INITIALIZING', 
+            ready: false,
+            timestamp: new Date().toISOString() 
+        });
+    }
 });
 
-// Start server
-app.listen(port, () => {
-    console.log(`Server running at http://0.0.0.0:${port}`);
+// 启动服务
+app.listen(port, async () => {
+    console.log(`服务器启动于 http://0.0.0.0:${port}`);
+    
+    // 初始化服务
+    const initialized = await initializeService();
+    if (initialized) {
+        console.log("服务初始化成功，可以开始接收请求");
+    } else {
+        console.error("服务初始化失败，请检查配置和依赖");
+    }
 });

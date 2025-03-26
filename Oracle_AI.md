@@ -1,4 +1,4 @@
-# Oracle AI 辟谣助手 - PRD v2.0
+# Oracle AI 辟谣助手 - PRD v2.1
 
 ## 项目定位
 基于Gemini API （gemini-1.5-flash）的Web端辟谣系统，提供便捷的在线内容真实性验证服务，通过Chrome扩展实现页面内容一键核查
@@ -25,9 +25,11 @@ graph TB
   - gemini-2.0-flash:
       特点: 高级推理 + Google Search Grounding
       使用场景: 默认模型，需要外部验证时
+      配额限制: 每日500次Grounding调用
   - gemini-1.5-flash:
       特点: 基础推理能力
       使用场景: 备选模型，无需外部验证时
+      配额限制: 无
 
 调度策略:
   优先级:
@@ -36,7 +38,7 @@ graph TB
     3. gemini-1.5-flash
   
   切换条件:
-    - 达到Grounding每日限额(500次)时禁用Grounding
+    - 达到Grounding每日限额时禁用Grounding
     - API调用失败时降级到下一优先级
     - 每日00:00重置到最高优先级
 ```
@@ -171,13 +173,13 @@ const OPTIMIZATION_CONFIG = {
 缓存机制:
   存储位置: backend/cache/
   缓存内容:
-    - 分析结果
-    - 模型状态
-    - 配额计数
-  过期策略:
-    - 分析结果: 7天
-    - 模型状态: 24小时
-    - 配额计数: 24小时
+    - 分析结果: 7天有效期
+    - 模型状态: 24小时更新
+    - 配额计数: 每日重置
+  
+  清理策略:
+    - 定时清理过期缓存
+    - 超出容量时LRU淘汰
 ```
 
 ### 部署配置
@@ -188,11 +190,7 @@ const OPTIMIZATION_CONFIG = {
   - GEMINI_API_KEY: Google API密钥
   - NODE_ENV: 运行环境(development/production)
   - PORT: 服务端口
-
-可选变量:
-  - DAILY_GROUNDING_LIMIT: 每日Grounding限额
-  - MAX_RETRY_COUNT: 最大重试次数
-  - CACHE_TTL: 缓存过期时间
+  - DAILY_GROUNDING_LIMIT: 每日Grounding限额(默认500)
 ```
 
 #### 监控指标
@@ -201,13 +199,14 @@ const OPTIMIZATION_CONFIG = {
   - API响应时间
   - 请求成功率
   - 模型切换频率
-  - 缓存命中率
   - Grounding使用量
+  - 缓存命中率
 
 告警阈值:
   - 响应时间 > 10s
   - 成功率 < 95%
   - 连续失败 > 3次
+  - Grounding剩余量 < 50次
 ```
 
 ## 技术栈
