@@ -77,21 +77,13 @@ async function getModelConfig(content, genAI) {
   // 修改配置结构以符合最新API
   const modelConfig = {
     model: modelState.currentModel,
-    // 基础生成配置
     generationConfig: {
       temperature: 0.1,
       maxOutputTokens: 4096,
       topK: 16,
-      topP: 0.1,
+      topP: 0.1
     }
   };
-
-  // 如果启用Grounding，添加tools配置（作为顶层配置）
-  if (useGrounding) {
-    modelConfig.tools = [{
-      googleSearchRetrieval: {} // 正确的Google Search工具配置
-    }];
-  }
   
   // 记录是否使用Grounding
   modelConfig.useGrounding = useGrounding;
