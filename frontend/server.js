@@ -5,22 +5,25 @@ const app = express();
 // 使用Railway分配的PORT (8080)
 const PORT = process.env.PORT || 8080;
 
-// 设置静态文件目录
+// 添加config.js路由 - 在现有路由之前添加这段代码
+app.get('/config.js', (req, res) => {
+  res.set('Content-Type', 'application/javascript');
+  res.send(`
+    // 配置对象
+    window.APP_CONFIG = {
+      API_BASE_URL: '${process.env.BACKEND_API_URL || ''}'
+    };
+    console.log('配置已加载:', window.APP_CONFIG);
+  `);
+});
+
+// 确保这个配置路由在静态文件中间件之前定义
+// 然后是您现有的静态文件服务中间件
 app.use(express.static('./'));
 
 // 所有路由都返回index.html，支持SPA应用
 app.get('*', (req, res) => {
   res.sendFile(path.resolve(__dirname, 'index.html'));
-});
-
-// 在Express服务器中添加配置端点
-app.get('/config.js', (req, res) => {
-  res.set('Content-Type', 'application/javascript');
-  res.send(`
-    window.APP_CONFIG = {
-      API_BASE_URL: '${process.env.BACKEND_API_URL || 'https://veritai-api.up.railway.app'}'
-    };
-  `);
 });
 
 // 代理API请求

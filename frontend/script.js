@@ -1,6 +1,6 @@
 // 配置
-const CONFIG = {
-    API_BASE_URL: ''  // 留空使用相对路径
+const CONFIG = window.APP_CONFIG || {
+    API_BASE_URL: ''  // 使用空字符串作为默认值，使用相对路径
 };
 
 // DOM 元素
@@ -72,7 +72,9 @@ const APIService = {
     async checkHealth() {
         try {
             console.log(`[${new Date().toLocaleTimeString()}] 执行健康检查...`);
-            const response = await fetch(`/health`);  // 使用相对路径
+            const url = `${CONFIG.API_BASE_URL}/health`;
+            console.log('健康检查URL:', url);
+            const response = await fetch(url);
             const status = await response.json();
             return UIState.updateServiceStatus(status.ready ? 'running' : 'initializing');
         } catch (error) {
