@@ -74,9 +74,6 @@ npm run build
 ```
 chrome_extension/
 ├── src/
-│   ├── services/
-│   │   ├── geminiService.js
-│   │   └── cacheService.js
 │   ├── utils/
 │   │   ├── errorHandler.js
 │   │   └── i18n.js
@@ -103,8 +100,4 @@ chrome_extension/
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
 
-## 联系方式
 
-- 项目维护者：[Your Name]
-- 邮箱：[your.email@example.com]
-- 项目链接：[https://github.com/yourusername/oracle-ai-fact-checker](https://github.com/yourusername/oracle-ai-fact-checker) 
