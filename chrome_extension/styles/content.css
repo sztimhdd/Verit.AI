@@ -1,0 +1,109 @@
+.veritai-highlight {
+  background-color: rgba(66, 133, 244, 0.2);
+  cursor: pointer;
+  padding: 2px 0;
+  border-radius: 2px;
+  transition: background-color 0.3s ease;
+}
+
+.veritai-highlight:hover {
+  background-color: rgba(66, 133, 244, 0.3);
+}
+
+.veritai-highlight.verified {
+  background-color: rgba(46, 125, 50, 0.2);
+}
+
+.veritai-highlight.verified:hover {
+  background-color: rgba(46, 125, 50, 0.3);
+}
+
+.veritai-highlight.incorrect {
+  background-color: rgba(211, 47, 47, 0.2);
+}
+
+.veritai-highlight.incorrect:hover {
+  background-color: rgba(211, 47, 47, 0.3);
+}
+
+.veritai-highlight.unverified {
+  background-color: rgba(255, 143, 0, 0.2);
+}
+
+.veritai-highlight.unverified:hover {
+  background-color: rgba(255, 143, 0, 0.3);
+}
+
+.veritai-toolbar {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  background-color: white;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 8px 16px;
+  z-index: 9999;
+  font-family: 'Arial', sans-serif;
+  transition: all 0.3s ease;
+}
+
+.veritai-toolbar-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: #333;
+  margin: 0 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.veritai-toolbar-button:hover {
+  background-color: #f5f5f5;
+}
+
+.veritai-toolbar-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+}
+
+.veritai-tooltip {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 10001;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.veritai-tooltip:before {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid rgba(0, 0, 0, 0.8);
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+@keyframes veritai-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(66, 133, 244, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0); }
+}
+
+.veritai-pulse {
+  animation: veritai-pulse 2s infinite;
+} 
