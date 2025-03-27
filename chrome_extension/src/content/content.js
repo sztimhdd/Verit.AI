@@ -80,18 +80,13 @@ async function showFloatingCard(data) {
     state.isCardVisible = true;
     state.currentData = data;
 
-    // 2. 等待iframe加载完成
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // 3. 向iframe发送数据
-        iframe.contentWindow.postMessage({
-          action: 'UPDATE_CONTENT',
-          data: data,
-          language: state.language
-        }, '*');
-        resolve({ success: true });
-      }, 300);
-    });
+    // 2. 立即向 iframe 发送数据，移除 setTimeout
+    iframe.contentWindow.postMessage({
+      action: 'UPDATE_CONTENT',
+      data: data,
+      language: state.language
+    }, '*');
+    return { success: true };
   } catch (error) {
     console.error('显示浮动卡片失败:', error);
     return { success: false, error: error.message };
