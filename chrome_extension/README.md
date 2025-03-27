@@ -1,4 +1,4 @@
-# Oracle AI Fact Checker Chrome Extension
+# Verit.AI Fact Checker Chrome Extension
 
 基于 Google Gemini AI 的网页内容事实核查工具。
 
