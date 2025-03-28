@@ -62,38 +62,7 @@ if (missingFiles.length > 0) {
   console.log('✅ 所有必要文件已生成');
 }
 
-// 创建zip包（可选）
-console.log('📦 创建扩展包...');
-try {
-  const zipFileName = 'veritai-fact-checker.zip';
-  const zipFilePath = path.resolve(__dirname, '..', zipFileName);
-  
-  // 删除旧的zip文件（如果存在）
-  if (fs.existsSync(zipFilePath)) {
-    fs.unlinkSync(zipFilePath);
-  }
-  
-  // 根据操作系统选择不同的zip命令
-  const isWindows = process.platform === 'win32';
-  
-  if (isWindows) {
-    // Windows使用PowerShell的Compress-Archive
-    execSync(
-      `powershell -command "Compress-Archive -Path '${distPath}\\*' -DestinationPath '${zipFilePath}'"`,
-      { stdio: 'inherit' }
-    );
-  } else {
-    // Unix系统使用zip命令
-    execSync(`cd "${distPath}" && zip -r "${zipFilePath}" ./*`, { 
-      stdio: 'inherit'
-    });
-  }
-  
-  console.log(`✅ 扩展包已创建: ${zipFileName}`);
-} catch (error) {
-  console.error('❌ 创建扩展包失败:', error);
-  console.log('⚠️ 扩展包未创建，但构建过程已完成。');
-}
+
 
 console.log('🎉 构建完成!');
 console.log('📌 加载扩展方法:');
