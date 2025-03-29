@@ -3,101 +3,17 @@ function debugLog(message, data) {
   console.log(`[Oracle调试] ${message}`, data || '');
 }
 
-// 语言检测功能
+// 导入统一的i18n模块
+import i18n from '../utils/i18n.js';
+
+// 语言检测功能 - 使用新的i18n模块
 function detectUserLanguage() {
-  const browserLang = navigator.language || navigator.userLanguage || 'en';
-  // 支持中文和英文，其他语言默认使用英文
-  return browserLang.startsWith('zh') ? 'zh' : 'en';
+  return i18n.getUILanguage();
 }
 
-// 文本资源字典
-const i18n = {
-  zh: {
-    loadingText: "正在核查...",
-    factCheckReport: "事实核查报告",
-    trustedFriend: "作为您信任的朋友",
-    trustScore: "可信度评分",
-    summary: "总结",
-    infoEvaluation: "信息评估指标",
-    sourceEvaluation: "信息来源评估",
-    factChecking: "事实核查",
-    exaggerationCheck: "夸张信息检查",
-    entityVerification: "实体验证",
-    showMoreEntities: "显示更多实体 >",
-    hideEntities: "< 收起实体",
-    factuality: "真实性",
-    objectivity: "客观性",
-    reliability: "可靠性",
-    bias: "偏见度",
-    noSourcesFound: "未找到相关信息来源",
-    noFactsToCheck: "未发现需要核查的主要事实声明",
-    noEntitiesFound: "未发现需要验证的实体",
-    errorMessage: "分析过程中出现错误，请重试。",
-    retry: "重新核查",
-    analyzing: "正在核查...",
-    serviceWaking: "服务正在启动中，请稍候...",
-    noSummary: "未提供摘要",
-    moreAccurateStatement: "需要更准确的表述",
-    true: "真实",
-    partiallyTrue: "部分真实",
-    false: "虚假",
-    misleading: "误导",
-    unverified: "需要核实",
-    notEnoughEvidence: "证据不足",
-    high: "高",
-    medium: "中",
-    low: "低",
-    showAll: "显示全部",
-    hideDetails: "隐藏详情",
-    noExaggerations: "未发现夸张信息",
-    noEntitiesDetails: "没有实体详情可显示"
-  },
-  en: {
-    loadingText: "Analyzing...",
-    factCheckReport: "Fact Check Report",
-    trustedFriend: "As your trusted friend",
-    trustScore: "Trust Score",
-    summary: "Summary",
-    infoEvaluation: "Information Evaluation",
-    sourceEvaluation: "Source Evaluation",
-    factChecking: "Fact Checking",
-    exaggerationCheck: "Exaggeration Check",
-    entityVerification: "Entity Verification",
-    showMoreEntities: "Show more entities >",
-    hideEntities: "< Hide entities",
-    factuality: "Factuality",
-    objectivity: "Objectivity",
-    reliability: "Reliability",
-    bias: "Bias",
-    noSourcesFound: "No related sources found",
-    noFactsToCheck: "No major factual claims to check",
-    noEntitiesFound: "No entities to verify",
-    errorMessage: "An error occurred during analysis. Please try again.",
-    retry: "Retry",
-    analyzing: "Analyzing...",
-    serviceWaking: "Service is starting, please wait...",
-    noSummary: "No summary provided",
-    moreAccurateStatement: "A more accurate statement needed",
-    true: "True",
-    partiallyTrue: "Partially True",
-    false: "False",
-    misleading: "Misleading",
-    unverified: "Unverified",
-    notEnoughEvidence: "Not enough evidence",
-    high: "High",
-    medium: "Medium",
-    low: "Low",
-    showAll: "Show all",
-    hideDetails: "Hide details",
-    noExaggerations: "No exaggerations found",
-    noEntitiesDetails: "No entity details to display"
-  }
-};
-
-// 获取用户语言的翻译文本
+// 获取用户语言的翻译文本 - 使用新的i18n模块
 function getText(key) {
-  const lang = detectUserLanguage();
-  return (i18n[lang] && i18n[lang][key]) || key;
+  return i18n.getMessage(key) || key;
 }
 
 // 添加函数，将检测到的语言信息传递给父窗口
@@ -109,6 +25,14 @@ function notifyLanguagePreference() {
     lang: userLang
   }, '*');
 }
+
+// 全局变量
+let globalState = {
+  language: 'zh',
+  resultData: null,
+  isPersisted: false,  // 添加持久化状态
+  // ...现有状态
+};
 
 // 状态管理
 let cardState = 'loading'; // loading, result, error
@@ -233,7 +157,7 @@ const trustColors = {
 };
 
 // 初始化浮动卡片
-function initializeFloatingCard() {
+async function initializeFloatingCard() {
   // 获取DOM元素
   const loadingState = document.getElementById('loading-state');
   const resultState = document.getElementById('result-state');
@@ -244,11 +168,17 @@ function initializeFloatingCard() {
   
   console.log('事实核查卡片已初始化');
 
+  // 初始化i18n
+  await i18n.initializeI18n();
+  
   // 应用语言本地化
   applyLanguageTexts();
   
   // 通知父窗口检测到的语言
   notifyLanguagePreference();
+  
+  // 向父窗口请求数据
+  requestResultData();
 
   // 检测语言并应用特定样式
   const lang = detectUserLanguage();
@@ -261,9 +191,34 @@ function initializeFloatingCard() {
 
   // 设置卡片状态
   function setCardState(state) {
+    console.log(`设置卡片状态: ${state}`);
+    cardState = state;
     loadingState.style.display = state === 'loading' ? 'flex' : 'none';
     resultState.style.display = state === 'result' ? 'block' : 'none';
     errorState.style.display = state === 'error' ? 'block' : 'none';
+  }
+
+  // 主动请求结果数据
+  function requestResultData() {
+    console.log('主动请求分析结果数据...');
+    
+    // 设置超时，如果长时间没有收到数据则请求
+    window.dataRequestTimer = setTimeout(() => {
+      console.log('数据请求超时，主动发送请求...');
+      window.parent.postMessage({
+        type: 'DATA_REQUEST',
+        message: '请求分析结果数据'
+      }, '*');
+    }, 1000);
+    
+    // 再次尝试
+    window.secondRequestTimer = setTimeout(() => {
+      console.log('二次数据请求...');
+      window.parent.postMessage({
+        type: 'DATA_REQUEST',
+        message: '二次请求分析结果数据'
+      }, '*');
+    }, 3000);
   }
 
   // 修改forceLanguageConsistency函数 - 全面加强元素替换逻辑
@@ -336,9 +291,20 @@ function initializeFloatingCard() {
     }, 100);
   }
 
-  // 监听消息
+  // 监听消息 - 增强错误处理和调试
   window.addEventListener('message', (event) => {
     console.log('浮动卡片收到消息:', event.data);
+    
+    // 收到任何消息后清除数据请求计时器
+    if (window.dataRequestTimer) {
+      clearTimeout(window.dataRequestTimer);
+      window.dataRequestTimer = null;
+    }
+    
+    if (window.secondRequestTimer) {
+      clearTimeout(window.secondRequestTimer);
+      window.secondRequestTimer = null;
+    }
     
     // 兼容两种消息格式(action或type)
     const messageType = event.data.action || event.data.type;
@@ -346,14 +312,39 @@ function initializeFloatingCard() {
     
     // 确保能获取正确的数据对象
     let resultData = null;
-    if (event.data.data) {
-      resultData = event.data.data;
-      // 检查是否有嵌套的data对象(处理可能的response.data.data情况)
-      if (resultData.data && typeof resultData.data === 'object') {
-        resultData = resultData.data;
+    
+    try {
+      if (event.data.data) {
+        resultData = event.data.data;
+        
+        // 特殊处理嵌套数据结构
+        if (typeof resultData === 'object') {
+          // 处理 data.data 格式
+          if (resultData.data && typeof resultData.data === 'object') {
+            resultData = resultData.data;
+          }
+          
+          // 处理 data.result 格式
+          if (resultData.result && typeof resultData.result === 'object') {
+            resultData = resultData.result;
+          }
+          
+          // 检查 success 属性
+          if (resultData.success === false) {
+            console.error('数据包含错误:', resultData.error || '未知错误');
+            showError(resultData.error || '未知错误');
+            return;
+          }
+        }
+      } else if (event.data.result) {
+        // 直接使用 result 属性
+        resultData = event.data.result;
       }
+      
+      console.log('处理后的消息数据:', resultData);
+    } catch (error) {
+      console.error('解析消息数据时出错:', error);
     }
-    console.log('消息数据:', resultData);
 
     // 处理服务唤醒消息
     if (messageType === 'SERVICE_WAKING') {
@@ -402,22 +393,54 @@ function initializeFloatingCard() {
       }
       
       // 恢复常规样式
-      document.querySelector('.loading-spinner').classList.remove('waking-up');
-      document.querySelector('.loading-spinner').classList.remove('long-wait');
+      const spinner = document.querySelector('.loading-spinner');
+      if (spinner) {
+        spinner.classList.remove('waking-up');
+        spinner.classList.remove('long-wait');
+      }
       
-      const result = resultData;
-      console.log('准备更新结果显示:', result);
+      // 如果卡片不在结果状态，设置结果状态
+      if (cardState !== 'result') {
+        console.log('接收到结果数据，处理中...');
+      
+        // 检查数据合法性
+        if (!resultData) {
+          console.error('数据为空，显示错误');
+          showError('无效的分析数据');
+          return;
+        }
 
-      if (result) {
         try {
+          // 分析数据结构
+          console.log('分析数据结构:', JSON.stringify(Object.keys(resultData)).substring(0, 200));
+          
+          // 检查必要的评分属性
+          if (resultData.score === undefined) {
+            console.warn('结果数据缺少score属性，寻找替代...');
+            // 可能在其他嵌套属性中
+            if (resultData.trust_score) resultData.score = resultData.trust_score;
+            else if (resultData.trustScore) resultData.score = resultData.trustScore;
+            else resultData.score = 75; // 默认值
+          }
+          
           // 设置评分和进度环
-          setScoreProgress(result.score);
+          setScoreProgress(resultData.score);
+          
           // 生成结果内容
-          document.getElementById('result-content').innerHTML = createResultContent(result);
+          const resultContent = document.getElementById('result-content');
+          if (resultContent) {
+            resultContent.innerHTML = createResultContent(resultData);
+            console.log('结果内容已生成');
+          } else {
+            console.error('找不到结果内容容器');
+          }
+          
           // 绑定显示更多实体的点击事件
           bindEntitiesToggle();
+          
           // 显示结果状态
           setCardState('result');
+          
           // 调整卡片高度
           adjustCardHeight();
           
@@ -436,9 +459,13 @@ function initializeFloatingCard() {
           showError('渲染结果时出错: ' + error.message);
         }
       } else {
-        console.error('未提供结果数据');
-        showError('结果数据无效');
+        console.log('卡片已经处于结果状态，忽略重复数据');
       }
+    } else if (messageType === 'SHOW_ERROR') {
+      // 显示错误消息
+      const errorMsg = event.data.error || event.data.message || '未知错误';
+      console.error('收到错误消息:', errorMsg);
+      showError(errorMsg);
     }
   });
 
@@ -532,306 +559,412 @@ function initializeFloatingCard() {
   }
 
   // 创建结果内容
-  function createResultContent(result) {
-    debugLog('开始生成结果内容');
-    debugLog('当前UI语言', detectUserLanguage());
-    debugLog('评级指标原始值', result.flags);
+  function createResultContent(data) {
+    console.log('创建结果内容，原始数据:', JSON.stringify(data).substring(0, 200) + '...');
     
-    if (result.fact_check?.verification_results) {
-      debugLog('事实核查状态原始值', result.fact_check.verification_results);
-    }
-    
-    if (result.exaggeration_check?.corrections) {
-      debugLog('夸张检查校正原始值', result.exaggeration_check.corrections);
-    }
-
-    if (!result) return '';
-    
-    // 设置顶部摘要
-    const summaryPreview = document.getElementById('summary-preview');
-    if (summaryPreview) {
-      summaryPreview.textContent = result.summary || getText('noSummary');
-    }
-    
-    // 评级映射函数
-    const getRatingClass = (value) => {
-      if (value === '高') return 'rating-high';
-      if (value === '中') return 'rating-medium';
-      return 'rating-low';
-    };
-
-    // 获取图标映射
-    const getFlagIcon = (key) => {
-      const icons = {
-        factuality: 'fa-check-circle',
-        objectivity: 'fa-balance-scale',
-        reliability: 'fa-shield-alt',
-        bias: 'fa-random'
-      };
-      return icons[key] || 'fa-flag';
-    };
-
-    // 获取标签名称
-    const getFlagLabel = (key) => ({
-      factuality: getText('factuality'),
-      objectivity: getText('objectivity'),
-      reliability: getText('reliability'),
-      bias: getText('bias')
-    })[key] || key;
-
-    // 创建评估指标 - 使用统一色彩系统和i18n
-    const flagsHTML = Object.entries(result.flags || {}).map(([key, value]) => {
-      // 获取当前界面语言
-      const currentLang = detectUserLanguage();
+    try {
+      // 标准化数据
+      const normalizedData = normalizeResultData(data);
+      console.log('标准化后的数据:', normalizedData);
       
-      // 统一转换为当前界面语言
-      let displayValue = value;
+      let html = '';
       
-      // 标准化处理API返回值
-      if (typeof value === 'string') {
-        // 获取本地化的评级值 - 确保显示当前界面语言
-        displayValue = trustColors.getLocalizedStatus(value, currentLang);
-      }
-      
-      // 将评级文本转换为分数 - 使用原始值查找分数
-      let score;
-      const valueLower = value.toLowerCase();
-      
-      // 查找评分规则
-      if (trustColors.ratingToScore[valueLower]) {
-        score = trustColors.ratingToScore[valueLower];
-      } else if (valueLower.includes('high') || valueLower.includes('高')) {
-        score = 85;
-      } else if (valueLower.includes('medium') || valueLower.includes('中')) {
-        score = 60;
-      } else if (valueLower.includes('low') || valueLower.includes('低')) {
-        score = 30;
-      } else {
-        score = 50; // 默认值
-      }
-      
-      // 获取统一风格的颜色
-      const color = trustColors.getBackgroundColor(score);
-      
-      // 获取图标类
-      const iconClass = getFlagIcon(key);
-      
-      return `
-        <div class="flag-item">
-          <div class="flag-icon" style="color: ${color}">
-            <i class="fas ${iconClass}"></i>
-    </div>
-          <div class="flag-title">${getFlagLabel(key)}</div>
-          <div class="flag-value">${displayValue}</div>
-    </div>
-      `;
-    }).join('');
-
-    // 创建来源标签 - 使用统一色彩系统
-    const sourcesHTML = (result.source_verification?.sources_found || []).map((source, index) => {
-      const score = result.source_verification.credibility_scores[index];
-      
-      // 使用统一的颜色映射(1-10分转换为百分比)
-      const backgroundColor = trustColors.getBackgroundColor(score, 10);
-      
-      return `
-        <div class="source-tag">
-          <span class="source-credibility" style="background-color: ${backgroundColor}">${score}</span>
-          ${source}
-</div>
-      `;
-    }).join('');
-
-    // 创建事实检查项 - 使用统一色彩系统
-    const factChecksHTML = (result.fact_check?.claims_identified || []).map((claim, index) => {
-      // 获取当前界面语言
-      const currentLang = detectUserLanguage();
-      
-      // 获取默认状态文本
-      const defaultStatus = currentLang === 'zh' ? '需要核实' : 'Unverified';
-      
-      // 获取原始状态文本
-      const originalStatus = result.fact_check.verification_results[index] || defaultStatus;
-      
-      // 强制转换为当前界面语言
-      const displayStatus = trustColors.getLocalizedStatus(originalStatus, currentLang);
-      
-      // 计算置信度分数
-      let confidenceScore = 50; // 默认值
-      
-      // 使用英文规则统一判断分数
-      const statusLower = originalStatus.toLowerCase();
-      
-      if (statusLower.includes('true') && !statusLower.includes('partially') && !statusLower.includes('not')) {
-        confidenceScore = 90;
-      } else if (statusLower.includes('partially true')) {
-        confidenceScore = 60;
-      } else if (statusLower.includes('false')) {
-        confidenceScore = 20;
-      } else if (statusLower.includes('misleading')) {
-        confidenceScore = 40;
-      } else if (statusLower.includes('unverified')) {
-        confidenceScore = 50;
-      }
-      
-      // 中文规则判断
-      if (confidenceScore === 50) {
-        if (statusLower.includes('真实') && !statusLower.includes('部分')) {
-          confidenceScore = 90;
-        } else if (statusLower.includes('部分真实')) {
-          confidenceScore = 60;
-        } else if (statusLower.includes('虚假')) {
-          confidenceScore = 20;
-        } else if (statusLower.includes('误导')) {
-          confidenceScore = 40;
-        } else if (statusLower.includes('需要核实')) {
-          confidenceScore = 50;
-        }
-      }
-      
-      // 获取统一风格的背景色和文本颜色
-      const backgroundColor = trustColors.getBackgroundColor(confidenceScore);
-      const textColor = trustColors.getTextColor(confidenceScore);
-      
-      console.log(`处理状态: ${originalStatus} -> ${displayStatus} (分数: ${confidenceScore})`);
-      
-      return `
-        <div class="fact-item">
-          <div class="fact-content">${claim}</div>
-          <div class="fact-status" style="background-color: ${backgroundColor}; color: ${textColor}">${displayStatus}</div>
-    </div>
-      `;
-    }).join('');
-
-    // 修改夸张信息项生成函数
-    const exaggerationsHTML = (result.exaggeration_check?.exaggerations_found || []).map((exaggeration, index) => {
-      // 获取当前界面语言
-      const currentLang = detectUserLanguage();
-      
-      // 获取夸张校正文本，优先使用API返回的校正
-      const apiCorrection = result.exaggeration_check.corrections[index];
-      
-      // 当API没有返回校正时，使用本地化文本
-      const fallbackText = getText('moreAccurateStatement');
-      
-      // 最终显示的校正文本
-      const displayCorrection = apiCorrection || fallbackText;
-      
-      // 使用统一配色系统
-      const severity = 30; // 固定使用低可信度颜色
-      const borderColor = trustColors.getBackgroundColor(severity);
-      
-      // 调试输出
-      console.log(`夸张校正: API返回=${apiCorrection}, 使用=${displayCorrection}`);
-      
-      return `
-        <div class="exaggeration-item">
-          <div class="exaggeration-claim">${exaggeration}</div>
-          <div class="exaggeration-correction" style="border-left-color: ${borderColor}" 
-               data-correction-type="${apiCorrection ? 'api' : 'default'}">
-            ${displayCorrection}
-  </div>
-  </div>
-      `;
-    }).join('');
-
-    // 添加夸张信息检查部分的无内容处理
-    const exaggerationSection = result.exaggeration_check?.exaggerations_found?.length > 0 ? `
-      <div class="section">
-        <h2 class="section-title">
-          <i class="fas fa-exclamation-triangle"></i>
-          ${getText('exaggerationCheck')}
-        </h2>
-        <div class="exaggerations-container">
-          ${exaggerationsHTML}
-      </div>
+      // 添加标志部分
+      if (normalizedData.flags && normalizedData.flags.length > 0) {
+        html += `
+          <div class="section">
+            <div class="section-title"><i class="fas fa-flag"></i>${getText('flagsTitle')}</div>
+            <div class="flags-container">
+              ${createFlagsItems(normalizedData.flags)}
             </div>
-    ` : '';
-
-    // 创建实体标签
-    const entities = result.entity_verification?.entities_found || [];
-    let entitiesHTML = '';
-    
-    if (entities.length > 0) {
-      const previewEntities = entities.slice(0, Math.min(10, entities.length));
-      const hiddenEntities = entities.length > 10 ? entities.slice(10) : [];
-      
-      const previewHTML = previewEntities.map(entity => `
-        <div class="entity-tag">${entity}</div>
-      `).join('');
-      
-      let hiddenHTML = '';
-      if (hiddenEntities.length > 0) {
-        hiddenHTML = `
-          <span class="entities-toggle" id="entities-toggle">${getText('showMoreEntities')}</span>
-          <div class="entities-container entities-hidden" id="entities-hidden">
-            ${hiddenEntities.map(entity => `<div class="entity-tag">${entity}</div>`).join('')}
           </div>
         `;
       }
       
-      entitiesHTML = `
-        <div class="entities-container" id="entities-preview">
-          ${previewHTML}
-      </div>
-        ${hiddenHTML}
-      `;
+      // 添加详细分析摘要部分
+      if (normalizedData.summary) {
+        html += `
+          <div class="section">
+            <div class="section-title"><i class="fas fa-file-alt"></i>${getText('analysisTitle')}</div>
+            <div class="analysis-text">
+              ${Array.isArray(normalizedData.summary) ? normalizedData.summary.join('<br>') : normalizedData.summary}
+            </div>
+          </div>
+        `;
+      }
+      
+      // 添加来源部分
+      if (normalizedData.sources && normalizedData.sources.length > 0) {
+        html += `
+          <div class="section">
+            <div class="section-title"><i class="fas fa-link"></i>${getText('sourcesTitle')}</div>
+            <div class="sources-list">
+              ${createSourcesItems(normalizedData.sources)}
+            </div>
+          </div>
+        `;
+      }
+      
+      // 添加实体部分
+      if (normalizedData.entities && normalizedData.entities.length > 0) {
+        html += `
+          <div class="section">
+            <div class="section-title"><i class="fas fa-tags"></i>${getText('entitiesTitle')}</div>
+            <div class="entities-container">
+              ${createEntitiesList(normalizedData.entities)}
+            </div>
+          </div>
+        `;
+      }
+      
+      return html;
+    } catch (error) {
+      console.error('创建结果内容时出错:', error);
+      return `<div class="error-message">${getText('errorRenderingResults')}: ${error.message}</div>`;
+    }
+  }
+
+  // 标准化结果数据结构
+  function normalizeResultData(data) {
+    // 创建一个基本结构
+    const normalizedData = {
+      score: 0,
+      summary: '',
+      flags: [],
+      sources: [],
+      entities: []
+    };
+    
+    // 处理嵌套结构
+    let workingData = { ...data };
+    
+    // 向下尝试获取data.data或data.result
+    if (workingData.data && typeof workingData.data === 'object') {
+      workingData = { ...workingData, ...workingData.data };
+    }
+    if (workingData.result && typeof workingData.result === 'object') {
+      workingData = { ...workingData, ...workingData.result };
+    }
+    
+    // 提取score
+    if (workingData.score !== undefined) {
+      normalizedData.score = workingData.score;
+    } else if (workingData.trust_score !== undefined) {
+      normalizedData.score = workingData.trust_score;
+    } else if (workingData.trustScore !== undefined) {
+      normalizedData.score = workingData.trustScore;
     } else {
-      entitiesHTML = `<p>${getText('noEntitiesFound')}</p>`;
+      normalizedData.score = 75; // 默认中等信任度
+    }
+    
+    // 提取summary
+    if (workingData.summary) {
+      normalizedData.summary = workingData.summary;
+    } else if (workingData.analysis) {
+      normalizedData.summary = workingData.analysis;
+    } else if (workingData.content_summary) {
+      normalizedData.summary = workingData.content_summary;
+    }
+    
+    // 提取flags
+    if (Array.isArray(workingData.flags)) {
+      normalizedData.flags = workingData.flags;
+    } else if (Array.isArray(workingData.aspectScores)) {
+      // 处理另一种格式
+      normalizedData.flags = workingData.aspectScores.map(aspect => ({
+        name: aspect.name || aspect.aspect,
+        score: aspect.score || 0,
+        explanation: aspect.description || aspect.explanation || ''
+      }));
+    } else if (workingData.flags && typeof workingData.flags === 'object') {
+      // 处理对象格式的flags
+      normalizedData.flags = Object.keys(workingData.flags).map(key => ({
+        name: key,
+        score: workingData.flags[key].score || workingData.flags[key],
+        explanation: workingData.flags[key].explanation || ''
+      }));
+    }
+    
+    // 处理sources
+    if (Array.isArray(workingData.sources)) {
+      normalizedData.sources = workingData.sources;
+    } else if (Array.isArray(workingData.references)) {
+      normalizedData.sources = workingData.references.map(ref => ({
+        url: ref.url || ref.link || '',
+        title: ref.title || ref.name || '',
+        domain: ref.domain || extractDomainFromUrl(ref.url || ref.link || '')
+      }));
+    }
+    
+    // 处理entities
+    if (Array.isArray(workingData.entities)) {
+      normalizedData.entities = workingData.entities;
+    } else if (Array.isArray(workingData.namedEntities)) {
+      normalizedData.entities = workingData.namedEntities;
+    }
+    
+    return normalizedData;
+  }
+
+  // 从URL中提取域名
+  function extractDomainFromUrl(url) {
+    try {
+      if (!url) return '';
+      // 移除协议部分
+      let domain = url.replace(/(^\w+:|^)\/\//, '');
+      // 获取域名部分
+      domain = domain.split('/')[0];
+      return domain;
+    } catch (e) {
+      return url;
+    }
+  }
+
+  // 创建标志项
+  function createFlagsItems(flags) {
+    if (!flags || !Array.isArray(flags) || flags.length === 0) {
+      return `<div class="no-items">${getText('noFlagsFound')}</div>`;
     }
 
-    return `
-      <div class="section">
-        <h2 class="section-title">
-          <i class="fas fa-flag"></i>
-          <span data-i18n="infoEvaluation">${getText('infoEvaluation')}</span>
-        </h2>
-        <div class="flags-container">
-          ${flagsHTML}
-        </div>
-</div>
+    return flags.map(flag => {
+      // 确保标志有效
+      if (!flag || typeof flag !== 'object') return '';
+      
+      // 获取标志名称和分数
+      let name = '';
+      let score = 0;
+      let icon = 'fa-info-circle';
+      
+      // 支持多种数据格式
+      if (flag.name) name = flag.name;
+      else if (flag.title) name = flag.title;
+      else if (flag.aspect) name = flag.aspect;
+      else if (flag.type) name = flag.type;
+      
+      // 支持多种评分格式
+      if (flag.score !== undefined) score = flag.score;
+      else if (flag.value !== undefined) score = flag.value;
+      
+      // 中文国际化友好的标志名称
+      let displayName = name;
+      
+      // 根据标志名称选择合适的图标
+      if (name.includes('政治') || name.includes('偏见') || name.includes('bias') || name.includes('political')) {
+        icon = 'fa-balance-scale';
+      } else if (name.includes('事实') || name.includes('fact')) {
+        icon = 'fa-check-circle';
+      } else if (name.includes('情感') || name.includes('sentiment') || name.includes('emotion')) {
+        icon = 'fa-heart';
+      } else if (name.includes('时效') || name.includes('timely') || name.includes('current')) {
+        icon = 'fa-clock';
+      } else if (name.includes('一致') || name.includes('consistent')) {
+        icon = 'fa-sync-alt';
+      } else if (name.includes('来源') || name.includes('source')) {
+        icon = 'fa-link';
+      } else if (name.includes('专业') || name.includes('expert') || name.includes('professional')) {
+        icon = 'fa-user-graduate';
+      } else if (name.includes('客观') || name.includes('objective')) {
+        icon = 'fa-eye';
+      }
 
-      <div class="section">
-        <h2 class="section-title">
-          <i class="fas fa-link"></i>
-          ${getText('sourceEvaluation')}
-        </h2>
-        <div class="sources-list">
-          ${sourcesHTML || `<p>${getText('noSourcesFound')}</p>`}
-    </div>
-  </div>
+      // 根据评分选择颜色
+      let colorClass = getTrustColor(score);
+
+      return `
+        <div class="flag-item">
+          <div class="flag-icon ${colorClass}">
+            <i class="fas ${icon}"></i>
+          </div>
+          <div class="flag-title">${displayName}</div>
+          <div class="flag-value ${colorClass}">${Math.round(score)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 创建来源列表
+  function createSourcesItems(sources) {
+    if (!sources || !Array.isArray(sources) || sources.length === 0) {
+      return `<div class="no-items">${getText('noSourcesFound')}</div>`;
+    }
+
+    // 显示的最大来源数量
+    const MAX_VISIBLE_SOURCES = 3;
+    const hasHiddenSources = sources.length > MAX_VISIBLE_SOURCES;
+
+    // 构建可见来源的HTML
+    const visibleSourcesHtml = sources.slice(0, MAX_VISIBLE_SOURCES).map(source => {
+      // 验证来源格式
+      if (!source) return '';
       
-      <div class="section">
-        <h2 class="section-title">
-          <i class="fas fa-search"></i>
-          ${getText('factChecking')}
-        </h2>
-        <div class="facts-container">
-          ${factChecksHTML || `<p>${getText('noFactsToCheck')}</p>`}
-    </div>
-  </div>
-  
-      ${exaggerationSection}
+      let url = '';
+      let title = '';
+      let domain = '';
       
-      <div class="section">
-        <h2 class="section-title">
-          <i class="fas fa-user-tag"></i>
-          ${getText('entityVerification')}
-        </h2>
-        ${entitiesHTML}
-    </div>
+      // 支持多种数据格式
+      if (source.url) url = source.url;
+      else if (source.link) url = source.link;
+      
+      if (source.title) title = source.title;
+      else if (source.name) title = source.name;
+      
+      if (source.domain) domain = source.domain;
+      else domain = extractDomainFromUrl(url);
+      
+      // 如果没有标题，使用域名
+      if (!title && domain) title = domain;
+      
+      // 确保URL是安全的
+      const safeUrl = url && url.startsWith('http') ? url : '#';
+      
+      return `
+        <div class="source-item">
+          <div class="source-icon"><i class="fas fa-globe"></i></div>
+          <div class="source-content">
+            <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="source-title">${title || domain || getText('unknownSource')}</a>
+            ${domain ? `<div class="source-domain">${domain}</div>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 如果有更多来源，添加"显示更多"按钮
+    const showMoreHtml = hasHiddenSources ? `
+      <div class="show-more-container">
+        <button id="show-more-sources" class="show-more-btn">
+          <i class="fas fa-plus-circle"></i> ${getText('showMoreSources')} (${sources.length - MAX_VISIBLE_SOURCES})
+        </button>
+      </div>
+    ` : '';
+
+    // 构建隐藏来源的HTML
+    const hiddenSourcesHtml = hasHiddenSources ? `
+      <div id="hidden-sources" class="hidden-sources" style="display: none;">
+        ${sources.slice(MAX_VISIBLE_SOURCES).map(source => {
+          if (!source) return '';
+          
+          let url = '';
+          let title = '';
+          let domain = '';
+          
+          if (source.url) url = source.url;
+          else if (source.link) url = source.link;
+          
+          if (source.title) title = source.title;
+          else if (source.name) title = source.name;
+          
+          if (source.domain) domain = source.domain;
+          else domain = extractDomainFromUrl(url);
+          
+          if (!title && domain) title = domain;
+          const safeUrl = url && url.startsWith('http') ? url : '#';
+          
+          return `
+            <div class="source-item">
+              <div class="source-icon"><i class="fas fa-globe"></i></div>
+              <div class="source-content">
+                <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="source-title">${title || domain || getText('unknownSource')}</a>
+                ${domain ? `<div class="source-domain">${domain}</div>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : '';
+
+    // 组合所有内容
+    return `
+      ${visibleSourcesHtml}
+      ${showMoreHtml}
+      ${hiddenSourcesHtml}
+    `;
+  }
+
+  // 创建实体列表
+  function createEntitiesList(entities) {
+    if (!entities || !Array.isArray(entities) || entities.length === 0) {
+      return `<div class="no-items">${getText('noEntitiesFound')}</div>`;
+    }
+
+    // 显示的最大实体数量
+    const MAX_VISIBLE_ENTITIES = 5;
+    const hasHiddenEntities = entities.length > MAX_VISIBLE_ENTITIES;
+
+    // 构建可见实体的HTML
+    const visibleEntitiesHtml = entities.slice(0, MAX_VISIBLE_ENTITIES).map(entity => {
+      if (!entity) return '';
+      
+      // 支持多种数据格式
+      const name = entity.name || entity.text || '';
+      const type = entity.type || entity.category || '';
+      const score = entity.score || entity.relevance || entity.salience || 0;
+      
+      // 获取类型图标
+      let iconClass = 'fa-tag';
+      if (type && type.toLowerCase().includes('person')) iconClass = 'fa-user';
+      else if (type && type.toLowerCase().includes('location')) iconClass = 'fa-map-marker-alt';
+      else if (type && type.toLowerCase().includes('organization')) iconClass = 'fa-building';
+      else if (type && type.toLowerCase().includes('date')) iconClass = 'fa-calendar-alt';
+      
+      return `
+        <div class="entity-item">
+          <div class="entity-icon"><i class="fas ${iconClass}"></i></div>
+          <div class="entity-content">
+            <div class="entity-name">${name}</div>
+            ${type ? `<div class="entity-type">${type}</div>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 如果有更多实体，添加"显示更多"按钮
+    const showMoreHtml = hasHiddenEntities ? `
+      <div class="show-more-container">
+        <button id="show-more-entities" class="show-more-btn">
+          <i class="fas fa-plus-circle"></i> ${getText('showMoreEntities')} (${entities.length - MAX_VISIBLE_ENTITIES})
+        </button>
+      </div>
+    ` : '';
+
+    // 构建隐藏实体的HTML
+    const hiddenEntitiesHtml = hasHiddenEntities ? `
+      <div id="hidden-entities" class="hidden-entities" style="display: none;">
+        ${entities.slice(MAX_VISIBLE_ENTITIES).map(entity => {
+          if (!entity) return '';
+          
+          const name = entity.name || entity.text || '';
+          const type = entity.type || entity.category || '';
+          const score = entity.score || entity.relevance || entity.salience || 0;
+          
+          let iconClass = 'fa-tag';
+          if (type && type.toLowerCase().includes('person')) iconClass = 'fa-user';
+          else if (type && type.toLowerCase().includes('location')) iconClass = 'fa-map-marker-alt';
+          else if (type && type.toLowerCase().includes('organization')) iconClass = 'fa-building';
+          else if (type && type.toLowerCase().includes('date')) iconClass = 'fa-calendar-alt';
+          
+          return `
+            <div class="entity-item">
+              <div class="entity-icon"><i class="fas ${iconClass}"></i></div>
+              <div class="entity-content">
+                <div class="entity-name">${name}</div>
+                ${type ? `<div class="entity-type">${type}</div>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : '';
+
+    // 组合所有内容
+    return `
+      ${visibleEntitiesHtml}
+      ${showMoreHtml}
+      ${hiddenEntitiesHtml}
     `;
   }
 
   // 应用语言本地化到所有静态UI元素
   function applyLanguageTexts() {
-    // 设置加载状态文本
-    document.querySelector('.loading-text').textContent = getText('loadingText');
-    
-    // 设置标题文本
-    document.querySelector('.card-header h1').textContent = getText('factCheckReport');
-    
-    // 设置标签页标题
     document.title = getText('factCheckReport');
     
     // 设置错误信息
@@ -845,6 +978,18 @@ function initializeFloatingCard() {
       const key = el.getAttribute('data-i18n');
       el.textContent = getText(key);
     });
+    
+    // 设置加载文本
+    const loadingText = document.querySelector('.loading-text');
+    if (loadingText) {
+      loadingText.textContent = getText('loadingText');
+    }
+    
+    // 持久化文本
+    const persistLabel = document.querySelector('.persist-label');
+    if (persistLabel) {
+      persistLabel.textContent = getText('persistCard');
+    }
   }
 
   // 调整卡片高度
@@ -895,12 +1040,125 @@ function initializeFloatingCard() {
     document.head.appendChild(style);
   };
 
+  // 添加持久化开关
+  function addPersistenceToggle() {
+    const container = document.querySelector('.card-header') || document.querySelector('.card-container');
+    if (!container) return;
+    
+    const persistToggle = document.createElement('div');
+    persistToggle.className = 'persist-toggle';
+    persistToggle.innerHTML = `
+      <label class="persist-switch">
+        <input type="checkbox" id="persistence-checkbox">
+        <span class="persist-slider round"></span>
+      </label>
+      <span class="persist-label">${getText('persistCard')}</span>
+    `;
+    container.appendChild(persistToggle);
+    
+    // 设置样式
+    const style = document.createElement('style');
+    style.textContent = `
+      .persist-toggle {
+        display: flex;
+        align-items: center;
+        margin-left: auto;
+        margin-right: 10px;
+      }
+      .persist-switch {
+        position: relative;
+        display: inline-block;
+        width: 30px;
+        height: 17px;
+      }
+      .persist-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .persist-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        -webkit-transition: .3s;
+        transition: .3s;
+      }
+      .persist-slider:before {
+        position: absolute;
+        content: "";
+        height: 13px;
+        width: 13px;
+        left: 2px;
+        bottom: 2px;
+        background-color: white;
+        -webkit-transition: .3s;
+        transition: .3s;
+      }
+      .persist-slider.round {
+        border-radius: 17px;
+      }
+      .persist-slider.round:before {
+        border-radius: 50%;
+      }
+      input:checked + .persist-slider {
+        background-color: #3366cc;
+      }
+      input:focus + .persist-slider {
+        box-shadow: 0 0 1px #3366cc;
+      }
+      input:checked + .persist-slider:before {
+        -webkit-transform: translateX(13px);
+        -ms-transform: translateX(13px);
+        transform: translateX(13px);
+      }
+      .persist-label {
+        margin-left: 5px;
+        font-size: 12px;
+        color: #666;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // 添加事件监听器
+    const checkbox = document.getElementById('persistence-checkbox');
+    checkbox.checked = globalState.isPersisted;
+    
+    checkbox.addEventListener('change', (e) => {
+      globalState.isPersisted = e.target.checked;
+      
+      // 通知内容脚本
+      window.parent.postMessage({
+        type: 'PERSIST_CARD',
+        persist: globalState.isPersisted
+      }, '*');
+      
+      debugLog('设置卡片持久化状态:', globalState.isPersisted);
+    });
+  }
+
+  // 初始化UI
+  function initUI() {
+    createCardStructure();
+    setCardState('loading');
+    addStyles();
+    
+    // 添加持久化开关
+    addPersistenceToggle();
+    
+    // 添加事件监听器
+    document.getElementById('close-button').addEventListener('click', closeCard);
+    
+    // 请求数据
+    requestResultData();
+  }
+
   // 初始化为加载状态
   setCardState('loading');
   window.parent.postMessage({ type: 'CARD_READY' }, '*');
-  
-  // 添加新样式
-  addStyles();
 }
 
 // 当DOM加载完成后初始化

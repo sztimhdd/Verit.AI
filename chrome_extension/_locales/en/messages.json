@@ -112,5 +112,299 @@
   "version": {
     "message": "Version",
     "description": "Version label"
+  },
+  "loadingText": {
+    "message": "Analyzing...",
+    "description": "Loading text in floating card"
+  },
+  "factCheckReport": {
+    "message": "Fact Check Report",
+    "description": "Fact check report title"
+  },
+  "trustedFriend": {
+    "message": "As your trusted friend",
+    "description": "Trust relationship description"
+  },
+  "trustScore": {
+    "message": "Trust Score",
+    "description": "Trust score label"
+  },
+  "infoEvaluation": {
+    "message": "Information Evaluation",
+    "description": "Information evaluation section title"
+  },
+  "sourceEvaluation": {
+    "message": "Source Evaluation",
+    "description": "Source evaluation section title"
+  },
+  "factChecking": {
+    "message": "Fact Checking",
+    "description": "Fact checking section title"
+  },
+  "exaggerationCheck": {
+    "message": "Exaggeration Check",
+    "description": "Exaggeration check section title"
+  },
+  "entityVerification": {
+    "message": "Entity Verification",
+    "description": "Entity verification section title"
+  },
+  "showMoreEntities": {
+    "message": "Show more entities >",
+    "description": "Show more entities button text"
+  },
+  "hideEntities": {
+    "message": "< Hide entities",
+    "description": "Hide entities button text"
+  },
+  "noSourcesFound": {
+    "message": "No related sources found",
+    "description": "No sources found message"
+  },
+  "noFactsToCheck": {
+    "message": "No major factual claims to check",
+    "description": "No facts to check message"
+  },
+  "noEntitiesFound": {
+    "message": "No entities to verify",
+    "description": "No entities found message"
+  },
+  "errorMessage": {
+    "message": "An error occurred during analysis. Please try again.",
+    "description": "Error message in floating card"
+  },
+  "retry": {
+    "message": "Retry",
+    "description": "Retry button text"
+  },
+  "serviceWaking": {
+    "message": "Service is starting, please wait...",
+    "description": "Service waking up message"
+  },
+  "noSummary": {
+    "message": "No summary provided",
+    "description": "No summary provided message"
+  },
+  "moreAccurateStatement": {
+    "message": "A more accurate statement needed",
+    "description": "More accurate statement needed message"
+  },
+  "true": {
+    "message": "True",
+    "description": "True status"
+  },
+  "partiallyTrue": {
+    "message": "Partially True",
+    "description": "Partially true status"
+  },
+  "false": {
+    "message": "False",
+    "description": "False status"
+  },
+  "misleading": {
+    "message": "Misleading",
+    "description": "Misleading status"
+  },
+  "unverified": {
+    "message": "Unverified",
+    "description": "Unverified status"
+  },
+  "notEnoughEvidence": {
+    "message": "Not enough evidence",
+    "description": "Not enough evidence status"
+  },
+  "high": {
+    "message": "High",
+    "description": "High level"
+  },
+  "medium": {
+    "message": "Medium",
+    "description": "Medium level"
+  },
+  "low": {
+    "message": "Low",
+    "description": "Low level"
+  },
+  "showAll": {
+    "message": "Show all",
+    "description": "Show all button text"
+  },
+  "hideDetails": {
+    "message": "Hide details",
+    "description": "Hide details button text"
+  },
+  "noExaggerations": {
+    "message": "No exaggerations found",
+    "description": "No exaggerations found message"
+  },
+  "noEntitiesDetails": {
+    "message": "No entity details to display",
+    "description": "No entity details message"
+  },
+  "contentScriptLoaded": {
+    "message": "VeritAI Fact Checker content script loaded",
+    "description": "Content script loaded message"
+  },
+  "invalidAnalysisData": {
+    "message": "Invalid analysis data",
+    "description": "Invalid analysis data error message"
+  },
+  "cannotGetCurrentTab": {
+    "message": "Cannot get current tab information",
+    "description": "Error message for tab access"
+  },
+  "cannotGetPageContent": {
+    "message": "Cannot get page content",
+    "description": "Error message for content extraction"
+  },
+  "analysisFailed": {
+    "message": "Analysis failed",
+    "description": "Analysis failed message"
+  },
+  "serviceUnavailable": {
+    "message": "Service unavailable",
+    "description": "Service unavailable message"
+  },
+  "allApisUnavailable": {
+    "message": "All API URLs are unavailable",
+    "description": "All APIs unavailable message"
+  },
+  "serverError": {
+    "message": "Server error: $CODE$",
+    "description": "Server error message with code",
+    "placeholders": {
+      "code": {
+        "content": "$1",
+        "example": "404"
+      }
+    }
+  },
+  "requestFailed": {
+    "message": "Request failed: $MESSAGE$",
+    "description": "Request failed message with error",
+    "placeholders": {
+      "message": {
+        "content": "$1",
+        "example": "Network error"
+      }
+    }
+  },
+  "responseFormatError": {
+    "message": "Response format error",
+    "description": "Response format error message"
+  },
+  "serviceOnline": {
+    "message": "Service status: online",
+    "description": "Service online status message"
+  },
+  "serviceOnlineSwitched": {
+    "message": "Service status: online (API URL switched)",
+    "description": "Service online after URL switch message"
+  },
+  "serviceOffline": {
+    "message": "Service status: offline - all API URLs unavailable",
+    "description": "Service offline status message"
+  },
+  "quotaUpdated": {
+    "message": "Quota information updated",
+    "description": "Quota updated message"
+  },
+  "initializingExtension": {
+    "message": "VeritAI Fact Checker initializing...",
+    "description": "Extension initialization message"
+  },
+  "testFloatingCard": {
+    "message": "Test Floating Card",
+    "description": "Button text for testing the floating card feature"
+  },
+  "testingCard": {
+    "message": "Testing floating card...",
+    "description": "Status message when testing the floating card"
+  },
+  "contentScriptNotReady": {
+    "message": "Content script not ready, please refresh and try again",
+    "description": "Error message when content script is not ready"
+  },
+  "noActiveTab": {
+    "message": "No active tab",
+    "description": "Error message when there is no active tab"
+  },
+  "extractContentFailed": {
+    "message": "Failed to extract content",
+    "description": "Error message when failing to extract page content"
+  },
+  "testFailed": {
+    "message": "Test failed, check console log",
+    "description": "Error message when test fails"
+  },
+  "testSuccess": {
+    "message": "Test successful! Floating card should be displayed",
+    "description": "Success message when test succeeds"
+  },
+  "invalidContent": {
+    "message": "Invalid analysis content",
+    "description": "Error message when analysis content is invalid"
+  },
+  "analyzingContent": {
+    "message": "Analyzing content...",
+    "description": "Status message when analyzing content"
+  },
+  "unknownSource": {
+    "message": "Unknown source",
+    "description": "Display text for unknown source"
+  },
+  "noFlagsFound": {
+    "message": "No evaluation metrics found",
+    "description": "Display text when no flags are found"
+  },
+  "showMoreSources": {
+    "message": "Show more sources",
+    "description": "Button text for showing more sources"
+  },
+  "errorRenderingResults": {
+    "message": "Error rendering results",
+    "description": "Error message when rendering results fails"
+  },
+  "settingsSaved": {
+    "message": "Settings saved",
+    "description": "Success message when settings are saved"
+  },
+  "languageChanged": {
+    "message": "Language changed",
+    "description": "Success message when language is changed"
+  },
+  "quotaRemaining": {
+    "message": "Quota remaining: $COUNT$",
+    "description": "Message showing remaining quota",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "100"
+      }
+    }
+  },
+  "errorShowingFloatingCard": {
+    "message": "Error showing floating card: ",
+    "description": "Error message when showing floating card fails"
+  },
+  "flagsTitle": {
+    "message": "Evaluation Metrics",
+    "description": "Title for evaluation metrics section"
+  },
+  "analysisTitle": {
+    "message": "Content Analysis",
+    "description": "Title for content analysis section"
+  },
+  "sourcesTitle": {
+    "message": "Reference Sources",
+    "description": "Title for reference sources section"
+  },
+  "entitiesTitle": {
+    "message": "Related Entities",
+    "description": "Title for related entities section"
+  },
+  "persistCard": {
+    "message": "Keep Card",
+    "description": "Toggle text for floating card persistence feature"
   }
 } 

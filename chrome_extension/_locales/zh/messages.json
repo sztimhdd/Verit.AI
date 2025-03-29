@@ -112,5 +112,303 @@
   "version": {
     "message": "版本",
     "description": "版本标签"
+  },
+  "loadingText": {
+    "message": "正在核查...",
+    "description": "浮动卡片中的加载文本"
+  },
+  "factCheckReport": {
+    "message": "事实核查报告",
+    "description": "事实核查报告标题"
+  },
+  "trustedFriend": {
+    "message": "作为您信任的朋友",
+    "description": "信任关系描述"
+  },
+  "trustScore": {
+    "message": "可信度评分",
+    "description": "可信度评分标签"
+  },
+  "infoEvaluation": {
+    "message": "信息评估指标",
+    "description": "信息评估部分标题"
+  },
+  "sourceEvaluation": {
+    "message": "信息来源评估",
+    "description": "来源评估部分标题"
+  },
+  "factChecking": {
+    "message": "事实核查",
+    "description": "事实核查部分标题"
+  },
+  "exaggerationCheck": {
+    "message": "夸张信息检查",
+    "description": "夸张信息检查部分标题"
+  },
+  "entityVerification": {
+    "message": "实体验证",
+    "description": "实体验证部分标题"
+  },
+  "showMoreEntities": {
+    "message": "显示更多实体 >",
+    "description": "显示更多实体按钮文本"
+  },
+  "hideEntities": {
+    "message": "< 收起实体",
+    "description": "隐藏实体按钮文本"
+  },
+  "noSourcesFound": {
+    "message": "未找到相关信息来源",
+    "description": "未找到来源消息"
+  },
+  "noFactsToCheck": {
+    "message": "未发现需要核查的主要事实声明",
+    "description": "没有需要核查的事实消息"
+  },
+  "noEntitiesFound": {
+    "message": "未发现需要验证的实体",
+    "description": "未发现实体消息"
+  },
+  "errorMessage": {
+    "message": "分析过程中出现错误，请重试。",
+    "description": "浮动卡片中的错误消息"
+  },
+  "retry": {
+    "message": "重新核查",
+    "description": "重试按钮文本"
+  },
+  "serviceWaking": {
+    "message": "服务正在启动中，请稍候...",
+    "description": "服务正在启动消息"
+  },
+  "noSummary": {
+    "message": "未提供摘要",
+    "description": "未提供摘要消息"
+  },
+  "moreAccurateStatement": {
+    "message": "需要更准确的表述",
+    "description": "需要更准确表述的消息"
+  },
+  "true": {
+    "message": "真实",
+    "description": "真实状态"
+  },
+  "partiallyTrue": {
+    "message": "部分真实",
+    "description": "部分真实状态"
+  },
+  "false": {
+    "message": "虚假",
+    "description": "虚假状态"
+  },
+  "misleading": {
+    "message": "误导",
+    "description": "误导状态"
+  },
+  "unverified": {
+    "message": "需要核实",
+    "description": "需要核实状态"
+  },
+  "notEnoughEvidence": {
+    "message": "证据不足",
+    "description": "证据不足状态"
+  },
+  "high": {
+    "message": "高",
+    "description": "高级别"
+  },
+  "medium": {
+    "message": "中",
+    "description": "中级别"
+  },
+  "low": {
+    "message": "低",
+    "description": "低级别"
+  },
+  "showAll": {
+    "message": "显示全部",
+    "description": "显示全部按钮文本"
+  },
+  "hideDetails": {
+    "message": "隐藏详情",
+    "description": "隐藏详情按钮文本"
+  },
+  "noExaggerations": {
+    "message": "未发现夸张信息",
+    "description": "未发现夸张信息消息"
+  },
+  "noEntitiesDetails": {
+    "message": "没有实体详情可显示",
+    "description": "没有实体详情消息"
+  },
+  "contentScriptLoaded": {
+    "message": "VeritAI 事实核查内容脚本已加载",
+    "description": "内容脚本加载消息"
+  },
+  "invalidAnalysisData": {
+    "message": "无效的分析数据",
+    "description": "无效分析数据错误消息"
+  },
+  "cannotGetCurrentTab": {
+    "message": "无法获取当前标签页信息",
+    "description": "标签页访问错误消息"
+  },
+  "cannotGetPageContent": {
+    "message": "无法获取页面内容",
+    "description": "内容提取错误消息"
+  },
+  "analysisFailed": {
+    "message": "分析失败",
+    "description": "分析失败消息"
+  },
+  "serviceUnavailable": {
+    "message": "服务不可用",
+    "description": "服务不可用消息"
+  },
+  "allApisUnavailable": {
+    "message": "所有API URL均不可用",
+    "description": "所有API不可用消息"
+  },
+  "serverError": {
+    "message": "服务器错误: $CODE$",
+    "description": "带代码的服务器错误消息",
+    "placeholders": {
+      "code": {
+        "content": "$1",
+        "example": "404"
+      }
+    }
+  },
+  "requestFailed": {
+    "message": "请求失败: $MESSAGE$",
+    "description": "带错误的请求失败消息",
+    "placeholders": {
+      "message": {
+        "content": "$1",
+        "example": "网络错误"
+      }
+    }
+  },
+  "responseFormatError": {
+    "message": "返回数据格式错误",
+    "description": "返回格式错误消息"
+  },
+  "serviceOnline": {
+    "message": "服务状态: 在线",
+    "description": "服务在线状态消息"
+  },
+  "serviceOnlineSwitched": {
+    "message": "服务状态: 在线 (已切换API URL)",
+    "description": "API URL切换后服务在线消息"
+  },
+  "serviceOffline": {
+    "message": "服务状态: 离线 - 所有API URL不可用",
+    "description": "服务离线状态消息"
+  },
+  "quotaUpdated": {
+    "message": "配额信息已更新",
+    "description": "配额更新消息"
+  },
+  "initializingExtension": {
+    "message": "VeritAI 事实核查正在初始化...",
+    "description": "扩展初始化消息"
+  },
+  "testFloatingCard": {
+    "message": "测试浮动卡片",
+    "description": "测试浮动卡片功能的按钮文本"
+  },
+  "testingCard": {
+    "message": "正在测试浮动卡片...",
+    "description": "测试浮动卡片时的状态消息"
+  },
+  "contentScriptNotReady": {
+    "message": "内容脚本未准备好，请刷新页面后重试",
+    "description": "内容脚本未准备好的错误消息"
+  },
+  "noActiveTab": {
+    "message": "没有活动的标签页",
+    "description": "没有活动标签页的错误消息"
+  },
+  "extractContentFailed": {
+    "message": "提取内容失败",
+    "description": "提取页面内容失败的错误消息"
+  },
+  "testFailed": {
+    "message": "测试失败，请查看控制台日志",
+    "description": "测试失败的错误消息"
+  },
+  "testSuccess": {
+    "message": "测试成功！浮动卡片应该已经显示",
+    "description": "测试成功的成功消息"
+  },
+  "invalidContent": {
+    "message": "无效的分析内容",
+    "description": "分析内容无效的错误消息"
+  },
+  "analyzingContent": {
+    "message": "正在分析内容...",
+    "description": "分析内容时的状态消息"
+  },
+  "quotaExceeded": {
+    "message": "API额度已用完",
+    "description": "API额度已用完的错误消息"
+  },
+  "unknownSource": {
+    "message": "未知来源",
+    "description": "未知来源的显示文本"
+  },
+  "noFlagsFound": {
+    "message": "未找到评估指标",
+    "description": "未找到评估指标的显示文本"
+  },
+  "showMoreSources": {
+    "message": "显示更多来源",
+    "description": "显示更多来源的按钮文本"
+  },
+  "errorRenderingResults": {
+    "message": "渲染结果时出错",
+    "description": "渲染结果时出错的错误消息"
+  },
+  "settingsSaved": {
+    "message": "设置已保存",
+    "description": "设置保存成功的消息"
+  },
+  "languageChanged": {
+    "message": "语言已更改",
+    "description": "语言更改成功的消息"
+  },
+  "quotaRemaining": {
+    "message": "剩余额度: $COUNT$",
+    "description": "显示剩余配额的消息",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "100"
+      }
+    }
+  },
+  "errorShowingFloatingCard": {
+    "message": "显示浮动卡片时出错: ",
+    "description": "显示浮动卡片时出错的消息"
+  },
+  "flagsTitle": {
+    "message": "评估指标",
+    "description": "评估指标部分标题"
+  },
+  "analysisTitle": {
+    "message": "内容分析",
+    "description": "内容分析部分标题"
+  },
+  "sourcesTitle": {
+    "message": "参考来源",
+    "description": "参考来源部分标题"
+  },
+  "entitiesTitle": {
+    "message": "相关实体",
+    "description": "相关实体部分标题"
+  },
+  "persistCard": {
+    "message": "固定卡片",
+    "description": "浮动卡片固定功能的开关文本"
   }
 } 

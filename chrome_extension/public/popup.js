@@ -1,4 +1,7 @@
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
+    // 导入i18n模块
+    const { getMessage } = chrome.i18n;
+    
     const analyzeButton = document.getElementById('analyzeButton');
     const statusIndicator = document.getElementById('statusIndicator');
     const loadingIndicator = document.getElementById('loadingIndicator');
@@ -13,16 +16,23 @@ document.addEventListener('DOMContentLoaded', function () {
     let serviceReady = false;
     let isAnalyzing = false;
 
-    // ... existing i18n initialization ...
+    // 初始化i18n - 更新所有带data-i18n属性的元素
+    document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        const message = getMessage(key);
+        if (message) {
+            element.textContent = message;
+        }
+    });
 
     // 更新服务状态显示
     function updateServiceStatusUI(status, error = null) {
-        let statusText = '';
+        let statusKey = '';
         let statusIconClass = '';
         let indicatorClass = '';
 
         if (status === 'ready') {
-            statusText = '服务状态: 正常';
+            statusKey = 'statusReady';
             statusIconClass = 'fas fa-check-circle status-icon-success';
             indicatorClass = 'status-indicator-success';
             serviceReady = true;
@@ -30,7 +40,7 @@ document.addEventListener('DOMContentLoaded', function () {
             retryButton.classList.add('hidden');
             analyzeButton.disabled = false;
         } else if (status === 'initializing') {
-            statusText = '服务状态: 初始化中';
+            statusKey = 'statusInitializing';
             statusIconClass = 'fas fa-spinner fa-spin status-icon-initializing';
             indicatorClass = 'status-indicator-initializing';
             serviceReady = false;
@@ -38,17 +48,20 @@ document.addEventListener('DOMContentLoaded', function () {
             retryButton.classList.add('hidden');
             analyzeButton.disabled = true;
         } else if (status === 'error') {
-            statusText = '服务状态: 错误';
+            statusKey = 'statusError';
             statusIconClass = 'fas fa-times-circle status-icon-error';
             indicatorClass = 'status-indicator-error';
             serviceReady = false;
             errorSection.classList.remove('hidden');
-            errorMessageDisplay.textContent = error || '服务不可用';
+            errorMessageDisplay.textContent = error || getMessage('serviceUnavailable');
             retryButton.classList.remove('hidden');
             analyzeButton.disabled = true;
         }
 
+        // 使用i18n获取状态文本
+        const statusText = getMessage('serviceStatus', [getMessage(statusKey)]);
         statusIndicator.querySelector('.status-text').textContent = statusText;
+        
         const iconElement = statusIndicator.querySelector('.status-icon');
         iconElement.className = `status-icon ${statusIconClass}`;
         statusIndicator.className = `status-indicator ${indicatorClass}`;
@@ -96,9 +109,11 @@ document.addEventListener('DOMContentLoaded', function () {
             // 4. 发送分析请求
             const analysisResponse = await chrome.runtime.sendMessage({
                 action: 'analyzeContent',
-                content: contentResponse.data.content,
-                url: tab.url,
-                title: contentResponse.data.title
+                data: {
+                    content: contentResponse.data.content,
+                    url: tab.url,
+                    title: contentResponse.data.title
+                }
             });
 
             // 5. 处理分析结果
@@ -140,4 +155,199 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 初始化
     checkServiceStatus();
+
+    // 获取UI元素
+    const apiUrlInput = document.getElementById('api-url');
+    const saveButton = document.getElementById('save-button');
+    const statusLabel = document.getElementById('status-label');
+    const quotaLabel = document.getElementById('quota-label');
+    const testButton = document.getElementById('test-button');
+    const languageSelect = document.getElementById('language-select');
+    
+    // 初始化设置
+    initializeSettings();
+    
+    // 保存API URL
+    saveButton.addEventListener('click', function() {
+        const apiUrl = apiUrlInput.value.trim();
+        if (!apiUrl) {
+            showStatus('请输入有效的API URL', 'error');
+            return;
+        }
+        
+        // 保存URL到存储
+        chrome.storage.local.set({ 'apiUrl': apiUrl }, function() {
+            showStatus(getMessage('settingsSaved'), 'success');
+            
+            // 通知background更新URL
+            chrome.runtime.sendMessage({
+                action: 'updateApiUrl', 
+                url: apiUrl
+            }, function(response) {
+                updateStatusDisplay(response);
+            });
+        });
+    });
+    
+    // 测试连接按钮
+    if (testButton) {
+        testButton.addEventListener('click', function() {
+            chrome.runtime.sendMessage({
+                action: 'checkServiceStatus'
+            }, function(response) {
+                updateStatusDisplay(response);
+            });
+        });
+    }
+    
+    // 添加测试浮动卡片按钮
+    const testCardButton = document.createElement('button');
+    testCardButton.id = 'test-card-button';
+    testCardButton.className = 'action-button';
+    testCardButton.textContent = getMessage('testFloatingCard') || '测试浮动卡片';
+    testCardButton.style.marginTop = '10px';
+    testCardButton.style.backgroundColor = '#4CAF50';
+    
+    // 将测试按钮添加到页面
+    const container = document.querySelector('.container') || document.body;
+    container.appendChild(testCardButton);
+    
+    // 添加测试按钮点击事件
+    testCardButton.addEventListener('click', function() {
+        // 显示测试中状态
+        showStatus(getMessage('testingCard') || '正在测试浮动卡片...', 'info');
+        
+        // 向当前活动标签页发送测试请求
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            if (tabs && tabs[0]) {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    action: 'contentScriptReady'
+                }, function(response) {
+                    if (chrome.runtime.lastError || !response) {
+                        showStatus(getMessage('contentScriptNotReady') || '内容脚本未准备好', 'error');
+                        return;
+                    }
+                    
+                    // 内容脚本已就绪，发送分析请求
+                    testFloatingCard(tabs[0].id);
+                });
+            } else {
+                showStatus(getMessage('noActiveTab') || '没有活动的标签页', 'error');
+            }
+        });
+    });
+    
+    // 添加语言选择器变更监听
+    if (languageSelect) {
+        languageSelect.addEventListener('change', function() {
+            const selectedLanguage = languageSelect.value;
+            
+            // 保存语言偏好
+            chrome.storage.local.set({ 'language': selectedLanguage }, function() {
+                showStatus(getMessage('languageChanged') || '语言已更改', 'success');
+                
+                // 通知所有标签页更新语言
+                chrome.tabs.query({}, function(tabs) {
+                    tabs.forEach(tab => {
+                        chrome.tabs.sendMessage(tab.id, {
+                            action: 'setLanguage',
+                            language: selectedLanguage
+                        }).catch(() => {/* 忽略可能的错误 */});
+                    });
+                });
+            });
+        });
+    }
+    
+    // 初始化设置
+    function initializeSettings() {
+        // 加载已保存的API URL
+        chrome.storage.local.get(['apiUrl', 'language'], function(result) {
+            if (result.apiUrl) {
+                apiUrlInput.value = result.apiUrl;
+            }
+            
+            // 设置语言选择器
+            if (languageSelect && result.language) {
+                languageSelect.value = result.language;
+            }
+        });
+        
+        // 获取服务状态
+        chrome.runtime.sendMessage({
+            action: 'getServiceStatus'
+        }, function(response) {
+            updateStatusDisplay(response);
+        });
+    }
+    
+    // 更新状态显示
+    function updateStatusDisplay(response) {
+        if (!response) return;
+        
+        if (response.isReady) {
+            statusLabel.textContent = getMessage('serviceOnline') || '服务在线';
+            statusLabel.className = 'status-label online';
+        } else {
+            statusLabel.textContent = getMessage('serviceOffline') || '服务离线';
+            statusLabel.className = 'status-label offline';
+        }
+        
+        // 显示配额信息
+        if (response.quota && quotaLabel) {
+            const remaining = response.quota.groundingRemaining;
+            quotaLabel.textContent = getMessage('quotaRemaining', [remaining]) || 
+                                    `剩余额度: ${remaining}`;
+        }
+    }
+    
+    // 显示状态消息
+    function showStatus(message, type = 'info') {
+        const statusMessage = document.getElementById('status-message');
+        if (!statusMessage) return;
+        
+        statusMessage.textContent = message;
+        statusMessage.className = `status-message ${type}`;
+        statusMessage.style.display = 'block';
+        
+        // 3秒后隐藏
+        setTimeout(function() {
+            statusMessage.style.opacity = '0';
+            setTimeout(function() {
+                statusMessage.style.display = 'none';
+                statusMessage.style.opacity = '1';
+            }, 500);
+        }, 3000);
+    }
+    
+    // 测试浮动卡片
+    function testFloatingCard(tabId) {
+        // 获取页面内容作为测试数据
+        chrome.tabs.sendMessage(tabId, {
+            action: 'EXTRACT_CONTENT'
+        }, function(response) {
+            if (chrome.runtime.lastError || !response || !response.success) {
+                showStatus(getMessage('extractContentFailed') || '提取内容失败', 'error');
+                return;
+            }
+            
+            // 发送分析请求，带上测试标志
+            const testData = {
+                ...response.data,
+                test: true,
+                fallbackToMock: true
+            };
+            
+            chrome.runtime.sendMessage({
+                action: 'analyzeContent',
+                data: testData
+            }, function(analysisResponse) {
+                if (chrome.runtime.lastError || !analysisResponse || !analysisResponse.success) {
+                    showStatus(getMessage('testFailed') || '测试失败', 'error');
+                } else {
+                    showStatus(getMessage('testSuccess') || '测试成功', 'success');
+                }
+            });
+        });
+    }
 }); 
