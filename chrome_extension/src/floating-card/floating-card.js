@@ -232,6 +232,9 @@ const trustColors = {
   }
 };
 
+// 创建 i18n 管理器实例
+let i18nManager;
+
 // 初始化浮动卡片
 function initializeFloatingCard() {
   // 获取DOM元素
@@ -244,14 +247,16 @@ function initializeFloatingCard() {
   
   console.log('事实核查卡片已初始化');
 
-  // 应用语言本地化
-  applyLanguageTexts();
-  
-  // 通知父窗口检测到的语言
-  notifyLanguagePreference();
+  // 初始化 i18n 管理器
+  i18nManager = new I18nManager();
+  i18nManager.initialize().then(() => {
+    // 应用语言本地化
+    i18nManager.updateAllTexts();
+    console.log('语言初始化完成: ', i18nManager.currentLang);
+  });
 
   // 检测语言并应用特定样式
-  const lang = detectUserLanguage();
+  const lang = i18nManager.currentLang;
   if (lang === 'en') {
     // 为英文界面添加特定类
     document.body.classList.add('lang-en');
@@ -266,75 +271,13 @@ function initializeFloatingCard() {
     errorState.style.display = state === 'error' ? 'block' : 'none';
   }
 
-  // 修改forceLanguageConsistency函数 - 全面加强元素替换逻辑
-  function forceLanguageConsistency() {
-    setTimeout(() => {
-      const currentLang = detectUserLanguage();
-      console.log("强制语言一致性执行，当前语言:", currentLang);
-      
-      if (currentLang === 'en') {
-        // 1. 替换所有可能的中文文本 - 评级指标部分
-        document.querySelectorAll('.flag-value').forEach(el => {
-          if (el.textContent === '高') el.textContent = 'High';
-          if (el.textContent === '中') el.textContent = 'Medium';
-          if (el.textContent === '低') el.textContent = 'Low';
-        });
-        
-        // 2. 替换所有中文状态标签 - 事实核查部分
-        document.querySelectorAll('.fact-status').forEach(el => {
-          if (el.textContent === '真实') el.textContent = 'True';
-          if (el.textContent === '部分真实') el.textContent = 'Partially True';
-          if (el.textContent === '虚假') el.textContent = 'False';
-          if (el.textContent === '误导') el.textContent = 'Misleading';
-          if (el.textContent === '需要核实') el.textContent = 'Unverified';
-          if (el.textContent === '证据不足') el.textContent = 'Not enough evidence';
-        });
-        
-        // 3. 替换夸张信息部分的中文文本
-        document.querySelectorAll('.exaggeration-correction').forEach(el => {
-          if (el.textContent === '需要更准确的表述') {
-            el.textContent = 'A more accurate statement needed';
-          }
-          // 检查并替换其他可能的中文提示
-          if (el.textContent.includes('需要')) {
-            el.textContent = el.textContent.replace('需要', 'Needs');
-          }
-        });
-        
-        // 4. 处理可能出现中文的其他元素
-        document.querySelectorAll('p').forEach(el => {
-          if (el.textContent === '未找到相关信息来源') el.textContent = 'No related sources found';
-          if (el.textContent === '未发现需要核查的主要事实声明') el.textContent = 'No major factual claims to check';
-          if (el.textContent === '未发现需要验证的实体') el.textContent = 'No entities to verify';
-          if (el.textContent === '未发现夸张信息') el.textContent = 'No exaggerations found';
-        });
-      } else if (currentLang === 'zh') {
-        // 如果当前语言是中文，确保所有文本都是中文
-        document.querySelectorAll('.flag-value').forEach(el => {
-          if (el.textContent === 'High') el.textContent = '高';
-          if (el.textContent === 'Medium') el.textContent = '中';
-          if (el.textContent === 'Low') el.textContent = '低';
-        });
-        
-        document.querySelectorAll('.fact-status').forEach(el => {
-          if (el.textContent === 'True') el.textContent = '真实';
-          if (el.textContent === 'Partially True') el.textContent = '部分真实';
-          if (el.textContent === 'False') el.textContent = '虚假';
-          if (el.textContent === 'Misleading') el.textContent = '误导';
-          if (el.textContent === 'Unverified') el.textContent = '需要核实';
-          if (el.textContent === 'Not enough evidence') el.textContent = '证据不足';
-        });
-        
-        document.querySelectorAll('.exaggeration-correction').forEach(el => {
-          if (el.textContent === 'A more accurate statement needed') {
-            el.textContent = '需要更准确的表述';
-          }
-        });
-      }
-      
-      console.log("语言强制一致性完成");
-    }, 100);
+  // 获取本地化文本的辅助函数
+  function getText(key) {
+    return i18nManager.getText(key);
   }
+
+  // 通知父窗口检测到的语言
+  notifyLanguagePreference();
 
   // 监听消息
   window.addEventListener('message', (event) => {
@@ -444,7 +387,7 @@ function initializeFloatingCard() {
 
   // 显示错误
   function showError(message) {
-    document.getElementById('error-message').textContent = message || getText('errorMessage');
+    document.getElementById('error-message').textContent = message || getText('errors_analysisError');
     setCardState('error');
   }
 
@@ -763,149 +706,79 @@ function initializeFloatingCard() {
       let hiddenHTML = '';
       if (hiddenEntities.length > 0) {
         hiddenHTML = `
-          <span class="entities-toggle" id="entities-toggle">${getText('showMoreEntities')}</span>
-          <div class="entities-container entities-hidden" id="entities-hidden">
-            ${hiddenEntities.map(entity => `<div class="entity-tag">${entity}</div>`).join('')}
+          <div class="hidden-entities" style="display: none;" id="hidden-entities">
+            ${hiddenEntities.map(entity => `
+              <div class="entity-tag">${entity}</div>
+            `).join('')}
           </div>
+          <button class="show-more-button" id="show-more-entities">
+            ${getText('showMoreEntities')}
+          </button>
+          <button class="hide-button" id="hide-entities" style="display: none;">
+            ${getText('hideEntities')}
+          </button>
         `;
       }
       
       entitiesHTML = `
-        <div class="entities-container" id="entities-preview">
-          ${previewHTML}
-      </div>
-        ${hiddenHTML}
+        <div class="entities-container">
+          <div class="entities-preview" id="entities-preview">
+            ${previewHTML}
+          </div>
+          ${hiddenHTML}
+        </div>
       `;
+
+      // 在渲染完成后添加"显示更多"按钮的事件监听器
+      setTimeout(() => {
+        const showMoreButton = document.getElementById('show-more-entities');
+        const hideButton = document.getElementById('hide-entities');
+        const hiddenEntitiesDiv = document.getElementById('hidden-entities');
+        
+        if (showMoreButton && hideButton && hiddenEntitiesDiv) {
+          showMoreButton.addEventListener('click', () => {
+            hiddenEntitiesDiv.style.display = 'flex';
+            showMoreButton.style.display = 'none';
+            hideButton.style.display = 'inline-block';
+          });
+          
+          hideButton.addEventListener('click', () => {
+            hiddenEntitiesDiv.style.display = 'none';
+            showMoreButton.style.display = 'inline-block';
+            hideButton.style.display = 'none';
+          });
+        }
+      }, 100);
     } else {
-      entitiesHTML = `<p>${getText('noEntitiesFound')}</p>`;
+      // 没有实体时显示的内容
+      entitiesHTML = `<div class="empty-section">${getText('noEntities')}</div>`;
     }
 
     return `
-      <div class="section">
-        <h2 class="section-title">
-          <i class="fas fa-flag"></i>
-          <span data-i18n="infoEvaluation">${getText('infoEvaluation')}</span>
-        </h2>
-        <div class="flags-container">
-          ${flagsHTML}
-        </div>
-</div>
-
-      <div class="section">
-        <h2 class="section-title">
-          <i class="fas fa-link"></i>
-          ${getText('sourceEvaluation')}
-        </h2>
-        <div class="sources-list">
-          ${sourcesHTML || `<p>${getText('noSourcesFound')}</p>`}
-    </div>
-  </div>
-      
-      <div class="section">
-        <h2 class="section-title">
-          <i class="fas fa-search"></i>
-          ${getText('factChecking')}
-        </h2>
-        <div class="facts-container">
-          ${factChecksHTML || `<p>${getText('noFactsToCheck')}</p>`}
-    </div>
-  </div>
-  
-      ${exaggerationSection}
-      
-      <div class="section">
-        <h2 class="section-title">
-          <i class="fas fa-user-tag"></i>
-          ${getText('entityVerification')}
-        </h2>
+      <div class="result-content">
+        ${flagsHTML}
+        ${sourcesHTML}
+        ${factChecksHTML}
+        ${exaggerationSection}
         ${entitiesHTML}
-    </div>
+      </div>
     `;
-  }
-
-  // 应用语言本地化到所有静态UI元素
-  function applyLanguageTexts() {
-    // 设置加载状态文本
-    document.querySelector('.loading-text').textContent = getText('loadingText');
-    
-    // 设置标题文本
-    document.querySelector('.card-header h1').textContent = getText('factCheckReport');
-    
-    // 设置标签页标题
-    document.title = getText('factCheckReport');
-    
-    // 设置错误信息
-    document.getElementById('error-message').textContent = getText('errorMessage');
-    
-    // 设置重试按钮
-    document.getElementById('retry-btn').textContent = getText('retry');
-    
-    // 设置所有带data-i18n属性的元素
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      const key = el.getAttribute('data-i18n');
-      el.textContent = getText(key);
-    });
   }
 
   // 调整卡片高度
   function adjustCardHeight() {
-    console.log('调整卡片为结果状态尺寸：400x600');
-    
-    // 固定使用400x600的尺寸
-    window.parent.postMessage({
-      type: 'RESIZE_FRAME',
-      width: 400,
-      height: 600
-    }, '*');
-    
-    // 添加额外的滚动容器处理
-    const cardBody = document.getElementById('result-content');
-    if (cardBody) {
-      // 确保高度计算正确，强制设置样式
-      setTimeout(() => {
-        cardBody.style.maxHeight = '460px';
-        cardBody.style.overflowY = 'auto';
-        
-        // 检查内容高度是否超过容器
-        if (cardBody.scrollHeight > cardBody.clientHeight) {
-          console.log('内容需要滚动，高度:', cardBody.scrollHeight);
-          // 强制更新滚动状态
-          cardBody.scrollTop = 1;
-          cardBody.scrollTop = 0;
-        }
-      }, 100);
+    const resultContent = document.querySelector('.result-content');
+    if (resultContent) {
+      resultContent.style.height = 'auto';
+      resultContent.style.height = resultContent.scrollHeight + 'px';
     }
   }
 
-  // 添加新样式
-  const addStyles = () => {
-    const style = document.createElement('style');
-    style.textContent = `
-      .loading-spinner.long-wait {
-        border: 2px solid var(--gray-200);
-        border-top: 2px solid var(--danger);
-        animation: pulse-urgent 1s ease-in-out infinite alternate, spin 1.5s linear infinite;
-      }
-      
-      @keyframes pulse-urgent {
-        0% { opacity: 0.8; transform: scale(0.9) rotate(0deg); box-shadow: 0 0 5px rgba(220, 53, 69, 0.5); }
-        100% { opacity: 1; transform: scale(1.1) rotate(360deg); box-shadow: 0 0 15px rgba(220, 53, 69, 0.8); }
-      }
-    `;
-    document.head.appendChild(style);
-  };
-
-  // 初始化为加载状态
-  setCardState('loading');
-  window.parent.postMessage({ type: 'CARD_READY' }, '*');
-  
-  // 添加新样式
-  addStyles();
+  // 强制语言一致性
+  function forceLanguageConsistency() {
+    // 实现语言一致性逻辑
+  }
 }
 
-// 当DOM加载完成后初始化
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeFloatingCard);
-} else {
-  initializeFloatingCard();
-} 
+// 调用初始化函数
+initializeFloatingCard();

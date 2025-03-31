@@ -188,7 +188,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             content: request.content, 
             url: request.url,
             title: request.title,
-            lang: request.lang || 'zh'
+            lang: request.language || request.lang || 'zh'  // 同时接受 language 和 lang 参数
           })
         });
 

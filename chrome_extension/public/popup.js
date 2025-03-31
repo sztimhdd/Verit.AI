@@ -12,8 +12,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let serviceReady = false;
     let isAnalyzing = false;
-
-    // ... existing i18n initialization ...
+    
+    // 初始化 i18n 管理器
+    const i18n = new I18nManager();
+    i18n.initialize().then(() => {
+        // 初始化完成后更新界面文本
+        updateUITexts();
+    });
+    
+    // 更新界面上的所有文本
+    function updateUITexts() {
+        // 更新按钮文本
+        analyzeButton.textContent = i18n.getText('buttons_analyze');
+        retryButton.textContent = i18n.getText('buttons_retry');
+        
+        // 更新当前显示的状态文本
+        updateServiceStatusUI(serviceReady ? 'ready' : 'error');
+    }
 
     // 更新服务状态显示
     function updateServiceStatusUI(status, error = null) {
@@ -22,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function () {
         let indicatorClass = '';
 
         if (status === 'ready') {
-            statusText = '服务状态: 正常';
+            statusText = i18n.getText('serviceStatusReady');
             statusIconClass = 'fas fa-check-circle status-icon-success';
             indicatorClass = 'status-indicator-success';
             serviceReady = true;
@@ -30,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function () {
             retryButton.classList.add('hidden');
             analyzeButton.disabled = false;
         } else if (status === 'initializing') {
-            statusText = '服务状态: 初始化中';
+            statusText = i18n.getText('serviceStatusInitializing');
             statusIconClass = 'fas fa-spinner fa-spin status-icon-initializing';
             indicatorClass = 'status-indicator-initializing';
             serviceReady = false;
@@ -38,12 +53,12 @@ document.addEventListener('DOMContentLoaded', function () {
             retryButton.classList.add('hidden');
             analyzeButton.disabled = true;
         } else if (status === 'error') {
-            statusText = '服务状态: 错误';
+            statusText = i18n.getText('serviceStatusError');
             statusIconClass = 'fas fa-times-circle status-icon-error';
             indicatorClass = 'status-indicator-error';
             serviceReady = false;
             errorSection.classList.remove('hidden');
-            errorMessageDisplay.textContent = error || '服务不可用';
+            errorMessageDisplay.textContent = error || i18n.getText('errors_serviceUnavailable');
             retryButton.classList.remove('hidden');
             analyzeButton.disabled = true;
         }
@@ -75,13 +90,14 @@ document.addEventListener('DOMContentLoaded', function () {
             // 1. 更新UI状态为分析中
             isAnalyzing = true;
             analyzeButton.disabled = true;
+            analyzeButton.textContent = i18n.getText('buttons_analyzing');
             loadingIndicator.classList.remove('hidden');
             errorSection.classList.add('hidden');
 
             // 2. 获取当前标签页
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (!tab) {
-                throw new Error('无法获取当前标签页');
+                throw new Error(i18n.getText('errors_noActiveTab'));
             }
 
             // 3. 获取页面内容
@@ -90,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             
             if (!contentResponse?.success) {
-                throw new Error(contentResponse?.error || '无法获取页面内容');
+                throw new Error(contentResponse?.error || i18n.getText('errors_analysisError'));
             }
 
             // 4. 发送分析请求
@@ -98,7 +114,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 action: 'analyzeContent',
                 content: contentResponse.data.content,
                 url: tab.url,
-                title: contentResponse.data.title
+                title: contentResponse.data.title,
+                language: i18n.currentLang // 添加语言参数
             });
 
             // 5. 处理分析结果
@@ -111,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 window.close(); // 关闭popup
             } else {
                 // 分析失败：显示错误信息
-                throw new Error(analysisResponse?.error || '分析失败');
+                throw new Error(analysisResponse?.error || i18n.getText('errors_analysisError'));
             }
 
         } catch (error) {
@@ -120,11 +137,15 @@ document.addEventListener('DOMContentLoaded', function () {
             errorMessageDisplay.textContent = error.message;
             retryButton.classList.remove('hidden');
             analyzeButton.disabled = false;
+            analyzeButton.textContent = i18n.getText('buttons_analyze');
 
         } finally {
             // 7. 清理状态
             isAnalyzing = false;
             loadingIndicator.classList.add('hidden');
+            if (!analyzeButton.disabled) {
+                analyzeButton.textContent = i18n.getText('buttons_analyze');
+            }
         }
     }
 

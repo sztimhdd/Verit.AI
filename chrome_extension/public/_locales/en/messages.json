@@ -2,6 +2,9 @@
   "extName": {
     "message": "Verit.ai Fact Checker"
   },
+  "extDesc": {
+    "message": "Verify web content credibility using advanced AI technology"
+  },
   "extDescription": {
     "message": "Verify web content credibility using advanced AI technology"
   },
@@ -108,5 +111,53 @@
   "close": {
     "message": "Close",
     "description": "Text for close button"
+  },
+  "title": {
+    "message": "Verit.ai Fact Checker"
+  },
+  "serviceStatus": {
+    "message": "Service Status: "
+  },
+  "serviceStatusReady": {
+    "message": "Service Status: Ready"
+  },
+  "serviceStatusInitializing": {
+    "message": "Service Starting..."
+  },
+  "serviceStatusError": {
+    "message": "Service Error"
+  },
+  "buttons_analyze": {
+    "message": "Analyze"
+  },
+  "buttons_analyzing": {
+    "message": "Analyzing..."
+  },
+  "buttons_retry": {
+    "message": "Retry"
+  },
+  "buttons_feedback": {
+    "message": "Feedback"
+  },
+  "description": {
+    "message": "Verit.ai uses advanced AI technology to help you quickly verify the credibility of web content."
+  },
+  "analyzing": {
+    "message": "Analyzing..."
+  },
+  "errors_noActiveTab": {
+    "message": "Cannot get current tab information"
+  },
+  "errors_serviceUnavailable": {
+    "message": "Service temporarily unavailable"
+  },
+  "errors_initializationTimeout": {
+    "message": "Service initialization timeout"
+  },
+  "errors_analysisError": {
+    "message": "Content analysis failed"
+  },
+  "errors_networkError": {
+    "message": "Network connection error"
   }
 } 

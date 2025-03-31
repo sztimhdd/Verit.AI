@@ -1,52 +1,6 @@
 class I18nManager {
   constructor() {
     this.currentLang = this.detectLanguage();
-    this.resources = {
-      zh: {
-        title: 'Verit.ai 事实核查',
-        serviceStatus: {
-          ready: '服务状态: 正常',
-          initializing: '服务正在启动中...',
-          error: '服务异常'
-        },
-        buttons: {
-          analyze: '开始核查',
-          analyzing: '核查中...',
-          retry: '重试',
-          feedback: '提供反馈'
-        },
-        description: 'Verit.ai 使用先进的 AI 技术帮助您快速核实网页内容的可信度。',
-        errors: {
-          noActiveTab: '无法获取当前标签页信息',
-          serviceUnavailable: '服务暂时不可用',
-          initializationTimeout: '服务初始化超时',
-          analysisError: '内容分析失败',
-          networkError: '网络连接错误'
-        }
-      },
-      en: {
-        title: 'Verit.ai Fact Checker',
-        serviceStatus: {
-          ready: 'Service Status: Ready',
-          initializing: 'Service Starting...',
-          error: 'Service Error'
-        },
-        buttons: {
-          analyze: 'Analyze',
-          analyzing: 'Analyzing...',
-          retry: 'Retry',
-          feedback: 'Feedback'
-        },
-        description: 'Verit.ai uses advanced AI technology to help you quickly verify the credibility of web content.',
-        errors: {
-          noActiveTab: 'Cannot get current tab information',
-          serviceUnavailable: 'Service temporarily unavailable',
-          initializationTimeout: 'Service initialization timeout',
-          analysisError: 'Content analysis failed',
-          networkError: 'Network connection error'
-        }
-      }
-    };
   }
 
   detectLanguage() {
@@ -54,18 +8,18 @@ class I18nManager {
   }
 
   async setLanguage(lang) {
-    if (this.resources[lang]) {
+    // 注意：Chrome i18n API 不允许在运行时更改语言
+    // 这个方法仅用于记录用户偏好，实际翻译仍取决于浏览器语言
+    if (lang === 'zh' || lang === 'en') {
       this.currentLang = lang;
       await this.updateAllTexts();
-      // 保存语言偏好
       await chrome.storage.local.set({ preferredLanguage: lang });
     }
   }
 
   async initialize() {
-    // 尝试加载保存的语言偏好
     const { preferredLanguage } = await chrome.storage.local.get('preferredLanguage');
-    if (preferredLanguage && this.resources[preferredLanguage]) {
+    if (preferredLanguage) {
       this.currentLang = preferredLanguage;
     }
     await this.updateAllTexts();
@@ -80,14 +34,7 @@ class I18nManager {
   }
 
   getText(key) {
-    const keys = key.split('.');
-    let value = this.resources[this.currentLang];
-    
-    for (const k of keys) {
-      value = value[k];
-      if (!value) break;
-    }
-    
-    return value || key;
+    // 直接使用 Chrome 的 i18n API
+    return chrome.i18n.getMessage(key) || key;
   }
 } 

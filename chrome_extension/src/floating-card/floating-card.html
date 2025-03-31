@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="__MSG_htmlLang__">
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-  <title>事实核查报告</title>
+  <title data-i18n="factCheckReport">事实核查报告</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
   <style>
     :root {
@@ -576,14 +576,14 @@
   <!-- 加载状态 -->
   <div id="loading-state" class="card loading">
     <div class="loading-spinner"></div>
-    <div class="loading-text">正在核查...</div>
+    <div class="loading-text" data-i18n="checking">正在核查...</div>
   </div>
 
   <!-- 结果状态 -->
   <div id="result-state" class="card result" style="display: none;">
     <button id="close-btn" class="close-btn"><i class="fas fa-times"></i></button>
     <div class="card-header">
-      <h1>事实核查报告</h1>
+      <h1 data-i18n="factCheckReport">事实核查报告</h1>
       <div class="summary-preview" id="summary-preview">
         <!-- 这里将显示总结内容的前两行 -->
       </div>
@@ -607,11 +607,12 @@
     <button id="close-btn-error" class="close-btn"><i class="fas fa-times"></i></button>
     <div class="error-container">
       <div class="error-icon"><i class="fas fa-exclamation-circle"></i></div>
-      <div id="error-message" class="error-message">分析过程中出现错误，请重试。</div>
-      <button id="retry-btn" class="retry-button">重新核查</button>
+      <div id="error-message" class="error-message" data-i18n="analysisError">分析过程中出现错误，请重试。</div>
+      <button id="retry-btn" class="retry-button" data-i18n="recheckButton">重新核查</button>
     </div>
   </div>
 
+  <script src="lib/i18n-manager.js"></script>
   <script src="floating-card.js"></script>
 </body>
 </html> 

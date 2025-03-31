@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "__MSG_extName__",
   "version": "1.1.0",
-  "description": "__MSG_extDesc__",
+  "description": "__MSG_extDescription__",
   "default_locale": "en",
   "permissions": [
     "storage",
@@ -55,6 +55,5 @@
     }
   ],
   "author": "Oracle AI Team",
-  "homepage_url": "https://your-website.com",
-  "support_url": "https://forms.gle/gTShEcR2Wq3mkuNd8"
+  "homepage_url": "https://your-website.com"
 }

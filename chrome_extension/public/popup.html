@@ -13,7 +13,7 @@
     <div class="popup-container">
         <header class="popup-header">
             <img src="icons/icon48.png" alt="Logo" class="logo">
-            <h1>Verit.ai Fact Checker</h1>
+            <h1 data-i18n="title">Verit.ai 事实核查</h1>
         </header>
 
         <div class="service-status">
@@ -24,7 +24,7 @@
         </div>
 
         <div class="action-section">
-            <button id="analyzeButton" class="primary-button" data-i18n="analyze">
+            <button id="analyzeButton" class="primary-button" data-i18n="buttons_analyze">
                 开始核查
             </button>
             <div class="loading-indicator hidden" id="loadingIndicator">
@@ -37,7 +37,7 @@
             <div class="error-container">
                 <i class="fas fa-exclamation-triangle error-icon"></i>
                 <p class="error-message" id="errorMessage"></p>
-                <button id="retryButton" class="retry-button hidden" data-i18n="retryButton">重试</button>
+                <button id="retryButton" class="retry-button hidden" data-i18n="buttons_retry">重试</button>
             </div>
         </div>
 
@@ -51,11 +51,12 @@
             <a href="https://forms.gle/TwVR1uYoDT2Phn3d6"
                target="_blank"
                class="feedback-button"
-               data-i18n="feedback">
+               data-i18n="buttons_feedback">
                 提供反馈
             </a>
         </footer>
     </div>
+    <script src="lib/i18n-manager.js"></script>
     <script src="popup.js"></script>
 </body>
 </html> 

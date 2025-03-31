@@ -2,6 +2,9 @@
   "extName": {
     "message": "Verit.ai 事实核查"
   },
+  "extDesc": {
+    "message": "使用先进的 AI 技术核实网页内容可信度"
+  },
   "extDescription": {
     "message": "使用先进的 AI 技术核实网页内容可信度"
   },
@@ -108,5 +111,53 @@
   "close": {
     "message": "关闭",
     "description": "关闭按钮的文本"
+  },
+  "title": {
+    "message": "Verit.ai 事实核查"
+  },
+  "serviceStatus": {
+    "message": "服务状态: "
+  },
+  "serviceStatusReady": {
+    "message": "服务状态: 正常"
+  },
+  "serviceStatusInitializing": {
+    "message": "服务正在启动中..."
+  },
+  "serviceStatusError": {
+    "message": "服务异常"
+  },
+  "buttons_analyze": {
+    "message": "开始核查"
+  },
+  "buttons_analyzing": {
+    "message": "核查中..."
+  },
+  "buttons_retry": {
+    "message": "重试"
+  },
+  "buttons_feedback": {
+    "message": "提供反馈"
+  },
+  "description": {
+    "message": "Verit.ai 使用先进的 AI 技术帮助您快速核实网页内容的可信度。"
+  },
+  "analyzing": {
+    "message": "核查中..."
+  },
+  "errors_noActiveTab": {
+    "message": "无法获取当前标签页信息"
+  },
+  "errors_serviceUnavailable": {
+    "message": "服务暂时不可用"
+  },
+  "errors_initializationTimeout": {
+    "message": "服务初始化超时"
+  },
+  "errors_analysisError": {
+    "message": "内容分析失败"
+  },
+  "errors_networkError": {
+    "message": "网络连接错误"
   }
 } 

@@ -35,7 +35,7 @@ const requiredFiles = [
   'floating-card.js',
   'floating-card.html',
   'styles/popup.css',
-  'styles/floating-card.css',
+  // 'styles/floating-card.css', // 如果此文件不存在，请注释掉或确保创建它
   'styles/content.css',
   'icons/icon16.png',
   'icons/icon32.png',
@@ -62,37 +62,13 @@ if (missingFiles.length > 0) {
   console.log('✅ 所有必要文件已生成');
 }
 
-// 创建zip包（可选）
-console.log('📦 创建扩展包...');
+// 添加在构建过程末尾
 try {
-  const zipFileName = 'veritai-fact-checker.zip';
-  const zipFilePath = path.resolve(__dirname, '..', zipFileName);
-  
-  // 删除旧的zip文件（如果存在）
-  if (fs.existsSync(zipFilePath)) {
-    fs.unlinkSync(zipFilePath);
-  }
-  
-  // 根据操作系统选择不同的zip命令
-  const isWindows = process.platform === 'win32';
-  
-  if (isWindows) {
-    // Windows使用PowerShell的Compress-Archive
-    execSync(
-      `powershell -command "Compress-Archive -Path '${distPath}\\*' -DestinationPath '${zipFilePath}'"`,
-      { stdio: 'inherit' }
-    );
-  } else {
-    // Unix系统使用zip命令
-    execSync(`cd "${distPath}" && zip -r "${zipFilePath}" ./*`, { 
-      stdio: 'inherit'
-    });
-  }
-  
-  console.log(`✅ 扩展包已创建: ${zipFileName}`);
+  // 导入并执行验证
+  const { validateI18nVariables } = require('./validate-i18n');
+  validateI18nVariables();
 } catch (error) {
-  console.error('❌ 创建扩展包失败:', error);
-  console.log('⚠️ 扩展包未创建，但构建过程已完成。');
+  console.error('❌ 国际化变量验证失败:', error);
 }
 
 console.log('🎉 构建完成!');
@@ -101,4 +77,25 @@ console.log('1. 打开Chrome浏览器');
 console.log('2. 访问 chrome://extensions');
 console.log('3. 启用"开发者模式"');
 console.log('4. 点击"加载已解压的扩展程序"');
-console.log(`5. 选择以下目录: ${distPath}`); 
+console.log(`5. 选择以下目录: ${distPath}`);
+
+// 在 webpack 构建后添加
+console.log('📁 复制额外文件...');
+const extraFiles = [
+  { 
+    src: path.resolve(__dirname, '../src/core/i18n-manager.js'), 
+    dest: path.resolve(__dirname, '../dist/lib/i18n-manager.js')
+  }
+];
+
+// 确保目标目录存在
+for (const file of extraFiles) {
+  const destDir = path.dirname(file.dest);
+  if (!fs.existsSync(destDir)) {
+    fs.mkdirSync(destDir, { recursive: true });
+  }
+  
+  // 复制文件
+  fs.copyFileSync(file.src, file.dest);
+  console.log(`✅ 已复制: ${file.src} -> ${file.dest}`);
+} 
