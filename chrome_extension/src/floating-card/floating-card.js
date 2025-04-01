@@ -555,8 +555,11 @@ function initializeFloatingCard() {
 
   // 创建结果内容
   function createResultContent(result) {
+    // ---> Detect language ONCE at the beginning
+    const uiLang = detectUserLanguage(); 
+
     debugLog('开始生成结果内容');
-    debugLog('当前UI语言', detectUserLanguage());
+    debugLog('当前UI语言', uiLang); // Log the consistent language
     debugLog('评级指标原始值', result.flags);
     
     if (result.fact_check?.verification_results) {
@@ -601,51 +604,6 @@ function initializeFloatingCard() {
       bias: getText('bias')
     })[key] || key;
 
-    // 根据评分值确定颜色
-    function determineFlagColor(value) {
-      // 标准化处理API返回值
-      const valueLower = (value || '').toLowerCase();
-      
-      // 根据评级文本确定颜色
-      if (valueLower.includes('high') || valueLower.includes('高')) {
-        // 对于偏向负面的指标（如bias），高值为负面
-        if (valueLower.includes('bias') || valueLower.includes('偏见')) {
-          return '#ef4444'; // 红色表示高偏见
-        }
-        return '#10b981'; // 绿色表示高可信度
-      } else if (valueLower.includes('medium') || valueLower.includes('中')) {
-        return '#f59e0b'; // 黄色表示中等
-      } else if (valueLower.includes('low') || valueLower.includes('低')) {
-        // 对于偏向正面的指标（如factuality），低值为负面
-        if (valueLower.includes('bias') || valueLower.includes('偏见')) {
-          return '#10b981'; // 绿色表示低偏见
-        }
-        return '#ef4444'; // 红色表示低可信度
-      } else if (valueLower === 'n/a') {
-        return '#9ca3af'; // 灰色表示不适用
-      }
-      
-      // 默认颜色
-      return '#3b82f6'; // 蓝色作为默认值
-    }
-
-    // 添加翻译状态函数
-    function translateStatus(value) {
-      // 获取当前界面语言
-      const currentLang = detectUserLanguage();
-      
-      // 统一转换为当前界面语言
-      let displayValue = value;
-      
-      // 标准化处理API返回值
-      if (typeof value === 'string') {
-        // 获取本地化的评级值 - 确保显示当前界面语言
-        displayValue = trustColors.getLocalizedStatus(value, currentLang);
-      }
-      
-      return displayValue;
-    }
-
     // 优化维度评分布局生成代码
     const flagsHTML = `
       <div class="section">
@@ -654,40 +612,57 @@ function initializeFloatingCard() {
           ${getText('infoEvaluation')}
         </h2>
         <div class="flags-container">
-          ${createFlagItem('factuality', result.flags?.factuality || 'N/A', 'fas fa-check-circle')}
-          ${createFlagItem('objectivity', result.flags?.objectivity || 'N/A', 'fas fa-balance-scale')}
-          ${createFlagItem('reliability', result.flags?.reliability || 'N/A', 'fas fa-shield-alt')}
-          ${createFlagItem('bias', result.flags?.bias || 'N/A', 'fas fa-exclamation-triangle')}
+          ${createFlagItem('factuality', result.flags?.factuality || 'N/A', 'fas fa-check-circle', uiLang)}
+          ${createFlagItem('objectivity', result.flags?.objectivity || 'N/A', 'fas fa-balance-scale', uiLang)}
+          ${createFlagItem('reliability', result.flags?.reliability || 'N/A', 'fas fa-shield-alt', uiLang)}
+          ${createFlagItem('bias', result.flags?.bias || 'N/A', 'fas fa-exclamation-triangle', uiLang)}
         </div>
       </div>
     `;
 
     // 创建单个评分项辅助函数
-    function createFlagItem(flagType, value, iconClass) {
+    // ---> Accept uiLang as a parameter
+    function createFlagItem(flagType, value, iconClass, currentUiLang) { 
       console.log(`创建评分项: ${flagType} = ${value}`); // 调试日志
       
-      // 简化的颜色判断
+      // 1. API 返回的值已经是目标语言，直接用于显示
+      const displayValue = value; // No translation needed
+      const valueLower = (value || '').toLowerCase().trim();
+
+      // 2. 根据当前界面语言和值确定颜色
       let flagColor;
-      const valueLower = (value || '').toLowerCase();
-      
       // 偏见特殊处理 - 高偏见是负面的
       if (flagType === 'bias') {
-        if (valueLower.includes('high')) flagColor = '#ef4444'; // 红色表示高偏见
-        else if (valueLower.includes('medium')) flagColor = '#f59e0b'; // 黄色表示中等偏见
-        else if (valueLower.includes('low')) flagColor = '#10b981'; // 绿色表示低偏见
-        else flagColor = '#9ca3af'; // 默认灰色
+        if ((currentUiLang === 'zh' && valueLower.includes('高')) || (currentUiLang === 'en' && valueLower.includes('high'))) {
+            flagColor = '#ef4444'; // 红色
+        } else if ((currentUiLang === 'zh' && valueLower.includes('中')) || (currentUiLang === 'en' && valueLower.includes('medium'))) {
+            flagColor = '#f59e0b'; // 黄色
+        } else if ((currentUiLang === 'zh' && valueLower.includes('低')) || (currentUiLang === 'en' && valueLower.includes('low'))) {
+            flagColor = '#10b981'; // 绿色
+        } else {
+             flagColor = '#9ca3af'; // 默认灰色 (N/A 或其他)
+        }
       } 
       // 其他指标 - 高是正面的
       else {
-        if (valueLower.includes('high')) flagColor = '#10b981'; // 绿色表示高可信度
-        else if (valueLower.includes('medium')) flagColor = '#f59e0b'; // 黄色表示中等可信度
-        else if (valueLower.includes('low')) flagColor = '#ef4444'; // 红色表示低可信度
-        else flagColor = '#9ca3af'; // 默认灰色
+         if ((currentUiLang === 'zh' && valueLower.includes('高')) || (currentUiLang === 'en' && valueLower.includes('high'))) {
+            flagColor = '#10b981'; // 绿色
+        } else if ((currentUiLang === 'zh' && valueLower.includes('中')) || (currentUiLang === 'en' && valueLower.includes('medium'))) {
+            flagColor = '#f59e0b'; // 黄色
+        } else if ((currentUiLang === 'zh' && valueLower.includes('低')) || (currentUiLang === 'en' && valueLower.includes('low'))) {
+            flagColor = '#ef4444'; // 红色
+        } else {
+             flagColor = '#9ca3af'; // 默认灰色 (N/A 或其他)
+        }
       }
       
-      // 使用 trustColors 对象进行状态翻译
-      const displayValue = trustColors.getLocalizedStatus(value, detectUserLanguage());
+      // 3. 使用 trustColors 对象将原始值翻译为当前显示语言 - REMOVED
+      // const displayValue = trustColors.getLocalizedStatus(value, currentUiLang);
       
+      // 添加更详细的日志 - REMOVED as translation is bypassed
+      // console.log(`[createFlagItem Final] Type: ${flagType}, Original: ${value}, Translated: ${displayValue}, TargetLang: ${currentUiLang}`); 
+
+      // 4. 返回 HTML，使用计算出的颜色 和 API直接返回的显示值
       return `
         <div class="flag-item" style="border-top: 3px solid ${flagColor}">
           <div class="flag-title">
@@ -715,50 +690,50 @@ function initializeFloatingCard() {
     }).join('');
 
     // 创建事实检查项 - 使用统一色彩系统
+    // ---> Pass uiLang down consistently
     const factChecksHTML = (result.fact_check?.claims_identified || []).map((claim, index) => {
-      // 获取当前界面语言
-      const currentLang = detectUserLanguage();
+      // 获取当前界面语言 - REMOVED
+      // const currentLang = detectUserLanguage(); 
+      const currentLang = uiLang; // ---> Use consistent uiLang
       
       // 获取默认状态文本
       const defaultStatus = currentLang === 'zh' ? '需要核实' : 'Unverified';
       
-      // 获取原始状态文本
+      // 获取原始状态文本 (API已翻译)
       const originalStatus = result.fact_check.verification_results[index] || defaultStatus;
+      const displayStatus = originalStatus; // ---> Directly use API value
       
-      // 强制转换为当前界面语言
-      const displayStatus = trustColors.getLocalizedStatus(originalStatus, currentLang);
+      // 强制转换为当前界面语言 - REMOVED
+      // const displayStatus = trustColors.getLocalizedStatus(originalStatus, currentLang);
       
-      // 计算置信度分数
+      // 计算置信度分数 - Now based on currentLang and originalStatus
       let confidenceScore = 50; // 默认值
-      
-      // 使用英文规则统一判断分数
       const statusLower = originalStatus.toLowerCase();
       
-      if (statusLower.includes('true') && !statusLower.includes('partially') && !statusLower.includes('not')) {
-        confidenceScore = 90;
-      } else if (statusLower.includes('partially true')) {
-        confidenceScore = 60;
-      } else if (statusLower.includes('false')) {
-        confidenceScore = 20;
-      } else if (statusLower.includes('misleading')) {
-        confidenceScore = 40;
-      } else if (statusLower.includes('unverified')) {
-        confidenceScore = 50;
-      }
-      
-      // 中文规则判断
-      if (confidenceScore === 50) {
-        if (statusLower.includes('真实') && !statusLower.includes('部分')) {
-          confidenceScore = 90;
-        } else if (statusLower.includes('部分真实')) {
-          confidenceScore = 60;
-        } else if (statusLower.includes('虚假')) {
-          confidenceScore = 20;
-        } else if (statusLower.includes('误导')) {
-          confidenceScore = 40;
-        } else if (statusLower.includes('需要核实')) {
-          confidenceScore = 50;
-        }
+      if (currentLang === 'en') {
+          if (statusLower.includes('true') && !statusLower.includes('partially') && !statusLower.includes('not')) {
+            confidenceScore = 90;
+          } else if (statusLower.includes('partially true')) {
+            confidenceScore = 60;
+          } else if (statusLower.includes('false')) {
+            confidenceScore = 20;
+          } else if (statusLower.includes('misleading')) {
+            confidenceScore = 40;
+          } else if (statusLower.includes('unverified')) {
+            confidenceScore = 50;
+          } // Add 'not enough evidence' if needed
+      } else { // Assuming 'zh'
+         if (statusLower.includes('真实') && !statusLower.includes('部分')) {
+            confidenceScore = 90;
+          } else if (statusLower.includes('部分真实')) {
+            confidenceScore = 60;
+          } else if (statusLower.includes('虚假')) {
+            confidenceScore = 20;
+          } else if (statusLower.includes('误导')) {
+            confidenceScore = 40;
+          } else if (statusLower.includes('需要核实')) {
+            confidenceScore = 50;
+          } // Add '证据不足' if needed
       }
       
       // 获取统一风格的背景色和文本颜色
@@ -776,9 +751,11 @@ function initializeFloatingCard() {
     }).join('');
 
     // 修改夸张信息项生成函数
+    // ---> Pass uiLang down consistently
     const exaggerationsHTML = (result.exaggeration_check?.exaggerations_found || []).map((exaggeration, index) => {
-      // 获取当前界面语言
-      const currentLang = detectUserLanguage();
+      // 获取当前界面语言 - REMOVED
+      // const currentLang = detectUserLanguage(); 
+      const currentLang = uiLang; // ---> Use consistent uiLang
       
       // 获取夸张校正文本，优先使用API返回的校正
       const apiCorrection = result.exaggeration_check.corrections[index];
