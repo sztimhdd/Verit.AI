@@ -138,6 +138,7 @@ chrome_extension/
 
 ## 联系方式
 
-- 项目维护者：[Your Name]
-- 邮箱：[your.email@example.com]
+- 项目维护者：Hai Hu 胡海h
+- 邮箱：[huhai.orion@gmail.com]
 - 项目链接：[https://github.com/yourusername/oracle-ai-fact-checker](https://github.com/yourusername/oracle-ai-fact-checker) 
+- Web版网址：[https://veritai.up.railway.app/](https://veritai.up.railway.app/)
