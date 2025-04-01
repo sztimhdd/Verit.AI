@@ -159,5 +159,23 @@
   },
   "errors_networkError": {
     "message": "Network connection error"
+  },
+  "factCheckReport": {
+    "message": "Fact Check Report"
+  },
+  "infoEvaluation": {
+    "message": "Multi-dimension Analysis"
+  },
+  "factuality": {
+    "message": "Factuality"
+  },
+  "objectivity": {
+    "message": "Objectivity"
+  },
+  "reliability": {
+    "message": "Reliability"
+  },
+  "bias": {
+    "message": "Bias"
   }
 } 

@@ -58,7 +58,7 @@ const i18n = {
     trustedFriend: "As your trusted friend",
     trustScore: "Trust Score",
     summary: "Summary",
-    infoEvaluation: "Information Evaluation",
+    infoEvaluation: "Multi-dimension Analysis",
     sourceEvaluation: "Source Evaluation",
     factChecking: "Fact Checking",
     exaggerationCheck: "Exaggeration Check",
@@ -374,6 +374,69 @@ function initializeFloatingCard() {
           
           // 在可能的滚动操作后再执行一次
           setTimeout(forceLanguageConsistency, 1000);
+
+          // 动态调整总结文本大小
+          const summaryPreview = document.getElementById('summary-preview');
+          if (summaryPreview) {
+            const summary = result.summary || '';
+            summaryPreview.textContent = summary;
+            
+            // 基于文本长度动态调整字体大小
+            const textLength = summary.length;
+            if (textLength > 300) {
+              summaryPreview.style.fontSize = '10px';
+              summaryPreview.style.lineHeight = '1.2';
+              summaryPreview.style.webkitLineClamp = '4';
+            } else if (textLength > 200) {
+              summaryPreview.style.fontSize = '11px';
+              summaryPreview.style.lineHeight = '1.3';
+              summaryPreview.style.webkitLineClamp = '4';
+            } else if (textLength > 100) {
+              summaryPreview.style.fontSize = '12px';
+              summaryPreview.style.lineHeight = '1.4';
+            }
+            
+            // 为英文设置更小的字体
+            if (i18nManager.currentLang === 'en' && textLength > 100) {
+              summaryPreview.style.fontSize = 
+                (parseInt(summaryPreview.style.fontSize) - 1) + 'px';
+            }
+          }
+
+          // 修复滚动问题，添加到显示结果后的处理
+          setTimeout(() => {
+            const cardBody = document.querySelector('.card-body');
+            const resultContent = document.querySelector('.result-content');
+            
+            if (cardBody && resultContent) {
+              // 强制重新计算布局
+              cardBody.style.display = 'none';
+              void cardBody.offsetHeight; // 触发重排
+              cardBody.style.display = 'block';
+              
+              // 确保滚动区域高度计算正确
+              const headerHeight = document.querySelector('.card-header').offsetHeight;
+              cardBody.style.height = `calc(100% - ${headerHeight}px)`;
+              
+              // 检查是否需要滚动条
+              if (resultContent.scrollHeight > cardBody.clientHeight) {
+                // 在结果内容太长的情况下，添加清晰的滚动提示
+                const scrollIndicator = document.createElement('div');
+                scrollIndicator.className = 'scroll-indicator';
+                scrollIndicator.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                cardBody.appendChild(scrollIndicator);
+                
+                // 监听滚动事件，隐藏已经滚动到底部时的指示器
+                cardBody.addEventListener('scroll', () => {
+                  if (cardBody.scrollTop + cardBody.clientHeight >= resultContent.offsetHeight - 20) {
+                    scrollIndicator.style.opacity = '0';
+                  } else {
+                    scrollIndicator.style.opacity = '1';
+                  }
+                });
+              }
+            }
+          }, 100);
         } catch (error) {
           console.error('渲染结果时出错:', error);
           showError('渲染结果时出错: ' + error.message);
@@ -452,6 +515,22 @@ function initializeFloatingCard() {
     
     if (titleElement) titleElement.style.color = textColor;
     if (summaryElement) summaryElement.style.color = textColor;
+
+    // 更新标题栏颜色
+    if (cardHeader) {
+      // 根据分数设置不同的背景渐变
+      if (score >= 80) {
+        cardHeader.style.background = 'linear-gradient(135deg, #10b981, #34d399)'; // 高信任度
+      } else if (score >= 60) {
+        cardHeader.style.background = 'linear-gradient(135deg, #2563eb, #3b82f6)'; // 中高信任度
+      } else if (score >= 40) {
+        cardHeader.style.background = 'linear-gradient(135deg, #f59e0b, #fbbf24)'; // 中信任度
+      } else if (score >= 20) {
+        cardHeader.style.background = 'linear-gradient(135deg, #ff8c00, #ffa533)'; // 中低信任度
+      } else {
+        cardHeader.style.background = 'linear-gradient(135deg, #dc2626, #ef4444)'; // 低信任度
+      }
+    }
   }
 
   // 绑定显示更多实体的点击事件
@@ -509,7 +588,7 @@ function initializeFloatingCard() {
         factuality: 'fa-check-circle',
         objectivity: 'fa-balance-scale',
         reliability: 'fa-shield-alt',
-        bias: 'fa-random'
+        bias: 'fa-exclamation-triangle'
       };
       return icons[key] || 'fa-flag';
     };
@@ -522,8 +601,36 @@ function initializeFloatingCard() {
       bias: getText('bias')
     })[key] || key;
 
-    // 创建评估指标 - 使用统一色彩系统和i18n
-    const flagsHTML = Object.entries(result.flags || {}).map(([key, value]) => {
+    // 根据评分值确定颜色
+    function determineFlagColor(value) {
+      // 标准化处理API返回值
+      const valueLower = (value || '').toLowerCase();
+      
+      // 根据评级文本确定颜色
+      if (valueLower.includes('high') || valueLower.includes('高')) {
+        // 对于偏向负面的指标（如bias），高值为负面
+        if (valueLower.includes('bias') || valueLower.includes('偏见')) {
+          return '#ef4444'; // 红色表示高偏见
+        }
+        return '#10b981'; // 绿色表示高可信度
+      } else if (valueLower.includes('medium') || valueLower.includes('中')) {
+        return '#f59e0b'; // 黄色表示中等
+      } else if (valueLower.includes('low') || valueLower.includes('低')) {
+        // 对于偏向正面的指标（如factuality），低值为负面
+        if (valueLower.includes('bias') || valueLower.includes('偏见')) {
+          return '#10b981'; // 绿色表示低偏见
+        }
+        return '#ef4444'; // 红色表示低可信度
+      } else if (valueLower === 'n/a') {
+        return '#9ca3af'; // 灰色表示不适用
+      }
+      
+      // 默认颜色
+      return '#3b82f6'; // 蓝色作为默认值
+    }
+
+    // 添加翻译状态函数
+    function translateStatus(value) {
       // 获取当前界面语言
       const currentLang = detectUserLanguage();
       
@@ -536,39 +643,61 @@ function initializeFloatingCard() {
         displayValue = trustColors.getLocalizedStatus(value, currentLang);
       }
       
-      // 将评级文本转换为分数 - 使用原始值查找分数
-      let score;
-      const valueLower = value.toLowerCase();
+      return displayValue;
+    }
+
+    // 优化维度评分布局生成代码
+    const flagsHTML = `
+      <div class="section">
+        <h2 class="section-title">
+          <i class="fas fa-chart-bar"></i>
+          ${getText('infoEvaluation')}
+        </h2>
+        <div class="flags-container">
+          ${createFlagItem('factuality', result.flags?.factuality || 'N/A', 'fas fa-check-circle')}
+          ${createFlagItem('objectivity', result.flags?.objectivity || 'N/A', 'fas fa-balance-scale')}
+          ${createFlagItem('reliability', result.flags?.reliability || 'N/A', 'fas fa-shield-alt')}
+          ${createFlagItem('bias', result.flags?.bias || 'N/A', 'fas fa-exclamation-triangle')}
+        </div>
+      </div>
+    `;
+
+    // 创建单个评分项辅助函数
+    function createFlagItem(flagType, value, iconClass) {
+      console.log(`创建评分项: ${flagType} = ${value}`); // 调试日志
       
-      // 查找评分规则
-      if (trustColors.ratingToScore[valueLower]) {
-        score = trustColors.ratingToScore[valueLower];
-      } else if (valueLower.includes('high') || valueLower.includes('高')) {
-        score = 85;
-      } else if (valueLower.includes('medium') || valueLower.includes('中')) {
-        score = 60;
-      } else if (valueLower.includes('low') || valueLower.includes('低')) {
-        score = 30;
-      } else {
-        score = 50; // 默认值
+      // 简化的颜色判断
+      let flagColor;
+      const valueLower = (value || '').toLowerCase();
+      
+      // 偏见特殊处理 - 高偏见是负面的
+      if (flagType === 'bias') {
+        if (valueLower.includes('high')) flagColor = '#ef4444'; // 红色表示高偏见
+        else if (valueLower.includes('medium')) flagColor = '#f59e0b'; // 黄色表示中等偏见
+        else if (valueLower.includes('low')) flagColor = '#10b981'; // 绿色表示低偏见
+        else flagColor = '#9ca3af'; // 默认灰色
+      } 
+      // 其他指标 - 高是正面的
+      else {
+        if (valueLower.includes('high')) flagColor = '#10b981'; // 绿色表示高可信度
+        else if (valueLower.includes('medium')) flagColor = '#f59e0b'; // 黄色表示中等可信度
+        else if (valueLower.includes('low')) flagColor = '#ef4444'; // 红色表示低可信度
+        else flagColor = '#9ca3af'; // 默认灰色
       }
       
-      // 获取统一风格的颜色
-      const color = trustColors.getBackgroundColor(score);
-      
-      // 获取图标类
-      const iconClass = getFlagIcon(key);
+      // 使用 trustColors 对象进行状态翻译
+      const displayValue = trustColors.getLocalizedStatus(value, detectUserLanguage());
       
       return `
-        <div class="flag-item">
-          <div class="flag-icon" style="color: ${color}">
-            <i class="fas ${iconClass}"></i>
-    </div>
-          <div class="flag-title">${getFlagLabel(key)}</div>
-          <div class="flag-value">${displayValue}</div>
-    </div>
+        <div class="flag-item" style="border-top: 3px solid ${flagColor}">
+          <div class="flag-title">
+            <i class="${iconClass}" style="color: ${flagColor}"></i>
+            ${getText(flagType)}
+          </div>
+          <div class="flag-value" style="color: ${flagColor}">${displayValue}</div>
+        </div>
       `;
-    }).join('');
+    }
 
     // 创建来源标签 - 使用统一色彩系统
     const sourcesHTML = (result.source_verification?.sources_found || []).map((source, index) => {
@@ -581,7 +710,7 @@ function initializeFloatingCard() {
         <div class="source-tag">
           <span class="source-credibility" style="background-color: ${backgroundColor}">${score}</span>
           ${source}
-</div>
+        </div>
       `;
     }).join('');
 
@@ -642,7 +771,7 @@ function initializeFloatingCard() {
         <div class="fact-item">
           <div class="fact-content">${claim}</div>
           <div class="fact-status" style="background-color: ${backgroundColor}; color: ${textColor}">${displayStatus}</div>
-    </div>
+        </div>
       `;
     }).join('');
 
@@ -673,8 +802,8 @@ function initializeFloatingCard() {
           <div class="exaggeration-correction" style="border-left-color: ${borderColor}" 
                data-correction-type="${apiCorrection ? 'api' : 'default'}">
             ${displayCorrection}
-  </div>
-  </div>
+          </div>
+        </div>
       `;
     }).join('');
 
@@ -687,8 +816,8 @@ function initializeFloatingCard() {
         </h2>
         <div class="exaggerations-container">
           ${exaggerationsHTML}
+        </div>
       </div>
-            </div>
     ` : '';
 
     // 创建实体标签

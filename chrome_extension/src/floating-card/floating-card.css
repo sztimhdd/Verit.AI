@@ -37,6 +37,8 @@ body {
   padding: 16px;
   background: linear-gradient(135deg, #2196F3, #4CAF50);
   color: white;
+  height: 160px; /* 固定高度 */
+  overflow: hidden;
 }
 
 .card-header h1 {
@@ -136,12 +138,19 @@ body {
 
 /* 结果内容样式 */
 .result-content {
-  padding: 16px;
-  overflow-y: auto;
+  padding: 16px 16px 24px 16px; /* 增加底部padding */
+  height: auto;
 }
 
 .section {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .section-title {
@@ -151,6 +160,8 @@ body {
   color: var(--gray-900);
   display: flex;
   align-items: center;
+  position: relative;
+  padding-bottom: 8px;
 }
 
 .section-title i {
@@ -158,9 +169,217 @@ body {
   color: var(--primary-color);
 }
 
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 40px;
+  height: 3px;
+  background-color: var(--primary-color);
+  border-radius: 3px;
+}
+
+/* 摘要文本样式优化 */
+.summary-preview {
+  font-size: 14px;
+  max-height: 80px; /* 限制高度 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* 限制行数 */
+  -webkit-box-orient: vertical;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+/* 英文版本的特别处理 */
+.lang-en .summary-preview {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+/* 分数显示优化 */
+.trust-score {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
 /* 添加响应式设计 */
 @media (max-width: 400px) {
   .card {
     border-radius: 0;
   }
+}
+
+/* 卡片主体内容区域优化 */
+.card-body {
+  overflow-y: auto;
+  padding-bottom: 20px; /* 增加底部内边距，防止内容被截断 */
+  height: calc(100% - 160px); /* 减去标题栏高度 */
+  position: relative;
+}
+
+/* 评分维度网格布局 */
+.flags-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 两列布局 */
+  grid-gap: 12px;
+  margin-bottom: 20px;
+}
+
+.flag-item {
+  border-radius: 8px;
+  padding: 12px;
+  background-color: var(--gray-100);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+}
+
+.flag-item:hover {
+  transform: translateY(-2px);
+}
+
+/* 优化评分标签 */
+.flag-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-700);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.flag-title i {
+  margin-right: 6px;
+  font-size: 14px;
+}
+
+.flag-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+/* 实体标签布局优化 */
+.entities-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.entity-tag {
+  padding: 4px 8px;
+  background-color: var(--gray-100);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--gray-700);
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 信息源卡片样式优化 */
+.source-item {
+  border-left: 3px solid var(--primary-color);
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  background-color: var(--gray-100);
+  border-radius: 0 4px 4px 0;
+}
+
+.source-item:hover {
+  background-color: var(--gray-200);
+}
+
+/* 夸张信息检查样式优化 */
+.exaggeration-item {
+  margin-bottom: 16px;
+  background-color: var(--gray-100);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.exaggeration-claim {
+  padding: 10px 12px;
+  font-weight: 500;
+  border-bottom: 1px dashed var(--gray-300);
+}
+
+.exaggeration-correction {
+  padding: 10px 12px;
+  background-color: rgba(255, 252, 232, 0.7);
+  font-style: italic;
+  position: relative;
+}
+
+/* 添加容器底部填充，确保内容完全可见 */
+.card::after {
+  content: '';
+  display: block;
+  height: 16px;
+  width: 100%;
+}
+
+/* 滚动指示器 */
+.scroll-indicator {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 36px;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  color: var(--primary-color);
+  animation: pulse 1.5s infinite;
+  z-index: 10;
+  transition: opacity 0.3s;
+}
+
+@keyframes pulse {
+  0% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(5px); }
+  100% { transform: translateX(-50%) translateY(0); }
+}
+
+/* 事实检查项样式美化 */
+.fact-check-item {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: var(--gray-100);
+  transition: transform 0.2s;
+}
+
+.fact-check-item:hover {
+  transform: translateX(4px);
+  background-color: var(--gray-200);
+}
+
+.fact-check-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--gray-300);
+}
+
+.fact-check-claim {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* 空状态反馈优化 */
+.empty-section {
+  padding: 16px;
+  background-color: var(--gray-100);
+  border-radius: 8px;
+  text-align: center;
+  color: var(--gray-500);
+  font-style: italic;
 } 

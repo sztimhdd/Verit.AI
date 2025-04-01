@@ -159,5 +159,23 @@
   },
   "errors_networkError": {
     "message": "网络连接错误"
+  },
+  "factCheckReport": {
+    "message": "事实核查报告"
+  },
+  "infoEvaluation": {
+    "message": "多维度分析"
+  },
+  "factuality": {
+    "message": "事实性"
+  },
+  "objectivity": {
+    "message": "客观性"
+  },
+  "reliability": {
+    "message": "可靠性"
+  },
+  "bias": {
+    "message": "偏见程度"
   }
 } 
