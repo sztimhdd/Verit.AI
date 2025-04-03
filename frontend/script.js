@@ -309,6 +309,21 @@ function initialize() {
             }
         });
     });
+    
+    // 确保所有外部链接正常打开
+    document.querySelectorAll('a[href^="http"]').forEach(link => {
+        if (!link.getAttribute('target')) {
+            link.setAttribute('target', '_blank');
+            link.setAttribute('rel', 'noopener noreferrer');
+        }
+        
+        // 添加点击跟踪
+        link.addEventListener('click', (e) => {
+            const linkText = link.textContent.trim() || '未命名链接';
+            const linkUrl = link.getAttribute('href');
+            console.log(`外部链接点击: ${linkText} - ${linkUrl}`);
+        });
+    });
 
     // 初始健康检查
     APIService.checkHealth();
@@ -388,6 +403,44 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 设置页面图标 - 动态更新favicon
     updateFavicon();
+    
+    // 添加Hero按钮增强效果
+    const heroEdgeBtn = document.getElementById('heroEdgeBtn');
+    if (heroEdgeBtn) {
+        // 点击动画效果
+        heroEdgeBtn.addEventListener('click', (e) => {
+            // 添加脉冲动画
+            heroEdgeBtn.classList.add('pulse-animation');
+            
+            // 记录点击事件
+            console.log('Edge扩展按钮点击 - ' + new Date().toLocaleString());
+            
+            // 在新标签页中打开链接
+            // 这里的逻辑只是作为备份，因为a标签已经有target="_blank"
+            const url = heroEdgeBtn.getAttribute('href');
+            if (url) {
+                setTimeout(() => {
+                    window.open(url, '_blank');
+                }, 300);
+            }
+            
+            // 移除动画类
+            setTimeout(() => {
+                heroEdgeBtn.classList.remove('pulse-animation');
+            }, 800);
+        });
+        
+        // 悬停效果增强
+        heroEdgeBtn.addEventListener('mouseenter', () => {
+            heroEdgeBtn.style.transform = 'translateY(-3px) scale(1.02)';
+            heroEdgeBtn.style.boxShadow = '0 10px 20px rgba(0, 0, 0, 0.15)';
+        });
+        
+        heroEdgeBtn.addEventListener('mouseleave', () => {
+            heroEdgeBtn.style.transform = '';
+            heroEdgeBtn.style.boxShadow = '';
+        });
+    }
 });
 
 // 更新网站图标函数
