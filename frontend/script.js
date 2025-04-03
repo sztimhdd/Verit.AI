@@ -184,20 +184,96 @@ function initialize() {
     
     // 修改为20秒执行一次健康检查
     setInterval(APIService.checkHealth, 20000);
+    
+    // 初始化LOGO动画
+    initLogoAnimations();
+}
+
+// LOGO动画函数
+function initLogoAnimations() {
+    // 获取所有LOGO容器
+    const logoContainers = document.querySelectorAll('.logo-container');
+    const logoHero = document.querySelector('.logo-hero');
+    
+    // 给导航栏LOGO添加悬停和点击效果
+    logoContainers.forEach(container => {
+        container.addEventListener('mouseover', () => {
+            const img = container.querySelector('.logo-img');
+            if (img) {
+                img.style.transform = 'scale(1.1) rotate(5deg)';
+                img.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            }
+        });
+        
+        container.addEventListener('mouseout', () => {
+            const img = container.querySelector('.logo-img');
+            if (img) {
+                img.style.transform = 'scale(1) rotate(0deg)';
+            }
+        });
+        
+        container.addEventListener('click', () => {
+            const img = container.querySelector('.logo-img');
+            if (img) {
+                img.style.transform = 'scale(0.9) rotate(-5deg)';
+                setTimeout(() => {
+                    img.style.transform = 'scale(1) rotate(0deg)';
+                }, 200);
+            }
+        });
+    });
+    
+    // 给Hero区域LOGO添加特殊效果
+    if (logoHero) {
+        const heroImg = logoHero.querySelector('.logo-hero-img');
+        
+        if (heroImg) {
+            // 创建光晕效果
+            heroImg.addEventListener('mousemove', (e) => {
+                const rect = logoHero.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                heroImg.style.filter = `drop-shadow(0 0 10px rgba(255, 255, 255, 0.8)) brightness(1.2)`;
+                heroImg.style.transform = `translate(${(x - rect.width / 2) / 10}px, ${(y - rect.height / 2) / 10}px)`;
+            });
+            
+            heroImg.addEventListener('mouseleave', () => {
+                heroImg.style.filter = '';
+                heroImg.style.transform = '';
+            });
+        }
+    }
 }
 
 // 通知函数
 function showNotification(title, message, type = 'info') {
     // 如果浏览器支持通知API
     if ('Notification' in window && Notification.permission === 'granted') {
+        // 创建一个自定义的图标URL，添加动态参数以防止缓存
+        const iconUrl = `images/V.png?t=${new Date().getTime()}`;
+        
+        // 创建通知
         const notification = new Notification(title, {
             body: message,
-            icon: 'images/V.png' // 使用V.png作为通知图标
+            icon: iconUrl,
+            badge: iconUrl,
+            // 根据通知类型设置不同的图标和样式
+            data: {
+                notificationType: type
+            }
         });
         
+        // 设置通知关闭时间
         setTimeout(() => {
             notification.close();
         }, 5000);
+        
+        // 添加点击事件处理
+        notification.onclick = () => {
+            window.focus();
+            notification.close();
+        };
     }
     
     // 如果不支持或未授权，只在控制台打印
@@ -208,7 +284,11 @@ function showNotification(title, message, type = 'info') {
 function requestNotificationPermission() {
     if ('Notification' in window) {
         if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-            Notification.requestPermission();
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    showNotification('通知已启用', '您将收到分析结果的通知提醒', 'success');
+                }
+            });
         }
     }
 }
@@ -219,15 +299,36 @@ document.addEventListener('DOMContentLoaded', () => {
     requestNotificationPermission();
     
     // 设置页面图标 - 动态更新favicon
-    const faviconLink = document.querySelector("link[rel='icon']");
-    if (!faviconLink) {
-        const link = document.createElement('link');
-        link.rel = 'icon';
-        link.type = 'image/png';
-        link.href = 'images/V.png';
-        document.head.appendChild(link);
-    }
+    updateFavicon();
 });
+
+// 更新网站图标函数
+function updateFavicon() {
+    // 检查是否已存在favicon
+    let faviconLink = document.querySelector("link[rel='icon']");
+    
+    // 如果不存在，则创建一个新的
+    if (!faviconLink) {
+        faviconLink = document.createElement('link');
+        faviconLink.rel = 'icon';
+        faviconLink.type = 'image/png';
+        document.head.appendChild(faviconLink);
+    }
+    
+    // 添加动态参数，防止缓存问题
+    faviconLink.href = `images/V.png?t=${new Date().getTime()}`;
+    
+    // 同时更新苹果设备上的触摸图标
+    let touchIconLink = document.querySelector("link[rel='apple-touch-icon']");
+    
+    if (!touchIconLink) {
+        touchIconLink = document.createElement('link');
+        touchIconLink.rel = 'apple-touch-icon';
+        document.head.appendChild(touchIconLink);
+    }
+    
+    touchIconLink.href = `images/V.png?t=${new Date().getTime()}`;
+}
 
 // 显示结果函数
 function displayResults(data) {

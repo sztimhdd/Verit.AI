@@ -370,4 +370,104 @@ a:not(.btn-primary):hover {
 button:disabled {
     opacity: 0.7;
     cursor: not-allowed;
+}
+
+/* LOGO相关增强样式 */
+.logo-container {
+    position: relative;
+    transform-origin: center;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.logo-container:hover {
+    transform: scale(1.1);
+}
+
+.logo-backdrop {
+    background-size: 300% 300%;
+    animation: logo-gradient 10s ease infinite;
+}
+
+@keyframes logo-gradient {
+    0% { background-position: 0% 0%; }
+    25% { background-position: 100% 0%; }
+    50% { background-position: 100% 100%; }
+    75% { background-position: 0% 100%; }
+    100% { background-position: 0% 0%; }
+}
+
+.logo-hero {
+    position: relative;
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.logo-hero:hover {
+    transform: scale(1.05) rotate(5deg);
+}
+
+.logo-hero::before,
+.logo-hero::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, 
+        var(--logo-primary), 
+        transparent 40%,
+        transparent 60%, 
+        var(--logo-light));
+    z-index: 0;
+    opacity: 0.5;
+    animation: spin 12s linear infinite;
+}
+
+.logo-hero::after {
+    animation-direction: reverse;
+    animation-duration: 15s;
+    background: linear-gradient(-45deg, 
+        var(--logo-dark), 
+        transparent 40%,
+        transparent 60%, 
+        var(--logo-primary));
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.brand-text {
+    position: relative;
+    animation: text-shimmer 5s infinite;
+}
+
+@keyframes text-shimmer {
+    0% { background-position: -100% center; }
+    100% { background-position: 200% center; }
+}
+
+/* 响应式处理 */
+@media (max-width: 640px) {
+    .logo-container {
+        width: 28px !important;
+        height: 28px !important;
+    }
+    
+    .logo-hero {
+        width: 90px !important;
+        height: 90px !important;
+    }
+}
+
+/* 夜间模式特别效果 */
+.dark .logo-backdrop {
+    mix-blend-mode: screen;
+    opacity: 0.9;
+}
+
+.dark .logo-hero-backdrop {
+    opacity: 0.95;
 } 
