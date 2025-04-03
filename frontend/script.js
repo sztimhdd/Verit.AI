@@ -14,7 +14,11 @@ const elements = {
     results: document.getElementById('results'),
     statusText: document.getElementById('status-text'),
     statusIndicator: document.getElementById('status-indicator'),
-    statusContainer: document.getElementById('status-container')
+    statusContainer: document.getElementById('status-container'),
+    heroImageContainer: document.querySelector('.hero-image-container'),
+    heroBrowserMockup: document.querySelector('.chrome-browser-mockup'),
+    heroImage: document.querySelector('.hero-image'),
+    particles: document.getElementById('particles')
 };
 
 // 状态管理
@@ -160,6 +164,114 @@ async function handleAnalyzeClick() {
     }
 }
 
+// Hero区域的特效
+function initHeroEffects() {
+    // 如果这些元素不存在，直接返回
+    if (!elements.heroImageContainer || !elements.heroBrowserMockup || !elements.heroImage) {
+        return;
+    }
+    
+    // 3D视差效果
+    elements.heroImageContainer.addEventListener('mousemove', (e) => {
+        const rect = elements.heroImageContainer.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+        
+        const tiltAmount = 10; // 倾斜程度
+        const tiltX = tiltAmount * (0.5 - y);
+        const tiltY = tiltAmount * (x - 0.5);
+        
+        elements.heroBrowserMockup.style.transform = `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
+        
+        // 光泽效果
+        const shine = elements.heroBrowserMockup.querySelector('.shine-effect');
+        if (shine) {
+            shine.style.opacity = `${0.7 * Math.max(0.2, x)}`;
+        }
+    });
+    
+    // 鼠标离开时恢复
+    elements.heroImageContainer.addEventListener('mouseleave', () => {
+        elements.heroBrowserMockup.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg)';
+        
+        const shine = elements.heroBrowserMockup.querySelector('.shine-effect');
+        if (shine) {
+            shine.style.opacity = '0';
+        }
+    });
+    
+    // 鼠标点击效果
+    elements.heroImageContainer.addEventListener('mousedown', () => {
+        elements.heroBrowserMockup.style.transform = 'perspective(1000px) scale(0.98) rotateX(0deg) rotateY(0deg)';
+    });
+    
+    elements.heroImageContainer.addEventListener('mouseup', () => {
+        // 恢复之前的变换
+        const rect = elements.heroImageContainer.getBoundingClientRect();
+        const x = (event.clientX - rect.left) / rect.width;
+        const y = (event.clientY - rect.top) / rect.height;
+        
+        const tiltAmount = 10;
+        const tiltX = tiltAmount * (0.5 - y);
+        const tiltY = tiltAmount * (x - 0.5);
+        
+        elements.heroBrowserMockup.style.transform = `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
+    });
+    
+    // 图片切换效果
+    const screenshots = ['sc1.png', 'sc2.png'];
+    let currentScreenshotIndex = 0;
+    
+    // 每5秒切换一次图片
+    setInterval(() => {
+        currentScreenshotIndex = (currentScreenshotIndex + 1) % screenshots.length;
+        const nextScreenshot = screenshots[currentScreenshotIndex];
+        
+        elements.heroImage.style.opacity = '0';
+        setTimeout(() => {
+            elements.heroImage.src = `images/${nextScreenshot}`;
+            elements.heroImage.style.opacity = '1';
+        }, 500);
+    }, 5000);
+    
+    // 设置初始的过渡效果
+    elements.heroImage.style.transition = 'opacity 0.5s ease';
+}
+
+// 粒子背景
+function createParticles() {
+    if (!elements.particles) return;
+    
+    // 清除现有粒子
+    elements.particles.innerHTML = '';
+    
+    const numParticles = 20; // 粒子数量
+    const particleSizes = [3, 4, 5, 6, 7]; // 粒子尺寸
+    
+    for (let i = 0; i < numParticles; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        
+        // 随机位置、大小和动画延迟
+        const size = particleSizes[Math.floor(Math.random() * particleSizes.length)];
+        const xPos = Math.random() * 100; // 水平位置 (%)
+        const delay = Math.random() * 5; // 延迟时间 (秒)
+        const duration = 10 + Math.random() * 20; // 动画持续时间 (秒)
+        const opacity = 0.1 + Math.random() * 0.4; // 透明度
+        
+        // 应用样式
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+        particle.style.left = `${xPos}%`;
+        particle.style.bottom = '0';
+        particle.style.opacity = `${opacity}`;
+        particle.style.animationDelay = `${delay}s`;
+        particle.style.animationDuration = `${duration}s`;
+        
+        elements.particles.appendChild(particle);
+    }
+}
+
 // 初始化
 function initialize() {
     // 事件监听
@@ -187,6 +299,17 @@ function initialize() {
     
     // 初始化LOGO动画
     initLogoAnimations();
+    
+    // 初始化Hero特效
+    initHeroEffects();
+    
+    // 创建粒子背景
+    createParticles();
+    
+    // 窗口大小变化时重新创建粒子
+    window.addEventListener('resize', () => {
+        createParticles();
+    });
 }
 
 // LOGO动画函数

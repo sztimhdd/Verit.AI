@@ -33,11 +33,15 @@
             --border-color: #e5e7eb;
             --card-bg: #ffffff;
             --shadow-color: rgba(0, 0, 0, 0.1);
-            --gradient-start: #4361ee;
-            --gradient-end: #4cc9f0;
+            --gradient-start: #4CAF50;
+            --gradient-mid: #30AA70;
+            --gradient-end: #1E8C5E;
             --logo-primary: #4CAF50;
             --logo-light: #8BC34A;
             --logo-dark: #2E7D32;
+            --hero-bg: #0F3823;
+            --hero-accent: #4CAF50;
+            --hero-text: #FFFFFF;
         }
 
         .dark {
@@ -54,11 +58,15 @@
             --border-color: #374151;
             --card-bg: #1f2937;
             --shadow-color: rgba(0, 0, 0, 0.3);
-            --gradient-start: #4cc9f0;
-            --gradient-end: #4361ee;
+            --gradient-start: #81C784;
+            --gradient-mid: #4CAF50;
+            --gradient-end: #2E7D32;
             --logo-primary: #81C784;
             --logo-light: #A5D6A7;
             --logo-dark: #43A047;
+            --hero-bg: #0A2C1E;
+            --hero-accent: #81C784;
+            --hero-text: #F9FAFB;
         }
 
         body {
@@ -308,6 +316,233 @@
             -webkit-background-clip: text;
             background-clip: text;
         }
+        
+        /* 新增: Hero区域样式 */
+        .hero-container {
+            position: relative;
+            background-color: var(--hero-bg);
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+        
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        
+        @media (max-width: 768px) {
+            .hero-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .hero-content {
+            padding: 3rem 2rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            text-align: left;
+        }
+        
+        .hero-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 1rem;
+            color: var(--hero-text);
+            position: relative;
+        }
+        
+        .hero-title::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: var(--hero-accent);
+            border-radius: 2px;
+        }
+        
+        .hero-description {
+            font-size: 1.25rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            color: var(--hero-text);
+            opacity: 0.9;
+        }
+        
+        .hero-feature-tag {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--hero-text);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 9999px;
+            padding: 0.5rem 1rem;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        
+        .hero-feature-tag:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .hero-feature-tag i {
+            margin-right: 0.5rem;
+            color: var(--hero-accent);
+        }
+        
+        .hero-image-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        .hero-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            transition: all 0.5s ease;
+            transform: perspective(1000px) rotateY(-15deg);
+        }
+        
+        .hero-image:hover {
+            transform: perspective(1000px) rotateY(-5deg) translateZ(20px);
+        }
+        
+        .hero-image-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at center, transparent 30%, var(--hero-bg) 100%);
+            pointer-events: none;
+        }
+        
+        .hero-btn {
+            background: linear-gradient(90deg, var(--gradient-start), var(--gradient-mid));
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        
+        .hero-btn:hover {
+            background: linear-gradient(90deg, var(--gradient-mid), var(--gradient-end));
+            transform: translateY(-2px);
+            box-shadow: 0 7px 14px rgba(0, 0, 0, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+        }
+        
+        .hero-btn i {
+            margin-right: 0.5rem;
+        }
+        
+        .chrome-browser-mockup {
+            max-width: 500px;
+            height: auto;
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .browser-controls {
+            height: 36px;
+            background-color: #323639;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .browser-dots {
+            display: flex;
+            align-items: center;
+        }
+        
+        .browser-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        
+        .dot-red {
+            background-color: #ff605c;
+        }
+        
+        .dot-yellow {
+            background-color: #ffbd44;
+        }
+        
+        .dot-green {
+            background-color: #00ca4e;
+        }
+        
+        .browser-content {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .shine-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 60%, rgba(255,255,255,0) 100%);
+            transform: translateX(-100%);
+            animation: shine 3s infinite;
+            pointer-events: none;
+        }
+        
+        @keyframes shine {
+            0% { transform: translateX(-100%); }
+            20% { transform: translateX(100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .floating-animation {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.3);
+            pointer-events: none;
+            animation: moveParticle 15s linear infinite;
+        }
+        
+        @keyframes moveParticle {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+        }
     </style>
 </head>
 
@@ -348,44 +583,60 @@
     <!-- 主内容区 -->
     <main class="pt-20 pb-12 px-4 sm:px-6 max-w-7xl mx-auto">
         <!-- Hero 部分 -->
-        <section class="mb-12 text-center">
-            <div class="relative overflow-hidden rounded-2xl p-8 mb-8" style="background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));">
-                <div class="absolute top-0 left-0 w-full h-full bg-pattern opacity-10"></div>
-                <div class="relative z-10 max-w-3xl mx-auto">
-                    <div class="flex justify-center mb-6">
-                        <div class="logo-hero">
-                            <div class="logo-hero-backdrop"></div>
-                            <img src="images/V.png" alt="Veri.ai Logo" class="logo-hero-img">
+        <section class="mb-12">
+            <div class="hero-container">
+                <div class="absolute top-0 left-0 w-full h-full bg-pattern opacity-5"></div>
+                
+                <!-- 动态粒子背景 -->
+                <div id="particles" class="absolute top-0 left-0 w-full h-full"></div>
+                
+                <div class="hero-grid">
+                    <div class="hero-content">
+                        <h1 class="hero-title">AI驱动的<br>事实核查平台</h1>
+                        <p class="hero-description">利用先进的人工智能技术，分析内容可信度，识别虚假信息</p>
+                        
+                        <div class="flex flex-wrap mb-6">
+                            <span class="hero-feature-tag">
+                                <i class="fas fa-check-circle"></i>
+                                <span>事实核查</span>
+                            </span>
+                            <span class="hero-feature-tag">
+                                <i class="fas fa-search"></i>
+                                <span>来源验证</span>
+                            </span>
+                            <span class="hero-feature-tag">
+                                <i class="fas fa-user-check"></i>
+                                <span>实体识别</span>
+                            </span>
+                            <span class="hero-feature-tag">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span>夸大检测</span>
+                            </span>
                         </div>
-                    </div>
-                    <h1 class="text-white text-4xl sm:text-5xl font-bold mb-4">AI驱动的事实核查平台</h1>
-                    <p class="text-white text-xl opacity-90 mb-6">利用先进的人工智能技术，分析内容可信度，识别虚假信息</p>
-                    <div class="flex flex-wrap justify-center gap-4">
-                        <div class="flex items-center bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg rounded-lg px-4 py-2">
-                            <i class="fas fa-check-circle mr-2 text-white"></i>
-                            <span class="text-white">事实核查</span>
-                        </div>
-                        <div class="flex items-center bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg rounded-lg px-4 py-2">
-                            <i class="fas fa-search mr-2 text-white"></i>
-                            <span class="text-white">来源验证</span>
-                        </div>
-                        <div class="flex items-center bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg rounded-lg px-4 py-2">
-                            <i class="fas fa-user-check mr-2 text-white"></i>
-                            <span class="text-white">实体识别</span>
-                        </div>
-                        <div class="flex items-center bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg rounded-lg px-4 py-2">
-                            <i class="fas fa-exclamation-triangle mr-2 text-white"></i>
-                            <span class="text-white">夸大检测</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-8">
+                        
                         <a href="https://microsoftedge.microsoft.com/addons/detail/veritai-%E4%BA%8B%E5%AE%9E%E6%A0%B8%E6%9F%A5/afhdopjkkonlpmpjdfaffooaginonmng" 
                            target="_blank" 
-                           class="inline-flex items-center px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-filter backdrop-blur-lg rounded-lg text-white transition-all duration-300 hover:shadow-lg hover:transform hover:translate-y-[-2px]">
-                            <i class="fab fa-edge mr-2 text-lg"></i>
+                           class="hero-btn">
+                            <i class="fab fa-edge"></i>
                             <span>获取Edge浏览器扩展</span>
                         </a>
+                    </div>
+                    
+                    <div class="hero-image-container p-6">
+                        <div class="chrome-browser-mockup floating-animation">
+                            <div class="browser-controls">
+                                <div class="browser-dots">
+                                    <div class="browser-dot dot-red"></div>
+                                    <div class="browser-dot dot-yellow"></div>
+                                    <div class="browser-dot dot-green"></div>
+                                </div>
+                            </div>
+                            <div class="browser-content">
+                                <img src="images/sc1.png" alt="Veri.ai Screenshot" class="hero-image">
+                                <div class="shine-effect"></div>
+                            </div>
+                        </div>
+                        <div class="hero-image-overlay"></div>
                     </div>
                 </div>
             </div>
