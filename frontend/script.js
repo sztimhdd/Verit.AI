@@ -290,6 +290,25 @@ function initialize() {
     elements.urlInput.addEventListener('blur', () => {
         elements.urlInput.parentElement.classList.remove('scale-105');
     });
+    
+    // LOGO动画效果
+    const logoContainers = document.querySelectorAll('.logo-container');
+    logoContainers.forEach(container => {
+        container.addEventListener('mouseenter', () => {
+            const logoImg = container.querySelector('.logo-img');
+            if (logoImg) {
+                logoImg.style.transition = 'transform 0.5s ease';
+                logoImg.style.transform = 'rotate(5deg) scale(1.1)';
+            }
+        });
+        
+        container.addEventListener('mouseleave', () => {
+            const logoImg = container.querySelector('.logo-img');
+            if (logoImg) {
+                logoImg.style.transform = 'rotate(0) scale(1)';
+            }
+        });
+    });
 
     // 初始健康检查
     APIService.checkHealth();

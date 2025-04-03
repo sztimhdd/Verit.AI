@@ -202,34 +202,44 @@
             align-items: center;
             justify-content: center;
             margin-right: 12px;
-            background-color: var(--logo-primary);
-            border-radius: 6px;
+            background-color: transparent;
+            border-radius: 8px;
             overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        
+        .logo-container:hover {
+            transform: scale(1.05);
         }
         
         .logo-img {
             position: relative;
-            width: 75%;
-            height: 75%;
+            width: 100%;
+            height: 100%;
             object-fit: contain;
-            filter: brightness(0) invert(1);
         }
         
         .dark .logo-img {
-            filter: brightness(0) invert(1);
+            filter: brightness(1.1);
         }
         
         .nav-brand {
             display: flex;
             align-items: center;
             text-decoration: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .nav-brand:hover {
+            opacity: 0.9;
         }
         
         .brand-text {
             font-size: 1.25rem;
             font-weight: 700;
             color: var(--text-primary);
-            margin-left: 4px;
+            margin-left: 8px;
+            letter-spacing: 0.5px;
         }
         
         .dark .brand-text {
@@ -239,6 +249,7 @@
         .footer-logo {
             width: 28px;
             height: 28px;
+            background-color: transparent;
         }
 
         /* 导航栏样式 */
@@ -479,6 +490,45 @@
             0% { transform: translateY(0) rotate(0deg); opacity: 1; }
             100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
         }
+
+        /* 添加LOGO微交互动画 */
+        @keyframes logoFloat {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+            100% { transform: translateY(0); }
+        }
+        
+        .logo-container {
+            animation: logoFloat 4s ease-in-out infinite;
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* 在暗模式下调整LOGO阴影 */
+        .dark .logo-container {
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* 响应式LOGO尺寸 */
+        @media (max-width: 640px) {
+            .logo-container {
+                width: 36px;
+                height: 36px;
+            }
+            
+            .brand-text {
+                font-size: 1.1rem;
+            }
+            
+            .footer-logo {
+                width: 24px;
+                height: 24px;
+            }
+        }
+        
+        /* 更自然的LOGO过渡效果 */
+        .logo-img {
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
     </style>
     <!-- 添加微信二维码浮出样式 -->
     <style>
@@ -559,7 +609,7 @@
                 <div class="flex items-center">
                     <a href="/" class="nav-brand">
                         <div class="logo-container">
-                            <img src="images/V.png" alt="Veri.ai Logo" class="logo-img">
+                            <img src="images/V-logo.svg" alt="Veri.ai Logo" class="logo-img">
                         </div>
                         <span class="brand-text">Veri.ai 照谣镜</span>
                     </a>
@@ -705,7 +755,7 @@
             <div class="flex flex-col md:flex-row justify-between items-center">
                 <div class="mb-4 md:mb-0 flex items-center">
                     <div class="logo-container footer-logo">
-                        <img src="images/V.png" alt="Veri.ai Logo" class="logo-img">
+                        <img src="images/V-logo.svg" alt="Veri.ai Logo" class="logo-img">
                     </div>
                     <p class="text-sm opacity-70 ml-2">© 2023 Veri.ai 照谣镜 - AI事实核查平台</p>
                 </div>
