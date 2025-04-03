@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Veri.ai 照谣镜 | AI事实核查平台</title>
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="images/V.png">
+    <link rel="apple-touch-icon" href="images/V.png">
+    
     <!-- 外部样式库 -->
     <link rel="stylesheet" href="https://cdn.staticfile.org/tailwindcss/2.2.19/tailwind.min.css">
     <link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/6.4.0/css/all.min.css">
@@ -172,6 +176,38 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--secondary-color);
         }
+        
+        /* Logo样式 */
+        .logo-img {
+            width: 32px;
+            height: 32px;
+            margin-right: 8px;
+        }
+        
+        /* Edge扩展图标 */
+        .edge-addon-btn {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            background-color: rgba(0, 120, 212, 0.1);
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            color: #0078D4;
+        }
+        
+        .dark .edge-addon-btn {
+            background-color: rgba(0, 120, 212, 0.2);
+            color: #4cc9f0;
+        }
+        
+        .edge-addon-btn:hover {
+            background-color: rgba(0, 120, 212, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .dark .edge-addon-btn:hover {
+            background-color: rgba(0, 120, 212, 0.3);
+        }
     </style>
 </head>
 
@@ -182,11 +218,17 @@
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
                     <a href="/" class="flex items-center">
-                        <i class="fas fa-shield-alt text-2xl mr-2" style="color: var(--primary-color);"></i>
+                        <img src="images/V.png" alt="Veri.ai Logo" class="logo-img">
                         <span class="text-xl font-bold">Veri.ai 照谣镜</span>
                     </a>
                 </div>
                 <div class="flex items-center">
+                    <a href="https://microsoftedge.microsoft.com/addons/detail/veritai-%E4%BA%8B%E5%AE%9E%E6%A0%B8%E6%9F%A5/afhdopjkkonlpmpjdfaffooaginonmng" 
+                       target="_blank" 
+                       class="edge-addon-btn hidden md:flex items-center mr-4">
+                        <i class="fab fa-edge mr-2"></i>
+                        <span>Edge扩展</span>
+                    </a>
                     <div id="status-container" class="hidden sm:flex items-center mr-4 py-1 px-3 rounded-full text-sm" style="background-color: var(--bg-secondary);">
                         <span id="status-indicator" class="w-2 h-2 rounded-full mr-2"></span>
                         <span id="status-text">检查服务状态...</span>
@@ -207,6 +249,9 @@
             <div class="relative overflow-hidden rounded-2xl p-8 mb-8" style="background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));">
                 <div class="absolute top-0 left-0 w-full h-full bg-pattern opacity-10"></div>
                 <div class="relative z-10 max-w-3xl mx-auto">
+                    <div class="flex justify-center mb-4">
+                        <img src="images/V.png" alt="Veri.ai Logo" class="w-20 h-20">
+                    </div>
                     <h1 class="text-white text-4xl sm:text-5xl font-bold mb-4">AI驱动的事实核查平台</h1>
                     <p class="text-white text-xl opacity-90 mb-6">利用先进的人工智能技术，分析内容可信度，识别虚假信息</p>
                     <div class="flex flex-wrap justify-center gap-4">
@@ -226,6 +271,15 @@
                             <i class="fas fa-exclamation-triangle mr-2 text-white"></i>
                             <span class="text-white">夸大检测</span>
                         </div>
+                    </div>
+                    
+                    <div class="mt-8">
+                        <a href="https://microsoftedge.microsoft.com/addons/detail/veritai-%E4%BA%8B%E5%AE%9E%E6%A0%B8%E6%9F%A5/afhdopjkkonlpmpjdfaffooaginonmng" 
+                           target="_blank" 
+                           class="inline-flex items-center px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-filter backdrop-blur-lg rounded-lg text-white transition-all duration-300 hover:shadow-lg hover:transform hover:translate-y-[-2px]">
+                            <i class="fab fa-edge mr-2 text-lg"></i>
+                            <span>获取Edge浏览器扩展</span>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -291,7 +345,13 @@
                 <div class="mb-4 md:mb-0">
                     <p class="text-sm opacity-70">© 2023 Veri.ai 照谣镜 - AI事实核查平台</p>
                 </div>
-                <div class="flex space-x-6">
+                <div class="flex items-center space-x-6">
+                    <a href="https://microsoftedge.microsoft.com/addons/detail/veritai-%E4%BA%8B%E5%AE%9E%E6%A0%B8%E6%9F%A5/afhdopjkkonlpmpjdfaffooaginonmng" 
+                       target="_blank" 
+                       class="hover-scale flex items-center">
+                        <i class="fab fa-edge mr-1" style="color: var(--text-primary);"></i>
+                        <span class="text-sm">Edge扩展</span>
+                    </a>
                     <a href="#" class="hover-scale">
                         <i class="fab fa-github" style="color: var(--text-primary);"></i>
                     </a>

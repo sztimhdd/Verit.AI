@@ -192,9 +192,7 @@ function showNotification(title, message, type = 'info') {
     if ('Notification' in window && Notification.permission === 'granted') {
         const notification = new Notification(title, {
             body: message,
-            icon: type === 'success' ? 'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/svgs/solid/check-circle.svg' :
-                  type === 'error' ? 'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/svgs/solid/exclamation-circle.svg' :
-                  'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/svgs/solid/info-circle.svg'
+            icon: 'images/V.png' // 使用V.png作为通知图标
         });
         
         setTimeout(() => {
@@ -219,6 +217,16 @@ function requestNotificationPermission() {
 document.addEventListener('DOMContentLoaded', () => {
     initialize();
     requestNotificationPermission();
+    
+    // 设置页面图标 - 动态更新favicon
+    const faviconLink = document.querySelector("link[rel='icon']");
+    if (!faviconLink) {
+        const link = document.createElement('link');
+        link.rel = 'icon';
+        link.type = 'image/png';
+        link.href = 'images/V.png';
+        document.head.appendChild(link);
+    }
 });
 
 // 显示结果函数
