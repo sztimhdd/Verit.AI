@@ -6,8 +6,8 @@
     <title>Veri.ai 照谣镜 | AI事实核查平台</title>
     
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="images/V.png">
-    <link rel="apple-touch-icon" href="images/V.png">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="apple-touch-icon" href="favicon.svg">
     
     <!-- 外部样式库 -->
     <link rel="stylesheet" href="https://cdn.staticfile.org/tailwindcss/2.2.19/tailwind.min.css">
@@ -42,6 +42,7 @@
             --hero-bg: #0F3823;
             --hero-accent: #4CAF50;
             --hero-text: #FFFFFF;
+            --navbar-bg: #0A1F2F;
         }
 
         .dark {
@@ -67,6 +68,7 @@
             --hero-bg: #0A2C1E;
             --hero-accent: #81C784;
             --hero-text: #F9FAFB;
+            --navbar-bg: #0A1F2F;
         }
 
         body {
@@ -191,130 +193,64 @@
             background: var(--secondary-color);
         }
         
-        /* Logo样式 - 增强版 */
+        /* Logo样式 - 新版简洁原型 */
         .logo-container {
             position: relative;
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 10px;
+            margin-right: 12px;
+            background-color: var(--logo-primary);
+            border-radius: 6px;
             overflow: hidden;
         }
         
         .logo-img {
             position: relative;
-            z-index: 2;
-            width: 100%;
-            height: 100%;
+            width: 75%;
+            height: 75%;
             object-fit: contain;
-            mix-blend-mode: multiply;
-            transition: all 0.3s ease;
-            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+            filter: brightness(0) invert(1);
         }
         
         .dark .logo-img {
-            mix-blend-mode: screen;
-            filter: drop-shadow(0 2px 4px rgba(255, 255, 255, 0.1)) brightness(1.2);
+            filter: brightness(0) invert(1);
         }
         
-        .logo-backdrop {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, var(--logo-light), var(--logo-primary), var(--logo-dark));
-            border-radius: 50%;
-            z-index: 1;
-            opacity: 0.8;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-        }
-        
-        .logo-hero {
-            position: relative;
-            width: 120px;
-            height: 120px;
-            margin: 0 auto;
-            border-radius: 50%;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-        }
-        
-        .logo-hero-backdrop {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, var(--logo-light) 0%, var(--logo-primary) 50%, var(--logo-dark) 100%);
-            animation: gradientShift 8s ease infinite;
-            z-index: 1;
-        }
-        
-        .logo-hero-img {
-            position: relative;
-            z-index: 2;
-            width: 70%;
-            height: 70%;
-            object-fit: contain;
-            margin: 15% auto;
-            display: block;
-            mix-blend-mode: overlay;
-            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
-        }
-        
-        .dark .logo-hero-img {
-            filter: drop-shadow(0 4px 8px rgba(255, 255, 255, 0.1)) brightness(1.2);
-        }
-        
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        
-        /* Edge扩展图标 */
-        .edge-addon-btn {
+        .nav-brand {
             display: flex;
             align-items: center;
-            padding: 6px 12px;
-            background-color: rgba(0, 120, 212, 0.1);
-            border-radius: 4px;
-            transition: all 0.3s ease;
-            color: #0078D4;
+            text-decoration: none;
         }
         
-        .dark .edge-addon-btn {
-            background-color: rgba(0, 120, 212, 0.2);
-            color: #4cc9f0;
-        }
-        
-        .edge-addon-btn:hover {
-            background-color: rgba(0, 120, 212, 0.2);
-            transform: translateY(-2px);
-        }
-        
-        .dark .edge-addon-btn:hover {
-            background-color: rgba(0, 120, 212, 0.3);
-        }
-        
-        /* 品牌标识效果 */
         .brand-text {
-            background: linear-gradient(90deg, var(--logo-primary), var(--logo-dark));
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+            font-size: 1.25rem;
             font-weight: 700;
-            letter-spacing: 0.5px;
-            transition: all 0.3s ease;
+            color: var(--text-primary);
+            margin-left: 4px;
         }
         
         .dark .brand-text {
-            background: linear-gradient(90deg, var(--logo-light), var(--logo-primary));
-            -webkit-background-clip: text;
-            background-clip: text;
+            color: var(--text-primary);
+        }
+        
+        .footer-logo {
+            width: 28px;
+            height: 28px;
+        }
+
+        /* 导航栏样式 */
+        .navbar {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            background-color: rgba(255, 255, 255, 0.8);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .dark .navbar {
+            background-color: rgba(17, 24, 39, 0.8);
         }
         
         /* 新增: Hero区域样式 */
@@ -548,16 +484,15 @@
 
 <body class="min-h-screen">
     <!-- 导航栏 -->
-    <nav class="fixed top-0 left-0 right-0 z-50 backdrop-filter backdrop-blur-lg bg-opacity-70 border-b border-gray-200 dark:border-gray-700" style="background-color: var(--bg-primary);">
+    <nav class="navbar fixed top-0 left-0 right-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
-                    <a href="/" class="flex items-center">
+                    <a href="/" class="nav-brand">
                         <div class="logo-container">
-                            <div class="logo-backdrop"></div>
                             <img src="images/V.png" alt="Veri.ai Logo" class="logo-img">
                         </div>
-                        <span class="text-xl brand-text">Veri.ai 照谣镜</span>
+                        <span class="brand-text">Veri.ai 照谣镜</span>
                     </a>
                 </div>
                 <div class="flex items-center">
@@ -700,8 +635,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-col md:flex-row justify-between items-center">
                 <div class="mb-4 md:mb-0 flex items-center">
-                    <div class="logo-container" style="width: 24px; height: 24px;">
-                        <div class="logo-backdrop"></div>
+                    <div class="logo-container footer-logo">
                         <img src="images/V.png" alt="Veri.ai Logo" class="logo-img">
                     </div>
                     <p class="text-sm opacity-70 ml-2">© 2023 Veri.ai 照谣镜 - AI事实核查平台</p>

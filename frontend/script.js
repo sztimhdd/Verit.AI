@@ -297,9 +297,6 @@ function initialize() {
     // 修改为20秒执行一次健康检查
     setInterval(APIService.checkHealth, 20000);
     
-    // 初始化LOGO动画
-    initLogoAnimations();
-    
     // 初始化Hero特效
     initHeroEffects();
     
@@ -312,61 +309,10 @@ function initialize() {
     });
 }
 
-// LOGO动画函数
+// LOGO动画函数 - 已移除，保持简洁设计
 function initLogoAnimations() {
-    // 获取所有LOGO容器
-    const logoContainers = document.querySelectorAll('.logo-container');
-    const logoHero = document.querySelector('.logo-hero');
-    
-    // 给导航栏LOGO添加悬停和点击效果
-    logoContainers.forEach(container => {
-        container.addEventListener('mouseover', () => {
-            const img = container.querySelector('.logo-img');
-            if (img) {
-                img.style.transform = 'scale(1.1) rotate(5deg)';
-                img.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
-            }
-        });
-        
-        container.addEventListener('mouseout', () => {
-            const img = container.querySelector('.logo-img');
-            if (img) {
-                img.style.transform = 'scale(1) rotate(0deg)';
-            }
-        });
-        
-        container.addEventListener('click', () => {
-            const img = container.querySelector('.logo-img');
-            if (img) {
-                img.style.transform = 'scale(0.9) rotate(-5deg)';
-                setTimeout(() => {
-                    img.style.transform = 'scale(1) rotate(0deg)';
-                }, 200);
-            }
-        });
-    });
-    
-    // 给Hero区域LOGO添加特殊效果
-    if (logoHero) {
-        const heroImg = logoHero.querySelector('.logo-hero-img');
-        
-        if (heroImg) {
-            // 创建光晕效果
-            heroImg.addEventListener('mousemove', (e) => {
-                const rect = logoHero.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                
-                heroImg.style.filter = `drop-shadow(0 0 10px rgba(255, 255, 255, 0.8)) brightness(1.2)`;
-                heroImg.style.transform = `translate(${(x - rect.width / 2) / 10}px, ${(y - rect.height / 2) / 10}px)`;
-            });
-            
-            heroImg.addEventListener('mouseleave', () => {
-                heroImg.style.filter = '';
-                heroImg.style.transform = '';
-            });
-        }
-    }
+    // 函数保留但不执行任何操作，保持兼容性
+    console.log("Logo animations removed for simplified design");
 }
 
 // 通知函数
@@ -434,12 +380,12 @@ function updateFavicon() {
     if (!faviconLink) {
         faviconLink = document.createElement('link');
         faviconLink.rel = 'icon';
-        faviconLink.type = 'image/png';
+        faviconLink.type = 'image/svg+xml';
         document.head.appendChild(faviconLink);
     }
     
-    // 添加动态参数，防止缓存问题
-    faviconLink.href = `images/V.png?t=${new Date().getTime()}`;
+    // 更新图标路径
+    faviconLink.href = `favicon.svg`;
     
     // 同时更新苹果设备上的触摸图标
     let touchIconLink = document.querySelector("link[rel='apple-touch-icon']");
@@ -450,7 +396,7 @@ function updateFavicon() {
         document.head.appendChild(touchIconLink);
     }
     
-    touchIconLink.href = `images/V.png?t=${new Date().getTime()}`;
+    touchIconLink.href = `favicon.svg`;
 }
 
 // 显示结果函数
