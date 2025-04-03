@@ -33,3 +33,4 @@ Thumbs.db
 
 # Cache files
 fact_check_cache.json 
+chrome_extension/dist.zip
