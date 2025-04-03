@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>事实核查报告</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/heroicons/2.1.1/24/outline/heroicons.min.css" rel="stylesheet">
+    <style>
+        /* 自定义一些基础样式和渐变 */
+        body {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        }
+        /* 定义一个柔和的渐变背景 */
+        .bg-soft-gradient {
+             background: linear-gradient(135deg, #f3e7e9 0%, #e3eeff 100%);
+             /*备用方案: background: linear-gradient(135deg, #e0f2f7 0%, #f5eefc 100%); */
+        }
+        /* 细微的卡片背景，带一点透明感 */
+        .card-bg {
+            background-color: rgba(255, 255, 255, 0.85); /* 白色背景，85% 不透明度 */
+            backdrop-filter: blur(8px); /* 背景模糊效果 */
+            -webkit-backdrop-filter: blur(8px); /* Safari 兼容 */
+        }
+        /* 图标样式 */
+        .icon {
+            width: 1.25rem; /* 20px */
+            height: 1.25rem; /* 20px */
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 0.25rem; /* 4px */
+        }
+        /* 隐藏滚动条 */
+        ::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera*/
+        }
+        body {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
+         /* 根据分数调整颜色 */
+        .score-color-low { background: linear-gradient(to right, #fee2e2, #fca5a5); color: black; } /* Red scale for low score */
+        .score-color-medium { background: linear-gradient(to right, #fef3c7, #fcd34d); color: black; } /* Yellow scale for medium */
+        .score-color-high { background: linear-gradient(to right, #dcfce7, #86efac); color: black; } /* Green scale for high */
+
+        /* 根据标签调整颜色和图标 */
+        .flag-low { color: #ef4444; } /* Red */
+        .flag-medium { color: #f59e0b; } /* Amber */
+        .flag-high { color: #dc2626; } /* Stronger Red for High Bias/Severity */
+        .flag-neutral { color: #6b7280; } /* Gray */
+        .flag-good { color: #10b981; } /* Green */
+
+        .flag-icon-low::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="%23ef4444" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" /></svg>'); }
+        .flag-icon-medium::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="%23f59e0b" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.008v.008H12v-.008Z" /></svg>'); }
+        .flag-icon-high::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="%23dc2626" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>'); }
+        .flag-icon-good::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="%2310b981" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>'); }
+        .flag-icon-reliability::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>'); }
+        .flag-icon-objectivity::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>'); }
+        .flag-icon-bias::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0 0 12 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52a2.25 2.25 0 0 1-1.12-2.07M12 4.5c-1.134 0-2.24.09-3.31.26M12 4.5c-1.01.143-2.01.317-3 .52M3 7.5a2.25 2.25 0 0 1 1.12-2.07M3 7.5c-1.01.143-2.01.317-3 .52M12 12.75a2.25 2.25 0 1 1 0-4.5 2.25 2.25 0 0 1 0 4.5Z" /></svg>'); }
+        .flag-icon-factuality::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z" /></svg>'); }
+
+        .icon-inline::before {
+            display: inline-block;
+            width: 1.1em; /* Adjust size as needed */
+            height: 1.1em; /* Adjust size as needed */
+            margin-right: 0.3em;
+            vertical-align: -0.15em; /* Adjust vertical alignment */
+        }
+        /* Credibility score icons */
+        .cred-icon-1::before, .cred-icon-2::before, .cred-icon-3::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="%23ef4444" viewBox="0 0 20 20" class="w-4 h-4 inline-block"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-2a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" clip-rule="evenodd" /></svg>');} /* Red circle outline */
+        .cred-icon-4::before, .cred-icon-5::before, .cred-icon-6::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="%23f59e0b" viewBox="0 0 20 20" class="w-4 h-4 inline-block"><path d="M7.893 1.537a1.47 1.47 0 0 1 1.06-.437h2.094a1.47 1.47 0 0 1 1.06.437l.375.375a1.47 1.47 0 0 1 .437 1.06v2.094c0 .4-.158.78-.437 1.06l-.375.375a1.47 1.47 0 0 1-1.06.437H8.953a1.47 1.47 0 0 1-1.06-.437l-.375-.375a1.47 1.47 0 0 1-.437-1.06V2.972c0-.4.158-.78.437-1.06l.375-.375Zm7.607 9-.375-.375a1.47 1.47 0 0 0-1.06-.437H8.953a1.47 1.47 0 0 0-1.06.437l-.375.375a1.47 1.47 0 0 0-.437 1.06v2.094c0 .4.158.78.437 1.06l.375.375a1.47 1.47 0 0 0 1.06.437h2.094a1.47 1.47 0 0 0 1.06-.437l.375-.375a1.47 1.47 0 0 0 .437-1.06V11.6c0-.4-.158-.78-.437-1.06Z" /></svg>');} /* Amber diamond */
+        .cred-icon-7::before, .cred-icon-8::before, .cred-icon-9::before, .cred-icon-10::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="%2310b981" viewBox="0 0 20 20" class="w-4 h-4 inline-block"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd" /></svg>'); } /* Green check circle */
+
+        .status-icon-false::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="%23ef4444" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>'); }
+        .status-icon-uncertain::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="%23f59e0b" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" /></svg>'); }
+        .status-icon-highly-suspicious::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="%23dc2626" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.008v.008H12v-.008Z" /></svg>'); }
+        .status-icon-true::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="%2310b981" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>'); }
+
+        .issues-icon::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="%23f59e0b" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>'); }
+        .source-icon::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="%2310b981" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" /></svg>'); }
+        .correction-icon::before { content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="%233b82f6" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>'); }
+
+
+    </style>
+</head>
+<body class="bg-soft-gradient p-4 md:p-8 min-h-screen text-black">
+
+    <div id="report-card" class="max-w-3xl mx-auto space-y-6">
+
+        <!-- Header Section -->
+        <div class="card-bg rounded-xl shadow-lg p-6">
+            <div class="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0 md:space-x-6">
+                <div class="text-center md:text-left">
+                    <h1 class="text-2xl font-bold mb-2">事实核查报告</h1>
+                    <p id="summary" class="text-sm leading-relaxed"></p>
+                </div>
+                <div id="score-display" class="flex flex-col items-center space-y-2">
+                     <div id="score-circle" class="w-24 h-24 rounded-full flex flex-col items-center justify-center text-center shadow-md transition-all duration-300">
+                        <span class="text-3xl font-bold" id="score-value"></span>
+                        <span class="text-xs mt-1">综合评分</span>
+                    </div>
+                     <div id="overall-credibility" class="text-xs font-medium"></div>
+                </div>
+
+            </div>
+             <div class="mt-6 border-t border-gray-200 pt-4">
+                 <h3 class="text-sm font-semibold mb-3 text-center">关键指标</h3>
+                 <div id="flags" class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                     <!-- Flags will be inserted here -->
+                 </div>
+             </div>
+        </div>
+
+        <!-- Source Verification -->
+        <div class="card-bg rounded-xl shadow-md p-5">
+            <h2 class="text-lg font-semibold mb-3 border-b border-gray-200 pb-2">来源验证</h2>
+            <div id="source-verification" class="space-y-3 text-sm">
+                <p><strong>整体来源可信度:</strong> <span id="overall_source_credibility" class="font-medium"></span></p>
+                <ul id="sources-list" class="space-y-2 pl-1"></ul>
+            </div>
+        </div>
+
+        <!-- Entity Verification -->
+        <div class="card-bg rounded-xl shadow-md p-5">
+            <h2 class="text-lg font-semibold mb-3 border-b border-gray-200 pb-2">实体核实</h2>
+            <div id="entity-verification" class="space-y-3 text-sm">
+                 <p><strong>准确性评估:</strong> <span id="accuracy_assessment" class="font-medium"></span></p>
+                 <ul id="entities-list" class="space-y-2 pl-1"></ul>
+                 <div id="entity-corrections" class="mt-3">
+                     <strong class="correction-icon icon-inline">修正建议:</strong>
+                     <ul class="list-disc list-inside pl-4 space-y-1 mt-1"></ul>
+                 </div>
+            </div>
+        </div>
+
+        <!-- Fact Check -->
+        <div class="card-bg rounded-xl shadow-md p-5">
+            <h2 class="text-lg font-semibold mb-3 border-b border-gray-200 pb-2">事实检查</h2>
+            <div id="fact-check" class="space-y-3 text-sm">
+                 <p><strong>整体事实准确性:</strong> <span id="overall_factual_accuracy" class="font-medium"></span></p>
+                 <ul id="claims-list" class="space-y-4 pl-1"></ul>
+            </div>
+        </div>
+
+        <!-- Exaggeration Check -->
+        <div class="card-bg rounded-xl shadow-md p-5">
+            <h2 class="text-lg font-semibold mb-3 border-b border-gray-200 pb-2">夸大检查</h2>
+            <div id="exaggeration-check" class="space-y-3 text-sm">
+                <p><strong>严重程度评估:</strong> <span id="severity_assessment" class="font-medium"></span></p>
+                <ul id="exaggerations-list" class="space-y-4 pl-1"></ul>
+                <div id="exaggeration-corrections" class="mt-3">
+                    <strong class="correction-icon icon-inline">修正建议:</strong>
+                    <ul class="list-disc list-inside pl-4 space-y-1 mt-1"></ul>
+                </div>
+            </div>
+        </div>
+
+         <!-- Key Issues -->
+        <div class="card-bg rounded-xl shadow-md p-5">
+            <h2 class="text-lg font-semibold mb-3 border-b border-gray-200 pb-2">关键问题</h2>
+            <ul id="key-issues-list" class="list-none space-y-1 text-sm pl-1">
+                 <!-- Key issues will be inserted here -->
+            </ul>
+        </div>
+
+        <!-- Trustworthy Sources -->
+        <div class="card-bg rounded-xl shadow-md p-5">
+            <h2 class="text-lg font-semibold mb-3 border-b border-gray-200 pb-2">推荐参考来源</h2>
+            <ul id="trustworthy-sources-list" class="list-none space-y-1 text-sm pl-1">
+                <!-- Trustworthy sources will be inserted here -->
+            </ul>
+        </div>
+
+    </div>
+
+    <script>
+        const apiResponse = {
+            "status": "success",
+            "data": {
+                "score": 20,
+                "flags": {
+                    "factuality": "Low",
+                    "objectivity": "Low",
+                    "reliability": "Low",
+                    "bias": "High"
+                },
+                "source_verification": {
+                    "sources_found": [
+                        "Expose-News.com",
+                        "WebArchive.org",
+                        "PublicHealthPolicyJournal.com",
+                        "Journal of the American Medical Association (JAMA)",
+                        "CBS News"
+                    ],
+                    "credibility_scores": [1, 6, 3, 9, 8],
+                    "verification_details": [
+                        "Expose-News.com: A website known for publishing conspiracy theories and misinformation; lacks credibility.",
+                        "WebArchive.org: A digital archive of websites; credibility depends on the original source archived.",
+                        "PublicHealthPolicyJournal.com: A journal, but its reputation and peer-review process need to be verified to assess credibility; generally lower than established journals.",
+                        "Journal of the American Medical Association (JAMA): A highly reputable peer-reviewed medical journal; generally credible.",
+                        "CBS News: A mainstream news organization; generally credible but subject to potential bias."
+                    ],
+                    "overall_source_credibility": "Low"
+                },
+                "entity_verification": {
+                    "entities_found": [
+                        "NIH (National Institutes of Health)",
+                        "CDC (Centers for Disease Control and Prevention)",
+                        "Sharyl Attkisson",
+                        "Thomas Reichert",
+                        "Lone Simonsen",
+                        "Walter Orenstein",
+                        "Big Pharma"
+                    ],
+                    "verification_details": [
+                        "NIH: A reputable US government agency for medical research; description is accurate.",
+                        "CDC: A reputable US government agency for public health; description is accurate.",
+                        "Sharyl Attkisson: An investigative journalist; exists and is accurately described.",
+                        "Thomas Reichert: A researcher; his existence and affiliation need to be verified in relation to the claimed study.",
+                        "Lone Simonsen: A researcher; her existence and affiliation need to be verified in relation to the claimed study.",
+                        "Walter Orenstein: Former CDC official; existence and role are accurate.",
+                        "Big Pharma: A general term for the pharmaceutical industry; accurate in context."
+                    ],
+                    "accuracy_assessment": "Medium",
+                    "corrections": [
+                        "Verify the affiliations and roles of Thomas Reichert and Lone Simonsen in relation to the NIH study."
+                    ]
+                },
+                "fact_check": {
+                    "claims_identified": [
+                        "NIH study found flu shots increase elderly deaths.",
+                        "Lead researcher Lone Simonsen was blocked from speaking to CBS News.",
+                        "Flu vaccines reduce winter deaths by 50%.",
+                        "CDC expanded flu shot recommendations to children to boost Pharma profits."
+                    ],
+                    "verification_results": [
+                        "False", // Simplified for display
+                        "Uncertain", // Simplified
+                        "False", // Simplified
+                        "Highly Suspicious" // Simplified
+                    ],
+                     "verification_details": [ // Using details from JSON for hover/tooltip potentially later
+                        "False: While some studies have shown limited effectiveness of flu vaccines in the elderly, the claim that an NIH study found they *increase* elderly deaths is a misinterpretation and exaggeration. Studies show varying levels of effectiveness, and the topic is complex.",
+                        "Uncertain: Needs verification from primary sources or credible news reports about NIH blocking Simonsen. It is plausible given the controversial nature of the findings.",
+                        "False: The claim of a 50% reduction is an oversimplification and has been widely debated. Observational studies have limitations, and this figure is not universally accepted.",
+                        "Highly Suspicious: While financial incentives exist, attributing the expansion of recommendations solely to profit motives is an oversimplification. Public health decisions involve multiple factors."
+                    ],
+                    "supporting_evidence": [
+                        "Multiple studies on flu vaccine effectiveness show varying results in different age groups. Meta-analyses suggest modest benefits, but the elderly often have weaker immune responses.",
+                        "Need to find independent reporting or primary source documentation to confirm this claim.",
+                        "Systematic reviews and meta-analyses of influenza vaccine effectiveness in older adults show variable results, with some studies suggesting modest benefits and others showing no significant impact on mortality.",
+                        "Public health decision-making processes are complex and involve considerations beyond just pharmaceutical profits. Attributing motives requires strong evidence."
+                    ],
+                    "overall_factual_accuracy": "Low"
+                },
+                "exaggeration_check": {
+                    "exaggerations_found": [
+                        "‘Terrifyingly aggressive’ cancers in children, linked to immune suppression from COVID vaccines",
+                        "COVID-19 scandal linked to CANCER SURGE: Billionaire researcher sounds alarm",
+                        "Mass vaccination campaigns may have increased mortality rates instead of reducing them.",
+                        "A legacy of medical tyranny"
+                    ],
+                    "explanations": [
+                        "The claim of 'terrifyingly aggressive' cancers linked to COVID vaccines is an unsubstantiated fear-mongering statement. There is no widespread scientific consensus to support this.",
+                        "The 'cancer surge' linked to COVID-19 is an exaggerated claim lacking strong scientific evidence. While some studies are investigating potential links, a definitive causal relationship is not established.",
+                        "While some studies question the effectiveness of flu vaccines in certain populations, claiming mass vaccination campaigns *increased* mortality is a significant overstatement and misrepresentation of the available evidence.",
+                        "Framing public health measures as 'medical tyranny' is a highly charged and exaggerated statement that promotes distrust in legitimate medical authorities."
+                    ],
+                    "corrections": [
+                        "More research is needed to understand any potential links between COVID vaccines and cancer. Current evidence does not support a direct causal relationship.",
+                        "Further research is needed to determine if there is a link between COVID-19 and a cancer surge.",
+                        "Flu vaccine effectiveness varies, and more research is needed to optimize vaccination strategies for different populations.",
+                        "Public health measures should be critically evaluated, but using inflammatory language like 'medical tyranny' is not conducive to constructive dialogue."
+                    ],
+                    "severity_assessment": "High"
+                },
+                "key_issues": [
+                    "Misrepresentation of scientific studies",
+                    "Use of unreliable sources",
+                    "Exaggerated claims and fear-mongering",
+                    "Promotion of anti-vaccine sentiment",
+                    "Lack of objectivity and strong bias"
+                ],
+                "summary": "This content is highly unreliable due to the misrepresentation of scientific studies, use of biased sources, and exaggerated claims. It promotes anti-vaccine sentiment and lacks objectivity, making it untrustworthy.",
+                "sources": [
+                    { "title": "PubMed", "url": "https://pubmed.ncbi.nlm.nih.gov/" },
+                    { "title": "Centers for Disease Control and Prevention (CDC)", "url": "https://www.cdc.gov/" },
+                    { "title": "World Health Organization (WHO)", "url": "https://www.who.int/" }
+                ]
+            }
+        };
+
+        // Function to get flag color and icon class
+        function getFlagStyle(flagValue) {
+            const value = flagValue.toLowerCase();
+            if (value === 'low') return { color: 'flag-low', icon: 'flag-icon-low' };
+            if (value === 'medium') return { color: 'flag-medium', icon: 'flag-icon-medium' };
+            if (value === 'high') return { color: 'flag-high', icon: 'flag-icon-high' };
+             if (value === 'good' || value === 'accurate') return { color: 'flag-good', icon: 'flag-icon-good' }; // Example for potential positive flags
+            return { color: 'flag-neutral', icon: '' }; // Default/neutral
+        }
+
+        // Function to get score color class
+        function getScoreColor(score) {
+             if (score < 40) return 'score-color-low';
+             if (score < 70) return 'score-color-medium';
+             return 'score-color-high';
+        }
+
+        // Function to get credibility icon class
+        function getCredibilityIcon(score) {
+            if (score >= 1 && score <= 10) {
+                return `cred-icon-${score}`;
+            }
+            return ''; // Default if score is out of range
+        }
+
+        // Function to get verification status icon and color
+         function getStatusStyle(status) {
+            const lowerStatus = status.toLowerCase().replace(/\s+/g, '-'); // e.g., "Highly Suspicious" -> "highly-suspicious"
+            switch (lowerStatus) {
+                case 'false':
+                    return { icon: 'status-icon-false', color: 'text-red-600' };
+                case 'uncertain':
+                    return { icon: 'status-icon-uncertain', color: 'text-amber-600' };
+                case 'highly-suspicious':
+                    return { icon: 'status-icon-highly-suspicious', color: 'text-red-700' };
+                 case 'true': // Example if you have 'True' status
+                    return { icon: 'status-icon-true', color: 'text-green-600' };
+                default:
+                    return { icon: '', color: 'text-gray-700' }; // Default for other statuses
+            }
+        }
+
+
+        // Populate data
+        if (apiResponse.status === "success") {
+            const data = apiResponse.data;
+
+            // Header
+            document.getElementById('score-value').textContent = data.score;
+             const scoreCircle = document.getElementById('score-circle');
+             scoreCircle.className = `${scoreCircle.className.replace(/score-color-\w+/g, '')} ${getScoreColor(data.score)}`; // Apply score color
+
+            document.getElementById('summary').textContent = data.summary;
+             document.getElementById('overall-credibility').textContent = `来源可信度: ${data.source_verification.overall_source_credibility}`;
+              const overallCredStyle = getFlagStyle(data.source_verification.overall_source_credibility);
+             document.getElementById('overall-credibility').classList.add(overallCredStyle.color);
+
+
+            // Flags
+            const flagsContainer = document.getElementById('flags');
+            const flagMap = {
+                factuality: { name: '事实性', icon: 'flag-icon-factuality' },
+                objectivity: { name: '客观性', icon: 'flag-icon-objectivity' },
+                reliability: { name: '可靠性', icon: 'flag-icon-reliability' },
+                bias: { name: '偏见度', icon: 'flag-icon-bias' }
+            };
+            for (const key in data.flags) {
+                const flagValue = data.flags[key];
+                const flagInfo = flagMap[key] || { name: key, icon: '' };
+                const style = getFlagStyle(flagValue);
+                const div = document.createElement('div');
+                div.className = `flex flex-col items-center ${style.color}`;
+                div.innerHTML = `
+                    <span class="icon-inline ${flagInfo.icon} h-5 w-5 mb-1"></span>
+                    <span class="text-xs font-medium">${flagInfo.name}</span>
+                    <span class="text-sm font-semibold">${flagValue}</span>
+                `;
+                flagsContainer.appendChild(div);
+            }
+
+            // Source Verification
+             document.getElementById('overall_source_credibility').textContent = data.source_verification.overall_source_credibility;
+              const overallSourceStyle = getFlagStyle(data.source_verification.overall_source_credibility);
+             document.getElementById('overall_source_credibility').classList.add(overallSourceStyle.color);
+
+            const sourcesList = document.getElementById('sources-list');
+            data.source_verification.sources_found.forEach((source, index) => {
+                const li = document.createElement('li');
+                const score = data.source_verification.credibility_scores[index];
+                const details = data.source_verification.verification_details[index];
+                const credIcon = getCredibilityIcon(score);
+                li.innerHTML = `
+                    <span class="font-medium ${credIcon} icon-inline">${source}</span> (可信度: ${score}/10)
+                    <p class="text-xs text-gray-600 pl-5">${details}</p>
+                `;
+                sourcesList.appendChild(li);
+            });
+
+             // Entity Verification
+             const accuracyAssessment = data.entity_verification.accuracy_assessment;
+             document.getElementById('accuracy_assessment').textContent = accuracyAssessment;
+             const accuracyStyle = getFlagStyle(accuracyAssessment);
+             document.getElementById('accuracy_assessment').classList.add(accuracyStyle.color);
+
+            const entitiesList = document.getElementById('entities-list');
+             data.entity_verification.entities_found.forEach((entity, index) => {
+                 const li = document.createElement('li');
+                 const details = data.entity_verification.verification_details[index];
+                 li.innerHTML = `
+                    <span class="font-medium">${entity}</span>
+                    <p class="text-xs text-gray-600 pl-5">${details}</p>
+                 `;
+                 entitiesList.appendChild(li);
+             });
+             const entityCorrectionsList = document.querySelector('#entity-corrections ul');
+             if (data.entity_verification.corrections && data.entity_verification.corrections.length > 0) {
+                 data.entity_verification.corrections.forEach(correction => {
+                     const li = document.createElement('li');
+                     li.textContent = correction;
+                     entityCorrectionsList.appendChild(li);
+                 });
+             } else {
+                 document.getElementById('entity-corrections').style.display = 'none';
+             }
+
+
+            // Fact Check
+             const factualAccuracy = data.fact_check.overall_factual_accuracy;
+             document.getElementById('overall_factual_accuracy').textContent = factualAccuracy;
+             const factAccuracyStyle = getFlagStyle(factualAccuracy);
+             document.getElementById('overall_factual_accuracy').classList.add(factAccuracyStyle.color);
+
+            const claimsList = document.getElementById('claims-list');
+             data.fact_check.claims_identified.forEach((claim, index) => {
+                 const li = document.createElement('li');
+                 const result = data.fact_check.verification_results[index];
+                 const evidence = data.fact_check.supporting_evidence[index];
+                 const details = data.fact_check.verification_details[index]; // Full detail text
+                 const statusStyle = getStatusStyle(result); // Get icon and color
+
+                 li.innerHTML = `
+                    <p class="font-medium">${claim}</p>
+                    <p class="text-sm mt-1"><strong class="${statusStyle.color}"><span class="icon-inline ${statusStyle.icon}"></span>结果: ${result}</strong></p>
+                    <p class="text-xs text-gray-600 mt-1 pl-5">${details}</p>
+                    <p class="text-xs text-gray-500 mt-1 pl-5"><i>支撑证据/说明: ${evidence}</i></p>
+                 `;
+                 claimsList.appendChild(li);
+             });
+
+             // Exaggeration Check
+             const severityAssessment = data.exaggeration_check.severity_assessment;
+             document.getElementById('severity_assessment').textContent = severityAssessment;
+             const severityStyle = getFlagStyle(severityAssessment); // Use High for High Severity
+             document.getElementById('severity_assessment').classList.add(severityStyle.color);
+
+             const exaggerationsList = document.getElementById('exaggerations-list');
+             data.exaggeration_check.exaggerations_found.forEach((exaggeration, index) => {
+                 const li = document.createElement('li');
+                 const explanation = data.exaggeration_check.explanations[index];
+                 li.innerHTML = `
+                     <p class="font-medium">"${exaggeration}"</p>
+                     <p class="text-xs text-gray-600 mt-1 pl-5">${explanation}</p>
+                 `;
+                 exaggerationsList.appendChild(li);
+             });
+              const exaggerationCorrectionsList = document.querySelector('#exaggeration-corrections ul');
+             if (data.exaggeration_check.corrections && data.exaggeration_check.corrections.length > 0) {
+                  data.exaggeration_check.corrections.forEach(correction => {
+                     const li = document.createElement('li');
+                     li.textContent = correction;
+                     exaggerationCorrectionsList.appendChild(li);
+                 });
+             } else {
+                  document.getElementById('exaggeration-corrections').style.display = 'none';
+             }
+
+            // Key Issues
+            const keyIssuesList = document.getElementById('key-issues-list');
+            data.key_issues.forEach(issue => {
+                const li = document.createElement('li');
+                 li.innerHTML = `<span class="icon-inline issues-icon"></span>${issue}`;
+                keyIssuesList.appendChild(li);
+            });
+
+             // Trustworthy Sources
+             const trustworthySourcesList = document.getElementById('trustworthy-sources-list');
+             data.sources.forEach(source => {
+                 const li = document.createElement('li');
+                 li.innerHTML = `<span class="icon-inline source-icon"></span><a href="${source.url}" target="_blank" class="text-blue-600 hover:underline">${source.title}</a>`;
+                 trustworthySourcesList.appendChild(li);
+             });
+
+        } else {
+            // Handle error status if needed
+            document.getElementById('report-card').innerHTML = '<p class="text-red-500">无法加载报告数据。</p>';
+        }
+    </script>
+
+</body>
+</html>

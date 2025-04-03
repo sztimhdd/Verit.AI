@@ -18,20 +18,21 @@ const i18n = {
     trustedFriend: "作为您信任的朋友",
     trustScore: "可信度评分",
     summary: "总结",
-    infoEvaluation: "信息评估指标",
-    sourceEvaluation: "信息来源评估",
+    infoEvaluation: "多维度分析",
+    sourceEvaluation: "来源核查",
     factChecking: "事实核查",
     exaggerationCheck: "夸张信息检查",
     entityVerification: "实体验证",
     showMoreEntities: "显示更多实体 >",
     hideEntities: "< 收起实体",
-    factuality: "真实性",
+    factuality: "事实性",
     objectivity: "客观性",
     reliability: "可靠性",
     bias: "偏见度",
     noSourcesFound: "未找到相关信息来源",
     noFactsToCheck: "未发现需要核查的主要事实声明",
     noEntitiesFound: "未发现需要验证的实体",
+    noExaggerations: "未发现夸张信息",
     errorMessage: "分析过程中出现错误，请重试。",
     retry: "重新核查",
     analyzing: "正在核查...",
@@ -49,7 +50,6 @@ const i18n = {
     low: "低",
     showAll: "显示全部",
     hideDetails: "隐藏详情",
-    noExaggerations: "未发现夸张信息",
     noEntitiesDetails: "没有实体详情可显示"
   },
   en: {
@@ -72,6 +72,7 @@ const i18n = {
     noSourcesFound: "No related sources found",
     noFactsToCheck: "No major factual claims to check",
     noEntitiesFound: "No entities to verify",
+    noExaggerations: "No exaggerations found",
     errorMessage: "An error occurred during analysis. Please try again.",
     retry: "Retry",
     analyzing: "Analyzing...",
@@ -89,7 +90,6 @@ const i18n = {
     low: "Low",
     showAll: "Show all",
     hideDetails: "Hide details",
-    noExaggerations: "No exaggerations found",
     noEntitiesDetails: "No entity details to display"
   }
 };
@@ -115,6 +115,26 @@ let cardState = 'loading'; // loading, result, error
 
 // 添加到文件顶部 - 统一的颜色管理系统
 const trustColors = {
+  // 获取CSS变量值的辅助函数
+  getCssVar: function(varName) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    console.log(`获取CSS变量 ${varName} = ${value}`);
+    return value || this.fallbackColors[varName];
+  },
+  
+  // 颜色的备用值，以防CSS变量读取失败
+  fallbackColors: {
+    '--rating-high': '#10b981',    // 绿色
+    '--rating-medium': '#f59e0b',  // 黄色
+    '--rating-low': '#ef4444',     // 红色
+    '--rating-neutral': '#9ca3af', // 灰色
+    '--primary-color': '#2196F3',  // 蓝色
+    '--warning-color': '#FFC107',  // 黄色
+    '--bias-high': '#ef4444',      // 红色
+    '--bias-medium': '#f59e0b',    // 黄色
+    '--bias-low': '#10b981'        // 绿色
+  },
+  
   // 根据任意评分值获取HSL色相值(0-120)
   getHue: (score, max = 100) => Math.max(0, Math.min(120, (score / max) * 120)),
   
@@ -122,29 +142,21 @@ const trustColors = {
   saturation: 75,
   lightness: 45,
   
-  // 获取任意评分的背景色
+  // 获取任意评分的颜色 - 使用CSS变量时的兼容方法
+  getColor: function(score, max = 100) {
+    if (score >= 80) return this.fallbackColors['--rating-high'];
+    if (score >= 60) return this.fallbackColors['--primary-color'];
+    if (score >= 40) return this.fallbackColors['--rating-medium'];
+    if (score >= 20) return this.fallbackColors['--warning-color'];
+    return this.fallbackColors['--rating-low'];
+  },
+  
+  // 获取任意评分的背景色 - 兼容旧代码
   getBackgroundColor: function(score, max = 100) {
-    const hue = this.getHue(score, max);
-    return `hsl(${hue}, ${this.saturation}%, ${this.lightness}%)`;
+    return this.getColor(score, max);
   },
   
-  // 获取任意评分的渐变背景色
-  getGradient: function(score, max = 100) {
-    const hue = this.getHue(score, max);
-    const lighterHue = Math.min(120, hue + 10);
-    return `linear-gradient(135deg, 
-      hsl(${hue}, ${this.saturation}%, ${this.lightness}%), 
-      hsl(${lighterHue}, ${this.saturation}%, ${this.lightness+5}%))`;
-  },
-  
-  // 获取文本颜色(确保可读性)
-  getTextColor: function(score, max = 100) {
-    const hue = this.getHue(score, max);
-    // 蓝色到绿色区域用白色文本，黄色到红色区域用深色文本
-    return (hue > 70) ? 'white' : (hue > 40) ? '#111827' : 'white';
-  },
-  
-  // 获取预定义分数级别(用于快速评估)
+  // 获取任意评分的级别文本
   getLevel: function(score, max = 100) {
     const normalizedScore = (score / max) * 100;
     if (normalizedScore >= 80) return 'high';
@@ -154,14 +166,20 @@ const trustColors = {
     return 'low';
   },
   
-  // 评级文本到数值分数的映射(用于将文本评级转为数值)
+  // 获取任意评分的CSS类名
+  getLevelClass: function(score, max = 100) {
+    const level = this.getLevel(score, max);
+    return `rating-${level.replace('-', '-')}`;
+  },
+  
+  // 评级文本到数值分数的映射
   ratingToScore: {
     'high': 85, 'medium': 60, 'low': 30,
     '高': 85, '中': 60, '低': 30,
     'true': 90, 'partially true': 60, 'false': 20, 'misleading': 40, 'unverified': 50
   },
 
-  // 添加到 trustColors 对象中的新方法 - 双语状态映射系统
+  // 获取本地化状态文本
   getLocalizedStatus: function(status, targetLang) {
     if (!status) return targetLang === 'zh' ? '需要核实' : 'Unverified';
     
@@ -193,28 +211,24 @@ const trustColors = {
       '低': 'Low'
     };
     
-    // 先精确匹配完整文本
+    // 执行翻译逻辑...其余代码保持不变
     if (targetLang === 'zh') {
-      // 从英文到中文的精确匹配
       if (statusMap[normalizedStatus]) {
         return statusMap[normalizedStatus];
       }
       
-      // 部分匹配英文状态
       for (const [enKey, zhValue] of Object.entries(statusMap)) {
         if (typeof enKey === 'string' && enKey.length > 1 && normalizedStatus.includes(enKey)) {
           return zhValue;
         }
       }
     } else {
-      // 从中文到英文的精确匹配
       for (const [zhKey, enValue] of Object.entries(statusMap)) {
         if (normalizedStatus === zhKey.toLowerCase()) {
           return enValue;
         }
       }
       
-      // 部分匹配中文状态
       for (const [zhKey, enValue] of Object.entries(statusMap)) {
         if (typeof zhKey === 'string' && zhKey.length > 1 && normalizedStatus.includes(zhKey.toLowerCase())) {
           return enValue;
@@ -222,12 +236,10 @@ const trustColors = {
       }
     }
     
-    // 首字母大写处理
     if (targetLang === 'en' && status.length > 0) {
       return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
     }
     
-    // 无法翻译时原样返回
     return status;
   }
 };
@@ -493,44 +505,67 @@ function initializeFloatingCard() {
     const radius = circle.r.baseVal.value;
     const circumference = radius * 2 * Math.PI;
     
+    // 设置圆环动画（这些必须在JS中设置）
     circle.style.strokeDasharray = `${circumference} ${circumference}`;
-    
     const offset = circumference - (score / 100) * circumference;
     circle.style.strokeDashoffset = offset;
     
-    // 使用统一色彩系统
-    const backgroundColor = trustColors.getBackgroundColor(score);
-    const gradient = trustColors.getGradient(score);
-    const textColor = trustColors.getTextColor(score);
+    // 移除所有之前的评分类
+    cardHeader.classList.remove(
+      'score-range-high', 
+      'score-range-medium-high', 
+      'score-range-medium', 
+      'score-range-medium-low', 
+      'score-range-low'
+    );
     
-    // 应用颜色
-    circle.style.stroke = backgroundColor;
+    console.log(`设置评分: ${score}`);
+    
+    // 添加对应分数范围的CSS类并直接设置颜色
+    let strokeColor, textColor, bgGradient;
+    
+    if (score >= 80) {
+      cardHeader.classList.add('score-range-high');
+      strokeColor = '#10b981'; // 绿色
+      textColor = strokeColor;
+      bgGradient = 'linear-gradient(135deg, #10b981, #34d399)';
+    } else if (score >= 60) {
+      cardHeader.classList.add('score-range-medium-high');
+      strokeColor = '#2196F3'; // 蓝色
+      textColor = strokeColor;
+      bgGradient = 'linear-gradient(135deg, #2563eb, #3b82f6)';
+    } else if (score >= 40) {
+      cardHeader.classList.add('score-range-medium');
+      strokeColor = '#f59e0b'; // 黄色
+      textColor = strokeColor;
+      bgGradient = 'linear-gradient(135deg, #f59e0b, #fbbf24)';
+    } else if (score >= 20) {
+      cardHeader.classList.add('score-range-medium-low');
+      strokeColor = '#FF8C00'; // 橙色
+      textColor = strokeColor;
+      bgGradient = 'linear-gradient(135deg, #ff8c00, #ffa533)';
+    } else {
+      cardHeader.classList.add('score-range-low');
+      strokeColor = '#ef4444'; // 红色
+      textColor = strokeColor;
+      bgGradient = 'linear-gradient(135deg, #dc2626, #ef4444)';
+    }
+    
+    // 直接设置颜色而不依赖CSS变量
+    circle.style.stroke = strokeColor;
+    scoreValue.style.color = textColor;
+    cardHeader.style.background = bgGradient;
+    
+    // 设置评分值
     scoreValue.textContent = score;
-    scoreValue.style.color = backgroundColor;
-    cardHeader.style.background = gradient;
     
-    // 根据背景色调整文本颜色
+    // 根据背景色调整文本颜色（依然需要动态设置）
     const titleElement = cardHeader.querySelector('h1');
     const summaryElement = cardHeader.querySelector('.summary-preview');
     
-    if (titleElement) titleElement.style.color = textColor;
-    if (summaryElement) summaryElement.style.color = textColor;
-
-    // 更新标题栏颜色
-    if (cardHeader) {
-      // 根据分数设置不同的背景渐变
-      if (score >= 80) {
-        cardHeader.style.background = 'linear-gradient(135deg, #10b981, #34d399)'; // 高信任度
-      } else if (score >= 60) {
-        cardHeader.style.background = 'linear-gradient(135deg, #2563eb, #3b82f6)'; // 中高信任度
-      } else if (score >= 40) {
-        cardHeader.style.background = 'linear-gradient(135deg, #f59e0b, #fbbf24)'; // 中信任度
-      } else if (score >= 20) {
-        cardHeader.style.background = 'linear-gradient(135deg, #ff8c00, #ffa533)'; // 中低信任度
-      } else {
-        cardHeader.style.background = 'linear-gradient(135deg, #dc2626, #ef4444)'; // 低信任度
-      }
-    }
+    const headerTextColor = score > 40 ? 'white' : (score > 20 ? '#111827' : 'white');
+    if (titleElement) titleElement.style.color = headerTextColor;
+    if (summaryElement) summaryElement.style.color = headerTextColor;
   }
 
   // 绑定显示更多实体的点击事件
@@ -604,7 +639,7 @@ function initializeFloatingCard() {
       bias: getText('bias')
     })[key] || key;
 
-    // 优化维度评分布局生成代码
+    // 多维度评分布局生成代码
     const flagsHTML = `
       <div class="section">
         <h2 class="section-title">
@@ -612,194 +647,286 @@ function initializeFloatingCard() {
           ${getText('infoEvaluation')}
         </h2>
         <div class="flags-container">
-          ${createFlagItem('factuality', result.flags?.factuality || 'N/A', 'fas fa-check-circle', uiLang)}
-          ${createFlagItem('objectivity', result.flags?.objectivity || 'N/A', 'fas fa-balance-scale', uiLang)}
-          ${createFlagItem('reliability', result.flags?.reliability || 'N/A', 'fas fa-shield-alt', uiLang)}
-          ${createFlagItem('bias', result.flags?.bias || 'N/A', 'fas fa-exclamation-triangle', uiLang)}
+          <div class="flags-row">
+            ${createFlagItem('factuality', result.flags?.factuality || 'N/A', 'fas fa-check-circle', uiLang)}
+            ${createFlagItem('objectivity', result.flags?.objectivity || 'N/A', 'fas fa-balance-scale', uiLang)}
+          </div>
+          <div class="flags-row">
+            ${createFlagItem('reliability', result.flags?.reliability || 'N/A', 'fas fa-shield-alt', uiLang)}
+            ${createFlagItem('bias', result.flags?.bias || 'N/A', 'fas fa-exclamation-triangle', uiLang)}
+          </div>
         </div>
       </div>
     `;
 
     // 创建单个评分项辅助函数
-    // ---> Accept uiLang as a parameter
     function createFlagItem(flagType, value, iconClass, currentUiLang) { 
       console.log(`创建评分项: ${flagType} = ${value}`); // 调试日志
       
-      // 1. API 返回的值已经是目标语言，直接用于显示
-      const displayValue = value; // No translation needed
+      // API 返回的值已经是目标语言，直接用于显示
+      const displayValue = value;
       const valueLower = (value || '').toLowerCase().trim();
 
-      // 2. 根据当前界面语言和值确定颜色
-      let flagColor;
+      // 确定评分级别和对应的CSS类和颜色
+      let ratingClass, iconStyleClass, textClass;
+      let borderColor, iconColor, textColor;
+      
       // 偏见特殊处理 - 高偏见是负面的
       if (flagType === 'bias') {
         if ((currentUiLang === 'zh' && valueLower.includes('高')) || (currentUiLang === 'en' && valueLower.includes('high'))) {
-            flagColor = '#ef4444'; // 红色
+          ratingClass = 'bias-high';
+          iconStyleClass = 'bias-icon-high';
+          textClass = 'bias-text-high';
+          borderColor = '#ef4444'; // 红色
+          iconColor = '#ef4444';
+          textColor = '#ef4444';
         } else if ((currentUiLang === 'zh' && valueLower.includes('中')) || (currentUiLang === 'en' && valueLower.includes('medium'))) {
-            flagColor = '#f59e0b'; // 黄色
+          ratingClass = 'bias-medium';
+          iconStyleClass = 'bias-icon-medium';
+          textClass = 'bias-text-medium';
+          borderColor = '#f59e0b'; // 黄色
+          iconColor = '#f59e0b';
+          textColor = '#f59e0b';
         } else if ((currentUiLang === 'zh' && valueLower.includes('低')) || (currentUiLang === 'en' && valueLower.includes('low'))) {
-            flagColor = '#10b981'; // 绿色
+          ratingClass = 'bias-low';
+          iconStyleClass = 'bias-icon-low';
+          textClass = 'bias-text-low';
+          borderColor = '#10b981'; // 绿色
+          iconColor = '#10b981';
+          textColor = '#10b981';
         } else {
-             flagColor = '#9ca3af'; // 默认灰色 (N/A 或其他)
+          ratingClass = 'rating-neutral';
+          iconStyleClass = 'icon-neutral';
+          textClass = 'text-neutral';
+          borderColor = '#9ca3af'; // 灰色
+          iconColor = '#9ca3af';
+          textColor = '#9ca3af';
         }
       } 
       // 其他指标 - 高是正面的
       else {
-         if ((currentUiLang === 'zh' && valueLower.includes('高')) || (currentUiLang === 'en' && valueLower.includes('high'))) {
-            flagColor = '#10b981'; // 绿色
+        if ((currentUiLang === 'zh' && valueLower.includes('高')) || (currentUiLang === 'en' && valueLower.includes('high'))) {
+          ratingClass = 'rating-high';
+          iconStyleClass = 'icon-high';
+          textClass = 'text-high';
+          borderColor = '#10b981'; // 绿色
+          iconColor = '#10b981';
+          textColor = '#10b981';
         } else if ((currentUiLang === 'zh' && valueLower.includes('中')) || (currentUiLang === 'en' && valueLower.includes('medium'))) {
-            flagColor = '#f59e0b'; // 黄色
+          ratingClass = 'rating-medium';
+          iconStyleClass = 'icon-medium';
+          textClass = 'text-medium';
+          borderColor = '#f59e0b'; // 黄色
+          iconColor = '#f59e0b'; 
+          textColor = '#f59e0b';
         } else if ((currentUiLang === 'zh' && valueLower.includes('低')) || (currentUiLang === 'en' && valueLower.includes('low'))) {
-            flagColor = '#ef4444'; // 红色
+          ratingClass = 'rating-low';
+          iconStyleClass = 'icon-low';
+          textClass = 'text-low';
+          borderColor = '#ef4444'; // 红色
+          iconColor = '#ef4444';
+          textColor = '#ef4444';
         } else {
-             flagColor = '#9ca3af'; // 默认灰色 (N/A 或其他)
+          ratingClass = 'rating-neutral';
+          iconStyleClass = 'icon-neutral';
+          textClass = 'text-neutral';
+          borderColor = '#9ca3af'; // 灰色
+          iconColor = '#9ca3af'; 
+          textColor = '#9ca3af';
         }
       }
       
-      // 3. 使用 trustColors 对象将原始值翻译为当前显示语言 - REMOVED
-      // const displayValue = trustColors.getLocalizedStatus(value, currentUiLang);
+      console.log(`评分项颜色: 边框=${borderColor}, 图标=${iconColor}, 文本=${textColor}`);
       
-      // 添加更详细的日志 - REMOVED as translation is bypassed
-      // console.log(`[createFlagItem Final] Type: ${flagType}, Original: ${value}, Translated: ${displayValue}, TargetLang: ${currentUiLang}`); 
-
-      // 4. 返回 HTML，使用计算出的颜色 和 API直接返回的显示值
+      // 返回带有内联样式的HTML，确保颜色正确显示
       return `
-        <div class="flag-item" style="border-top: 3px solid ${flagColor}">
+        <div class="flag-item ${ratingClass}" style="border-top: 3px solid ${borderColor}">
           <div class="flag-title">
-            <i class="${iconClass}" style="color: ${flagColor}"></i>
+            <i class="${iconClass} ${iconStyleClass}" style="color: ${iconColor}"></i>
             ${getText(flagType)}
           </div>
-          <div class="flag-value" style="color: ${flagColor}">${displayValue}</div>
+          <div class="flag-value ${textClass}" style="color: ${textColor}">${displayValue}</div>
         </div>
       `;
     }
 
-    // 创建来源标签 - 使用统一色彩系统
-    const sourcesHTML = (result.source_verification?.sources_found || []).map((source, index) => {
-      const score = result.source_verification.credibility_scores[index];
+    // 创建来源标签
+    let sourcesHTML = '';
+    if (result.source_verification?.sources_found && result.source_verification.sources_found.length > 0) {
+      const sourceItems = (result.source_verification.sources_found || []).map((source, index) => {
+        const score = result.source_verification.credibility_scores[index];
+        
+        // 使用统一的颜色映射(1-10分转换为百分比)
+        const backgroundColor = trustColors.getBackgroundColor(score, 10);
+        
+        return `
+          <div class="source-tag">
+            <span class="source-credibility" style="background-color: ${backgroundColor}">${score}</span>
+            ${source}
+          </div>
+        `;
+      }).join('');
       
-      // 使用统一的颜色映射(1-10分转换为百分比)
-      const backgroundColor = trustColors.getBackgroundColor(score, 10);
-      
-      return `
-        <div class="source-tag">
-          <span class="source-credibility" style="background-color: ${backgroundColor}">${score}</span>
-          ${source}
-        </div>
-      `;
-    }).join('');
-
-    // 创建事实检查项 - 使用统一色彩系统
-    // ---> Pass uiLang down consistently
-    const factChecksHTML = (result.fact_check?.claims_identified || []).map((claim, index) => {
-      // 获取当前界面语言 - REMOVED
-      // const currentLang = detectUserLanguage(); 
-      const currentLang = uiLang; // ---> Use consistent uiLang
-      
-      // 获取默认状态文本
-      const defaultStatus = currentLang === 'zh' ? '需要核实' : 'Unverified';
-      
-      // 获取原始状态文本 (API已翻译)
-      const originalStatus = result.fact_check.verification_results[index] || defaultStatus;
-      const displayStatus = originalStatus; // ---> Directly use API value
-      
-      // 强制转换为当前界面语言 - REMOVED
-      // const displayStatus = trustColors.getLocalizedStatus(originalStatus, currentLang);
-      
-      // 计算置信度分数 - Now based on currentLang and originalStatus
-      let confidenceScore = 50; // 默认值
-      const statusLower = originalStatus.toLowerCase();
-      
-      if (currentLang === 'en') {
-          if (statusLower.includes('true') && !statusLower.includes('partially') && !statusLower.includes('not')) {
-            confidenceScore = 90;
-          } else if (statusLower.includes('partially true')) {
-            confidenceScore = 60;
-          } else if (statusLower.includes('false')) {
-            confidenceScore = 20;
-          } else if (statusLower.includes('misleading')) {
-            confidenceScore = 40;
-          } else if (statusLower.includes('unverified')) {
-            confidenceScore = 50;
-          } // Add 'not enough evidence' if needed
-      } else { // Assuming 'zh'
-         if (statusLower.includes('真实') && !statusLower.includes('部分')) {
-            confidenceScore = 90;
-          } else if (statusLower.includes('部分真实')) {
-            confidenceScore = 60;
-          } else if (statusLower.includes('虚假')) {
-            confidenceScore = 20;
-          } else if (statusLower.includes('误导')) {
-            confidenceScore = 40;
-          } else if (statusLower.includes('需要核实')) {
-            confidenceScore = 50;
-          } // Add '证据不足' if needed
-      }
-      
-      // 获取统一风格的背景色和文本颜色
-      const backgroundColor = trustColors.getBackgroundColor(confidenceScore);
-      const textColor = trustColors.getTextColor(confidenceScore);
-      
-      console.log(`处理状态: ${originalStatus} -> ${displayStatus} (分数: ${confidenceScore})`);
-      
-      return `
-        <div class="fact-item">
-          <div class="fact-content">${claim}</div>
-          <div class="fact-status" style="background-color: ${backgroundColor}; color: ${textColor}">${displayStatus}</div>
-        </div>
-      `;
-    }).join('');
-
-    // 修改夸张信息项生成函数
-    // ---> Pass uiLang down consistently
-    const exaggerationsHTML = (result.exaggeration_check?.exaggerations_found || []).map((exaggeration, index) => {
-      // 获取当前界面语言 - REMOVED
-      // const currentLang = detectUserLanguage(); 
-      const currentLang = uiLang; // ---> Use consistent uiLang
-      
-      // 获取夸张校正文本，优先使用API返回的校正
-      const apiCorrection = result.exaggeration_check.corrections[index];
-      
-      // 当API没有返回校正时，使用本地化文本
-      const fallbackText = getText('moreAccurateStatement');
-      
-      // 最终显示的校正文本
-      const displayCorrection = apiCorrection || fallbackText;
-      
-      // 使用统一配色系统
-      const severity = 30; // 固定使用低可信度颜色
-      const borderColor = trustColors.getBackgroundColor(severity);
-      
-      // 调试输出
-      console.log(`夸张校正: API返回=${apiCorrection}, 使用=${displayCorrection}`);
-      
-      return `
-        <div class="exaggeration-item">
-          <div class="exaggeration-claim">${exaggeration}</div>
-          <div class="exaggeration-correction" style="border-left-color: ${borderColor}" 
-               data-correction-type="${apiCorrection ? 'api' : 'default'}">
-            ${displayCorrection}
+      // 添加来源核查区域的标题和内容
+      sourcesHTML = `
+        <div class="section">
+          <h2 class="section-title">
+            <i class="fas fa-link"></i>
+            ${getText('sourceEvaluation')}
+          </h2>
+          <div class="sources-container">
+            ${sourceItems || `<div class="empty-section">${getText('noSourcesFound')}</div>`}
           </div>
         </div>
       `;
-    }).join('');
+    }
 
-    // 添加夸张信息检查部分的无内容处理
-    const exaggerationSection = result.exaggeration_check?.exaggerations_found?.length > 0 ? `
-      <div class="section">
-        <h2 class="section-title">
-          <i class="fas fa-exclamation-triangle"></i>
-          ${getText('exaggerationCheck')}
-        </h2>
-        <div class="exaggerations-container">
-          ${exaggerationsHTML}
+    // 创建事实核查内容
+    let factChecksHTML = '';
+    if (result.fact_check?.claims_identified && result.fact_check.claims_identified.length > 0) {
+      const factItems = (result.fact_check.claims_identified || []).map((claim, index) => {
+        const currentLang = uiLang; // 使用一致的语言
+        
+        // 获取默认状态文本
+        const defaultStatus = currentLang === 'zh' ? '需要核实' : 'Unverified';
+        
+        // 获取原始状态文本 (API已翻译)
+        const originalStatus = result.fact_check.verification_results[index] || defaultStatus;
+        const displayStatus = originalStatus; // 直接使用API值
+        
+        // 根据状态值确定CSS类和颜色
+        let statusClass = 'fact-status-unverified'; // 默认类
+        let bgColor = '#6b7280'; // 默认灰色
+        let textColor = 'white';  // 默认文本颜色
+        const statusLower = originalStatus.toLowerCase();
+        
+        if (currentLang === 'en') {
+          if (statusLower.includes('true') && !statusLower.includes('partially')) {
+            statusClass = 'fact-status-true';
+            bgColor = '#10b981'; // 绿色
+            textColor = 'white';
+          } else if (statusLower.includes('partially true')) {
+            statusClass = 'fact-status-partially-true';
+            bgColor = '#f59e0b'; // 黄色
+            textColor = '#111827';
+          } else if (statusLower.includes('false')) {
+            statusClass = 'fact-status-false';
+            bgColor = '#ef4444'; // 红色
+            textColor = 'white';
+          } else if (statusLower.includes('misleading')) {
+            statusClass = 'fact-status-misleading';
+            bgColor = '#FFC107'; // 黄色警告
+            textColor = '#111827';
+          }
+        } else { // 中文处理
+          if (statusLower.includes('真实') && !statusLower.includes('部分')) {
+            statusClass = 'fact-status-true';
+            bgColor = '#10b981'; // 绿色
+            textColor = 'white';
+          } else if (statusLower.includes('部分真实')) {
+            statusClass = 'fact-status-partially-true';
+            bgColor = '#f59e0b'; // 黄色
+            textColor = '#111827';
+          } else if (statusLower.includes('虚假')) {
+            statusClass = 'fact-status-false';
+            bgColor = '#ef4444'; // 红色
+            textColor = 'white';
+          } else if (statusLower.includes('误导')) {
+            statusClass = 'fact-status-misleading';
+            bgColor = '#FFC107'; // 黄色警告
+            textColor = '#111827';
+          }
+        }
+        
+        console.log(`处理状态: ${originalStatus} -> ${displayStatus} (CSS类: ${statusClass}, 背景: ${bgColor}, 文字: ${textColor})`);
+        
+        return `
+          <div class="fact-item">
+            <div class="fact-content">${claim}</div>
+            <div class="fact-status ${statusClass}" style="background-color: ${bgColor}; color: ${textColor}">${displayStatus}</div>
+          </div>
+        `;
+      }).join('');
+      
+      // 添加事实核查区域的标题和内容
+      factChecksHTML = `
+        <div class="section">
+          <h2 class="section-title">
+            <i class="fas fa-check-double"></i>
+            ${getText('factChecking')}
+          </h2>
+          <div class="facts-container">
+            ${factItems}
+          </div>
         </div>
-      </div>
-    ` : '';
+      `;
+    } else {
+      // 没有事实核查内容时显示的空状态
+      factChecksHTML = `
+        <div class="section">
+          <h2 class="section-title">
+            <i class="fas fa-check-double"></i>
+            ${getText('factChecking')}
+          </h2>
+          <div class="empty-section">${getText('noFactsToCheck')}</div>
+        </div>
+      `;
+    }
 
-    // 创建实体标签
-    const entities = result.entity_verification?.entities_found || [];
+    // 创建夸张信息检查内容
+    let exaggerationHTML = '';
+    if (result.exaggeration_check?.exaggerations_found && result.exaggeration_check.exaggerations_found.length > 0) {
+      const exaggerationItems = (result.exaggeration_check.exaggerations_found || []).map((exaggeration, index) => {
+        const currentLang = uiLang; // 使用一致的语言
+        
+        // 获取夸张校正文本，优先使用API返回的校正
+        const apiCorrection = result.exaggeration_check.corrections[index];
+        
+        // 当API没有返回校正时，使用本地化文本
+        const fallbackText = getText('moreAccurateStatement');
+        
+        // 最终显示的校正文本
+        const displayCorrection = apiCorrection || fallbackText;
+        
+        // 使用数据属性记录校正类型，而不是内联样式
+        return `
+          <div class="exaggeration-item">
+            <div class="exaggeration-claim">${exaggeration}</div>
+            <div class="exaggeration-correction" data-correction-type="${apiCorrection ? 'api' : 'default'}">
+              ${displayCorrection}
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      // 添加夸张信息检查区域的标题和内容
+      exaggerationHTML = `
+        <div class="section">
+          <h2 class="section-title">
+            <i class="fas fa-exclamation-triangle"></i>
+            ${getText('exaggerationCheck')}
+          </h2>
+          <div class="exaggerations-container">
+            ${exaggerationItems}
+          </div>
+        </div>
+      `;
+    } else {
+      // 没有夸张信息检查内容时显示的空状态
+      exaggerationHTML = `
+        <div class="section">
+          <h2 class="section-title">
+            <i class="fas fa-exclamation-triangle"></i>
+            ${getText('exaggerationCheck')}
+          </h2>
+          <div class="empty-section">${getText('noExaggerations')}</div>
+        </div>
+      `;
+    }
+
+    // 创建实体验证内容
     let entitiesHTML = '';
+    const entities = result.entity_verification?.entities_found || [];
     
     if (entities.length > 0) {
       const previewEntities = entities.slice(0, Math.min(10, entities.length));
@@ -826,12 +953,19 @@ function initializeFloatingCard() {
         `;
       }
       
+      // 添加实体验证区域的标题和内容
       entitiesHTML = `
-        <div class="entities-container">
-          <div class="entities-preview" id="entities-preview">
-            ${previewHTML}
+        <div class="section">
+          <h2 class="section-title">
+            <i class="fas fa-user-check"></i>
+            ${getText('entityVerification')}
+          </h2>
+          <div class="entities-container">
+            <div class="entities-preview" id="entities-preview">
+              ${previewHTML}
+            </div>
+            ${hiddenHTML}
           </div>
-          ${hiddenHTML}
         </div>
       `;
 
@@ -856,8 +990,16 @@ function initializeFloatingCard() {
         }
       }, 100);
     } else {
-      // 没有实体时显示的内容
-      entitiesHTML = `<div class="empty-section">${getText('noEntities')}</div>`;
+      // 没有实体时显示的空状态
+      entitiesHTML = `
+        <div class="section">
+          <h2 class="section-title">
+            <i class="fas fa-user-check"></i>
+            ${getText('entityVerification')}
+          </h2>
+          <div class="empty-section">${getText('noEntitiesFound')}</div>
+        </div>
+      `;
     }
 
     return `
@@ -865,7 +1007,7 @@ function initializeFloatingCard() {
         ${flagsHTML}
         ${sourcesHTML}
         ${factChecksHTML}
-        ${exaggerationSection}
+        ${exaggerationHTML}
         ${entitiesHTML}
       </div>
     `;

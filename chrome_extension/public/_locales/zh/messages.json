@@ -166,6 +166,18 @@
   "infoEvaluation": {
     "message": "多维度分析"
   },
+  "sourceEvaluation": {
+    "message": "来源核查"
+  },
+  "factChecking": {
+    "message": "事实核查"
+  },
+  "exaggerationCheck": {
+    "message": "夸张信息检查"
+  },
+  "entityVerification": {
+    "message": "实体验证"
+  },
   "factuality": {
     "message": "事实性"
   },
@@ -177,5 +189,23 @@
   },
   "bias": {
     "message": "偏见程度"
+  },
+  "noSourcesFound": {
+    "message": "未找到相关信息来源"
+  },
+  "noFactsToCheck": {
+    "message": "未发现需要核查的主要事实声明"
+  },
+  "noEntitiesFound": {
+    "message": "未发现需要验证的实体"
+  },
+  "noExaggerations": {
+    "message": "未发现夸张信息"
+  },
+  "showMoreEntities": {
+    "message": "显示更多实体 >"
+  },
+  "hideEntities": {
+    "message": "< 收起实体"
   }
 } 

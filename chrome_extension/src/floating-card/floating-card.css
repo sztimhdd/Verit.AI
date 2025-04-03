@@ -10,6 +10,35 @@
   --gray-500: #6b7280;
   --gray-700: #374151;
   --gray-900: #111827;
+  
+  /* 评分级别颜色 */
+  --rating-high: #10b981;    /* 绿色 - 高评分 */
+  --rating-medium: #f59e0b;  /* 黄色 - 中评分 */
+  --rating-low: #ef4444;     /* 红色 - 低评分 */
+  --rating-neutral: #9ca3af; /* 灰色 - 默认/未知 */
+  
+  /* 偏见评分的特殊颜色（高偏见是负面的） */
+  --bias-high: var(--rating-low);     /* 红色 - 高偏见（负面） */
+  --bias-medium: var(--rating-medium); /* 黄色 - 中偏见 */
+  --bias-low: var(--rating-high);     /* 绿色 - 低偏见（正面） */
+  
+  /* 卡片和项目样式变量 */
+  --card-border-radius: 16px;
+  --card-padding: 14px 16px;
+  --card-min-height: 85px;
+  --card-bg-color: #f9fafb;
+  --card-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --card-shadow-hover: 0 4px 8px rgba(0, 0, 0, 0.1);
+  
+  /* 动画和过渡 */
+  --transition-standard: all 0.2s ease;
+  
+  /* 评分头部背景渐变 */
+  --gradient-high: linear-gradient(135deg, #10b981, #34d399);
+  --gradient-medium-high: linear-gradient(135deg, #2563eb, #3b82f6);
+  --gradient-medium: linear-gradient(135deg, #f59e0b, #fbbf24);
+  --gradient-medium-low: linear-gradient(135deg, #ff8c00, #ffa533);
+  --gradient-low: linear-gradient(135deg, #dc2626, #ef4444);
 }
 
 body {
@@ -143,8 +172,8 @@ body {
 }
 
 .section {
-  margin-bottom: 24px;
-  padding-bottom: 8px;
+  margin-bottom: 28px; /* 增加章节间距 */
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--gray-200);
 }
 
@@ -156,7 +185,7 @@ body {
 .section-title {
   font-size: 16px;
   font-weight: 500;
-  margin-bottom: 12px;
+  margin-bottom: 16px; /* 增加标题下方间距 */
   color: var(--gray-900);
   display: flex;
   align-items: center;
@@ -221,44 +250,159 @@ body {
   position: relative;
 }
 
-/* 评分维度网格布局 */
+/* 评分维度布局 */
 .flags-container {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr); /* 两列布局 */
-  grid-gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px; /* 增加行间距 */
   margin-bottom: 20px;
+  width: 100%; /* 确保容器占据全宽 */
 }
 
+/* 评分维度行样式 */
+.flags-row {
+  display: flex;
+  width: 100%;
+  gap: 16px; /* 增加列间距 */
+}
+
+/* 评分维度卡片基础样式 */
 .flag-item {
-  border-radius: 8px;
-  padding: 12px;
-  background-color: var(--gray-100);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s;
+  border-radius: var(--card-border-radius);
+  padding: var(--card-padding);
+  background-color: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: var(--transition-standard);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border-top: 3px solid var(--rating-neutral); /* 恢复完整的 border-top 属性 */
+  min-height: var(--card-min-height);
+  justify-content: space-between;
+  overflow: hidden;
 }
 
 .flag-item:hover {
   transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-/* 优化评分标签 */
+/* 评分级别颜色类 - 正常指标（高=好） */
+.rating-high { 
+  border-top: 3px solid var(--rating-high); 
+}
+.rating-medium { 
+  border-top: 3px solid var(--rating-medium); 
+}
+.rating-low { 
+  border-top: 3px solid var(--rating-low); 
+}
+.rating-neutral { 
+  border-top: 3px solid var(--rating-neutral); 
+}
+
+/* 偏见指标特殊类（高=不好） */
+.bias-high { 
+  border-top: 3px solid var(--bias-high); 
+}
+.bias-medium { 
+  border-top: 3px solid var(--bias-medium); 
+}
+.bias-low { 
+  border-top: 3px solid var(--bias-low); 
+}
+
+/* 图标颜色类 */
+.icon-high { 
+  color: var(--rating-high); 
+}
+.icon-medium { 
+  color: var(--rating-medium); 
+}
+.icon-low { 
+  color: var(--rating-low); 
+}
+.icon-neutral { 
+  color: var(--rating-neutral); 
+}
+
+/* 偏见图标特殊类 */
+.bias-icon-high { 
+  color: var(--bias-high); 
+}
+.bias-icon-medium { 
+  color: var(--bias-medium); 
+}
+.bias-icon-low { 
+  color: var(--bias-low); 
+}
+
+/* 文本颜色类 */
+.text-high { 
+  color: var(--rating-high); 
+}
+.text-medium { 
+  color: var(--rating-medium); 
+}
+.text-low { 
+  color: var(--rating-low); 
+}
+.text-neutral { 
+  color: var(--rating-neutral); 
+}
+
+/* 偏见文本特殊类 */
+.bias-text-high { 
+  color: var(--bias-high); 
+}
+.bias-text-medium { 
+  color: var(--bias-medium); 
+}
+.bias-text-low { 
+  color: var(--bias-low); 
+}
+
+/* 评分头部背景类 */
+.score-range-high {
+  background: var(--gradient-high);
+}
+.score-range-medium-high {
+  background: var(--gradient-medium-high);
+}
+.score-range-medium {
+  background: var(--gradient-medium);
+}
+.score-range-medium-low {
+  background: var(--gradient-medium-low);
+}
+.score-range-low {
+  background: var(--gradient-low);
+}
+
+/* 评分标签样式 */
 .flag-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--gray-700);
   margin-bottom: 8px;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .flag-title i {
-  margin-right: 6px;
-  font-size: 14px;
+  margin-right: 8px;
+  font-size: 16px;
+  min-width: 18px;
+  text-align: center;
 }
 
 .flag-value {
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 600;
+  padding-left: 26px;
+  margin-top: 6px;
   color: var(--gray-900);
 }
 
@@ -278,6 +422,7 @@ body {
   color: var(--gray-700);
   display: inline-flex;
   align-items: center;
+  margin-bottom: 5px;
 }
 
 /* 信息源卡片样式优化 */
@@ -291,6 +436,61 @@ body {
 
 .source-item:hover {
   background-color: var(--gray-200);
+}
+
+/* 事实检查项样式美化 */
+.fact-check-item {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: var(--gray-100);
+  transition: transform 0.2s;
+}
+
+.fact-check-item:hover {
+  transform: translateX(4px);
+  background-color: var(--gray-200);
+}
+
+.fact-check-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--gray-300);
+}
+
+/* 事实状态类 */
+.fact-status {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  margin-top: 6px;
+}
+
+.fact-status-true {
+  background-color: var(--rating-high);
+  color: white;
+}
+
+.fact-status-partially-true {
+  background-color: var(--rating-medium);
+  color: #111827;
+}
+
+.fact-status-false {
+  background-color: var(--rating-low);
+  color: white;
+}
+
+.fact-status-misleading {
+  background-color: var(--warning-color);
+  color: #111827;
+}
+
+.fact-status-unverified {
+  background-color: var(--gray-500);
+  color: white;
 }
 
 /* 夸张信息检查样式优化 */
@@ -312,6 +512,7 @@ body {
   background-color: rgba(255, 252, 232, 0.7);
   font-style: italic;
   position: relative;
+  border-left: 3px solid var(--warning-color);
 }
 
 /* 添加容器底部填充，确保内容完全可见 */
@@ -346,32 +547,6 @@ body {
   0% { transform: translateX(-50%) translateY(0); }
   50% { transform: translateX(-50%) translateY(5px); }
   100% { transform: translateX(-50%) translateY(0); }
-}
-
-/* 事实检查项样式美化 */
-.fact-check-item {
-  margin-bottom: 16px;
-  padding: 12px;
-  border-radius: 8px;
-  background-color: var(--gray-100);
-  transition: transform 0.2s;
-}
-
-.fact-check-item:hover {
-  transform: translateX(4px);
-  background-color: var(--gray-200);
-}
-
-.fact-check-status {
-  font-weight: 600;
-  margin-bottom: 4px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--gray-300);
-}
-
-.fact-check-claim {
-  font-size: 13px;
-  line-height: 1.5;
 }
 
 /* 空状态反馈优化 */

@@ -166,6 +166,18 @@
   "infoEvaluation": {
     "message": "Multi-dimension Analysis"
   },
+  "sourceEvaluation": {
+    "message": "Source Evaluation"
+  },
+  "factChecking": {
+    "message": "Fact Checking"
+  },
+  "exaggerationCheck": {
+    "message": "Exaggeration Check"
+  },
+  "entityVerification": {
+    "message": "Entity Verification"
+  },
   "factuality": {
     "message": "Factuality"
   },
@@ -177,5 +189,23 @@
   },
   "bias": {
     "message": "Bias"
+  },
+  "noSourcesFound": {
+    "message": "No related sources found"
+  },
+  "noFactsToCheck": {
+    "message": "No major factual claims to check"
+  },
+  "noEntitiesFound": {
+    "message": "No entities to verify"
+  },
+  "noExaggerations": {
+    "message": "No exaggerations found"
+  },
+  "showMoreEntities": {
+    "message": "Show more entities >"
+  },
+  "hideEntities": {
+    "message": "< Hide entities"
   }
 } 
