@@ -1,32 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "__MSG_extName__",
-  "version": "1.1.0",
-  "description": "__MSG_extDescription__",
-  "default_locale": "en",
+  "name": "Oracle AI Fact Checker",
+  "version": "1.0.0",
+  "description": "AI-powered fact checking tool",
   "permissions": [
-    "storage",
     "activeTab",
-    "tabs"
+    "scripting",
+    "tabs",
+    "storage"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
-  "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "32": "icons/icon32.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
-  },
-  "icons": {
-    "16": "icons/icon16.png",
-    "32": "icons/icon32.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
-  },
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -35,24 +20,25 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "css": ["styles/content.css"]
+      "run_at": "document_idle"
     }
   ],
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com"
+  "action": {
+    "default_title": "Oracle AI Fact Checker"
   },
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "floating-card.html", 
-        "floating-card.js",
-        "styles/*.css",
-        "icons/*.png",
-        "lib/*.js"
-      ],
-      "matches": ["<all_urls>"]
-    }
-  ],
-  "author": "Oracle AI Team",
-  "homepage_url": "https://your-website.com"
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
+    "sandbox": "sandbox allow-scripts allow-forms allow-popups allow-modals"
+  },
+  "web_accessible_resources": [{
+    "resources": [
+      "floating-card.html",
+      "floating-card.js",
+      "content.js"
+    ],
+    "matches": ["<all_urls>"]
+  }],
+  "sandbox": {
+    "pages": ["floating-card.html"]
+  }
 }

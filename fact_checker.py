@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 from google import genai
 from google.genai.types import GenerateContentConfig, Tool
 # Configuration
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_MODEL = "gemini-1.5-flash"
 CACHE_FILE = "fact_check_cache.json"
 GEMINI_API_KEY='AIzaSyAGgOYBLHYReZFylVtCIB3R9Zhv4QUPLhM'
 class FactChecker:

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>事实核查结果</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .card-header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .score-section {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+        .score {
+            font-size: 48px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .score-label {
+            font-size: 16px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .summary-section {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .summary-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .summary-content {
+            line-height: 1.6;
+            color: #333;
+        }
+        .metrics-section {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            flex-wrap: wrap;
+        }
+        .metric {
+            flex: 1;
+            min-width: 200px;
+            margin: 5px 0;
+        }
+        .metric-title {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .metric-value {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .issues-section {
+            padding: 20px;
+        }
+        .issues-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .issue-item {
+            margin-bottom: 12px;
+            padding-left: 20px;
+            position: relative;
+            line-height: 1.5;
+        }
+        .issue-item:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #F44336;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="card-header">
+            事实核查结果
+        </div>
+        <div class="score-section">
+            <div class="score">85/100</div>
+            <div class="score-label">可信度评分</div>
+        </div>
+        <div class="summary-section">
+            <div class="summary-title">总结</div>
+            <div class="summary-content">一篇报道讲述了中国研究团队在帕金森病治疗方面取得的潜在重大突破。由于该报道引用了享有盛誉的科学期刊《科学》并指明了具体的科研人员和机构，其整体可靠性较高。然而，需要注意的是，这篇报道来自新闻来源（楚天交通广播，经逐浪新闻转载），并非原始科学出版物。因此，报道可能简化或夸大了研究结果。报道的语气乐观积极，这在报道潜在医学进步时是可以接受的，但必须记住，这只是初步研究，需要进一步验证。</div>
+        </div>
+        <div class="metrics-section">
+            <div class="metric">
+                <div class="metric-title">事实准确性</div>
+                <div class="metric-value">高</div>
+            </div>
+            <div class="metric">
+                <div class="metric-title">来源可信度</div>
+                <div class="metric-value">High</div>
+            </div>
+            <div class="metric">
+                <div class="metric-title">夸大程度</div>
+                <div class="metric-value">Medium</div>
+            </div>
+        </div>
+        <div class="issues-section">
+            <div class="issues-title">主要问题</div>
+            <div class="issue-item">依赖新闻报道而非直接查阅《科学》杂志上的科学出版物。</div><div class="issue-item">早期研究结果可能被过度乐观解读。</div><div class="issue-item">该文章推崇特定团队的研究成果；虽然并非天生偏颇，但这可能会影响其呈现方式。</div><div class="issue-item">在该疗法被认为有效之前，需要进一步的研究和验证。</div><div class="issue-item">关于全球和中国帕金森病患者数量的说法与已知数据相符，增强了可信度。</div>
+        </div>
+    </div>
+    <div class="footer">
+        ©2025 AI事实核查系统 - 由Gemini API提供支持
+    </div>
+</body>
+</html>

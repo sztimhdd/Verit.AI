@@ -8,12 +8,12 @@
     "dev": "nodemon app.js"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.2.1",
+    "@google/generative-ai": "^0.2.0",
     "axios": "^1.8.4",
     "cheerio": "^1.0.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"
@@ -21,8 +21,5 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "FactChecker AI - 智能事实核查服务",
-  "engines": {
-    "node": ">=16.0.0"
-  }
+  "description": ""
 }

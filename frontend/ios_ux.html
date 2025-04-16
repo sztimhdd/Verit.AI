@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Veri.ai - iOS UX Mockup</title>
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        /* --- 全局样式与变量 --- */
+        :root {
+            --bg-dark-indigo: #0F172A; /* 深靛蓝 */
+            --primary-purple: #6366F1; /* 活力紫 */
+            --text-bright-white: #F8FAFC; /* 明亮白 */
+            --card-bg: #1E293B; /* 卡片背景 - 稍亮的深色 */
+            --text-secondary: #94A3B8; /* 次要文本颜色 */
+            --border-color: #334155; /* 边框颜色 */
+            --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px); /* iOS 安全区域 */
+            --safe-area-inset-top: env(safe-area-inset-top, 20px); /* iOS 安全区域 (估算状态栏) */
+            --font-family-ios: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden; /* 防止body滚动 */
+            font-family: var(--font-family-ios);
+            background-color: var(--bg-dark-indigo);
+            color: var(--text-bright-white);
+            -webkit-tap-highlight-color: transparent; /* 移除点击高亮 */
+        }
+
+        /* --- 容器与视图切换 --- */
+        .app-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative; /* 用于绝对定位视图 */
+        }
+
+        .view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 60px - var(--safe-area-inset-bottom)); /* 减去 Tab Bar 高度 */
+            overflow-y: auto; /* 视图内部可滚动 */
+            -webkit-overflow-scrolling: touch; /* iOS 滚动优化 */
+            background-color: var(--bg-dark-indigo);
+            padding: 0 16px 16px 16px; /* 调整内边距，顶部由 header 控制 */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s;
+            z-index: 1;
+            display: flex; /* 使用 Flexbox 布局 */
+            flex-direction: column; /* 垂直排列内容 */
+        }
+
+        .view.active {
+            opacity: 1;
+            visibility: visible;
+            z-index: 10;
+        }
+
+        /* --- 视图头部 (模拟导航栏) --- */
+        .view-header {
+            padding-top: var(--safe-area-inset-top);
+            padding-bottom: 10px;
+            position: sticky; /* 固定头部 */
+            top: 0;
+            background-color: var(--bg-dark-indigo); /* 与视图背景色一致 */
+            z-index: 20; /* 高于内容 */
+            display: flex;
+            align-items: center;
+            min-height: 44px; /* iOS 导航栏建议高度 */
+        }
+
+        .back-button {
+            position: absolute; /* 绝对定位在左侧 */
+            left: 0; /* 调整按钮位置 */
+            top: var(--safe-area-inset-top);
+            height: 44px; /* 与导航栏高度一致 */
+            background: none;
+            border: none;
+            color: var(--primary-purple);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0 16px;
+            display: none; /* 默认隐藏 */
+            align-items: center;
+        }
+        .back-button i {
+            margin-right: 4px;
+        }
+
+        .view-header-title {
+            flex-grow: 1; /* 占据剩余空间 */
+            text-align: center;
+            font-size: 17px; /* iOS 导航栏标题大小 */
+            font-weight: 600;
+            /* 如果有返回按钮，需要调整标题位置避免重叠，或让按钮绝对定位 */
+        }
+        /* 当有返回按钮时，给标题留出空间 */
+        .back-button:not([style*="display: none"]) + .view-header-title {
+             padding-left: 60px; /* 大致等于按钮宽度 */
+             padding-right: 60px; /* 对称 */
+             text-align: center;
+        }
+
+
+        /* --- 底部 Tab Bar --- */
+        .tab-bar {
+            height: calc(60px + var(--safe-area-inset-bottom));
+            background-color: var(--card-bg);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start; /* 图标和文字顶部对齐 */
+            padding-top: 8px; /* 图标距离顶部距离 */
+            padding-bottom: var(--safe-area-inset-bottom); /* 底部安全区域 */
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 10px;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            flex: 1; /* 均分空间 */
+            padding: 0 5px; /* 防止文字过长换行 */
+            text-align: center;
+        }
+
+        .tab-item i {
+            font-size: 22px;
+            margin-bottom: 4px; /* 图标和文字间距 */
+        }
+
+        .tab-item.active {
+            color: var(--primary-purple);
+        }
+
+        /* --- 通用组件 --- */
+        .page-title { /* 大标题样式，用于页面主要标题 */
+            font-size: 28px; /* iOS Large Title 感觉 */
+            font-weight: 700;
+            margin-bottom: 24px;
+            padding-top: 10px; /* 距离 Header 的间距 */
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px; /* iOS 圆角风格 */
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* 卡片阴影 */
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+        }
+        .card:active { /* 轻微点击效果 */
+             transform: scale(0.98);
+             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            text-align: center;
+        }
+
+        .button-primary {
+            background: linear-gradient(135deg, var(--primary-purple), #4f46e5); /* 渐变 */
+            color: var(--text-bright-white);
+            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4);
+        }
+        .button-primary:active {
+            background: linear-gradient(135deg, #4f46e5, var(--primary-purple));
+            transform: scale(0.97);
+        }
+
+        .button-secondary {
+            background-color: var(--border-color);
+            color: var(--text-bright-white);
+        }
+        .button-secondary:active {
+            background-color: #4b5563;
+            transform: scale(0.97);
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 14px 16px;
+            padding-left: 40px; /* 为图标留出空间 */
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-dark-indigo); /* 输入框背景 */
+            color: var(--text-bright-white);
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .input-field:focus {
+            border-color: var(--primary-purple);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+        }
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+
+        textarea.input-field {
+            min-height: 100px;
+            resize: vertical;
+            padding-left: 16px; /* Textarea 不需要图标空间 */
+        }
+
+        /* --- 核查入口页 (Check View) --- */
+        #check-view .hero-image {
+            width: 100%;
+            height: 150px; /* 合适的高度 */
+            object-fit: cover; /* 保持比例裁剪 */
+            border-radius: 12px;
+            margin-bottom: 24px;
+            opacity: 0.8;
+        }
+        #check-view .button-group {
+            display: flex;
+            gap: 12px; /* 按钮间距 */
+            margin-top: 24px;
+        }
+        #check-view .button-group .button {
+            flex: 1; /* 按钮平分空间 */
+        }
+
+        /* --- 加载中视图 (Loading View) --- */
+        #loading-view {
+            justify-content: center; /* 垂直居中 */
+            align-items: center; /* 水平居中 */
+            text-align: center;
+            padding-top: 0; /* 加载页不需要顶部内边距 */
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary-purple);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        #loading-view p {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+
+        /* --- 结果页通用样式 (Result Overview View) --- */
+        .result-section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            color: var(--text-bright-white);
+        }
+        .result-section-title i {
+            margin-right: 8px;
+            color: var(--primary-purple);
+            width: 20px; /* 固定图标宽度 */
+            text-align: center;
+        }
+
+        .score-circle-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-top: 10px; /* 距离 Header 的间距 */
+        }
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            position: relative;
+            background: conic-gradient(var(--primary-purple) 0% var(--score-percent, 0%), var(--border-color) var(--score-percent, 0%) 100%);
+            animation: score-load 1s ease-out forwards;
+        }
+        .score-circle::before { /* 内部圆，形成圆环效果 */
+            content: '';
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background-color: var(--card-bg);
+            border-radius: 50%;
+        }
+        .score-text {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--text-bright-white);
+            z-index: 1;
+            opacity: 0;
+            animation: fade-in 0.5s 0.5s ease-out forwards;
+        }
+        .score-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+            z-index: 1;
+            opacity: 0;
+            animation: fade-in 0.5s 0.7s ease-out forwards;
+        }
+        @keyframes score-load {
+            from { --score-percent: 0%; }
+            to { /* --score-percent 会被 JS 设置 */ }
+        }
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .indicators-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 每行2个 */
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .indicator-card {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            border-left: 4px solid; /* 由 JS 设置颜色 */
+            animation: slide-up 0.5s ease-out forwards;
+            opacity: 0;
+        }
+        .indicator-card:nth-child(1) { animation-delay: 0.1s; }
+        .indicator-card:nth-child(2) { animation-delay: 0.2s; }
+        .indicator-card:nth-child(3) { animation-delay: 0.3s; }
+        .indicator-card:nth-child(4) { animation-delay: 0.4s; }
+
+        .indicator-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-bright-white);
+        }
+        .indicator-level {
+            font-size: 12px;
+            font-weight: 500;
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: inline-block; /* 使背景适应内容 */
+        }
+        /* 等级颜色 - JS 会添加对应的 class */
+        .level-high { color: #34D399; background-color: rgba(16, 185, 129, 0.1); border-color: #34D399; }
+        .level-medium { color: #FBBF24; background-color: rgba(251, 191, 36, 0.1); border-color: #FBBF24; }
+        .level-low { color: #F87171; background-color: rgba(248, 113, 113, 0.1); border-color: #F87171; }
+
+        .summary-card p {
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        @keyframes slide-up {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- 结果详情页 Tab 样式 (集成在概览页内) --- */
+        .details-section { /* 包裹 Tab 和内容的容器 */
+             margin-top: 24px;
+        }
+        .details-tabs {
+            display: flex;
+            margin-bottom: 0; /* Tab 紧贴下方卡片 */
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto; /* 如果标签过多可以横向滚动 */
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 1px; /* 防止激活下划线被遮挡 */
+            background-color: var(--bg-dark-indigo); /* 背景色确保滚动时覆盖下方 */
+            position: sticky; /* 滚动时固定 Tab */
+            top: calc(var(--safe-area-inset-top) + 44px); /* 固定在 Header 下方 */
+            z-index: 15; /* 低于 Header，高于内容 */
+        }
+        .details-tabs::-webkit-scrollbar { display: none; } /* 隐藏滚动条 */
+
+        .tab-button {
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: color 0.2s ease, border-color 0.2s ease;
+            white-space: nowrap; /* 防止按钮文字换行 */
+            flex-shrink: 0; /* 防止按钮被压缩 */
+        }
+        .tab-button.active {
+            color: var(--primary-purple);
+            border-bottom-color: var(--primary-purple);
+        }
+
+        .details-content-card { /* Tab 下方的内容卡片 */
+            margin-top: 0; /* 移除与上方 Tab 的间距 */
+            border-top-left-radius: 0; /* 使卡片顶部与 Tab 对齐 */
+            border-top-right-radius: 0;
+            box-shadow: none; /* 可以移除阴影，让它看起来更像页面的一部分 */
+            border: none; /* 可以移除边框 */
+            padding-top: 20px; /* 增加内容与 Tab 的间距 */
+        }
+
+        .tab-content {
+            display: none; /* JS 控制显示 */
+            animation: fade-in 0.3s ease;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .detail-item {
+            margin-bottom: 16px; /* 增加项间距 */
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .detail-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .detail-item h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 8px; /* 增加标题与内容间距 */
+            color: var(--text-bright-white);
+        }
+        .detail-item p, .detail-item ul {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6; /* 增加行高 */
+        }
+        .detail-item ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        .detail-item li {
+            margin-bottom: 6px; /* 增加列表项间距 */
+            position: relative;
+            padding-left: 18px; /* 调整项目符号空间 */
+        }
+        .detail-item li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            top: 1px; /* 微调项目符号位置 */
+            color: var(--primary-purple);
+            font-size: 16px;
+        }
+        .source-link {
+            color: var(--primary-purple);
+            text-decoration: none;
+            word-break: break-all; /* 防止长链接溢出 */
+        }
+        .source-link:hover {
+            text-decoration: underline;
+        }
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .tag {
+            background-color: var(--border-color);
+            color: var(--text-bright-white);
+            padding: 4px 10px;
+            border-radius: 12px; /* 圆角标签 */
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .correction-item {
+            background-color: rgba(251, 191, 36, 0.1); /* 黄色背景提示 */
+            border-left: 3px solid #FBBF24;
+            padding: 10px 12px;
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+        .correction-item strong {
+            color: #FBBF24;
+        }
+
+        /* --- 历史记录页 (History View) --- */
+        #history-view .page-title {
+            padding-left: 0; /* 历史页没有返回按钮，不需要左内边距 */
+        }
+        .history-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .history-item {
+            display: flex;
+            align-items: center;
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            animation: fade-in-list 0.5s ease-out forwards;
+            opacity: 0;
+        }
+        .history-item:active {
+            background-color: #2a3a50; /* 点击反馈 */
+            transform: scale(0.99);
+        }
+        .history-item-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        /* 评分颜色 */
+        .score-high { background-color: #10B981; color: white; } /* Green */
+        .score-medium { background-color: #F59E0B; color: white; } /* Yellow */
+        .score-low { background-color: #EF4444; color: white; } /* Red */
+
+        .history-item-content {
+            flex-grow: 1;
+            overflow: hidden; /* 防止内容溢出 */
+        }
+        .history-item-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-bright-white);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis; /* 超出显示省略号 */
+            margin-bottom: 4px;
+        }
+        .history-item-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .history-item-arrow {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        @keyframes fade-in-list {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* --- 历史详情页 (History Detail View) --- */
+        #history-detail-view .score-circle-container {
+             padding-top: 10px; /* 距离 Header 的间距 */
+        }
+        #historyDetailContent .card { /* 历史详情里的卡片不需要点击效果 */
+             transform: none;
+             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+         #historyDetailContent .card:active {
+             transform: none;
+             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+         }
+
+
+    </style>
+</head>
+<body>
+    <div class="app-container">
+
+        <!-- View: 核查入口 -->
+        <div class="view active" id="check-view">
+            <!-- 无 Header 或自定义 Header -->
+            <h1 class="page-title">开始核查</h1>
+            <img src="https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80" alt="Hero Image" class="hero-image">
+
+            <div class="input-group">
+                <i class="fas fa-link input-icon"></i>
+                <input type="text" id="urlInput" class="input-field" placeholder="粘贴网址...">
+            </div>
+            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 16px;">或</p>
+            <textarea id="textInput" class="input-field" placeholder="直接输入文本内容..."></textarea>
+
+            <div class="button-group">
+                <button id="clearBtn" class="button button-secondary"><i class="fas fa-trash-alt" style="margin-right: 8px;"></i>清除</button>
+                <button id="analyzeBtn" class="button button-primary"><i class="fas fa-microscope" style="margin-right: 8px;"></i>核查</button>
+            </div>
+        </div>
+
+        <!-- View: 加载中 -->
+        <div class="view" id="loading-view">
+            <div class="spinner"></div>
+            <p>正在分析中，请稍候...</p>
+        </div>
+
+        <!-- View: 结果概览 (包含详情) -->
+        <div class="view" id="result-overview-view">
+             <div class="view-header">
+                 <button id="result-back-button" class="back-button"><i class="fas fa-chevron-left"></i>返回</button>
+                 <h2 class="view-header-title">核查结果</h2>
+             </div>
+            <!-- 评分 -->
+            <div class="score-circle-container">
+                <div id="scoreCircle" class="score-circle" style="--score-percent: 0%;">
+                    <span id="scoreText" class="score-text">0</span>
+                    <span class="score-label">可信度</span>
+                </div>
+                <h3 style="font-size: 18px; font-weight: 600;">综合评分</h3>
+            </div>
+
+            <!-- 指标 -->
+            <div class="card">
+                <h3 class="result-section-title"><i class="fas fa-chart-bar"></i>核心指标</h3>
+                <div id="indicatorsGrid" class="indicators-grid">
+                    <!-- JS 动态填充 -->
+                </div>
+            </div>
+
+            <!-- 摘要 -->
+            <div class="card summary-card">
+                <h3 class="result-section-title"><i class="fas fa-file-alt"></i>总体评估</h3>
+                <p id="summaryText">...</p>
+            </div>
+
+            <!-- 详细分析 Tab 区域 -->
+            <div class="details-section">
+                <div id="detailsTabs" class="details-tabs">
+                    <button class="tab-button active" data-target="source-tab"><i class="fas fa-link"></i> 来源</button>
+                    <button class="tab-button" data-target="entity-tab"><i class="fas fa-tags"></i> 实体</button>
+                    <button class="tab-button" data-target="fact-tab"><i class="fas fa-check-double"></i> 事实</button>
+                    <button class="tab-button" data-target="exaggeration-tab"><i class="fas fa-bullhorn"></i> 夸大</button>
+                </div>
+                <div class="card details-content-card">
+                    <!-- 来源验证 -->
+                    <div id="source-tab" class="tab-content active">
+                        <div class="detail-item">
+                            <h4>总体来源可信度</h4>
+                            <p><span id="sourceOverallCredibility" class="tag level-medium">...</span></p>
+                        </div>
+                        <div class="detail-item">
+                            <h4>发现的来源</h4>
+                            <ul id="sourcesFoundList"><li>...</li></ul>
+                        </div>
+                        <div class="detail-item">
+                            <h4>验证详情</h4>
+                            <ul id="sourceVerificationDetails"><li>...</li></ul>
+                        </div>
+                    </div>
+                    <!-- 实体信息 -->
+                    <div id="entity-tab" class="tab-content">
+                        <div class="detail-item">
+                            <h4>实体准确性评估</h4>
+                            <p><span id="entityAccuracy" class="tag level-high">...</span></p>
+                        </div>
+                        <div class="detail-item">
+                            <h4>识别的实体</h4>
+                            <div id="entitiesFoundTags" class="tag-list">
+                                <span class="tag">...</span>
+                            </div>
+                        </div>
+                        <div class="detail-item">
+                            <h4>验证详情</h4>
+                            <ul id="entityVerificationDetails"><li>...</li></ul>
+                        </div>
+                        <div id="entityCorrectionsSection" class="detail-item" style="display: none;">
+                            <h4>更正建议</h4>
+                            <ul id="entityCorrectionsList">
+                                <li class="correction-item">...</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <!-- 事实核查 -->
+                    <div id="fact-tab" class="tab-content">
+                         <div class="detail-item">
+                            <h4>总体事实准确性</h4>
+                            <p><span id="factOverallAccuracy" class="tag level-high">...</span></p>
+                        </div>
+                        <div id="factClaimsList">
+                            <div class="detail-item">
+                                <h4>论述 1: "..."</h4>
+                                <p><strong>核查结果:</strong> ...</p>
+                                <p style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;"><strong>证据:</strong> ...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 夸大检查 -->
+                    <div id="exaggeration-tab" class="tab-content">
+                        <div class="detail-item">
+                            <h4>夸大程度评估</h4>
+                            <p><span id="exaggerationSeverity" class="tag level-low">...</span></p>
+                        </div>
+                        <div id="exaggerationsFoundList">
+                            <div class="detail-item correction-item">
+                                <p><strong>夸大表述:</strong> "..."</p>
+                                <p><strong>解释:</strong> ...</p>
+                                <p><strong>建议修正:</strong> "..."</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- View: 历史记录 -->
+        <div class="view" id="history-view">
+             <div class="view-header">
+                 <!-- 历史页通常不需要返回按钮 -->
+                 <h2 class="view-header-title">核查历史</h2>
+             </div>
+            <!-- <h1 class="page-title">核查历史</h1> -->
+            <ul id="historyList" class="history-list">
+                <!-- JS 动态填充 -->
+                <li style="text-align: center; color: var(--text-secondary); padding: 20px 0;">加载中...</li>
+            </ul>
+        </div>
+
+        <!-- View: 历史详情 -->
+        <div class="view" id="history-detail-view">
+             <div class="view-header">
+                 <button id="history-detail-back-button" class="back-button"><i class="fas fa-chevron-left"></i>历史</button>
+                 <h2 class="view-header-title">历史详情</h2>
+             </div>
+            <div id="historyDetailContent">
+                <!-- JS 动态填充结果概览 -->
+            </div>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+            <div class="tab-item active" data-view="check-view">
+                <i class="fas fa-search"></i>
+                <span>核查</span>
+            </div>
+            <div class="tab-item" data-view="history-view">
+                <i class="fas fa-history"></i>
+                <span>历史</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 简单的视图切换和交互逻辑 ---
+        const views = document.querySelectorAll('.view');
+        const tabItems = document.querySelectorAll('.tab-item');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const clearBtn = document.getElementById('clearBtn'); // 添加清除按钮
+        const urlInput = document.getElementById('urlInput'); // 添加输入框引用
+        const textInput = document.getElementById('textInput'); // 添加文本域引用
+
+        // 结果页内的元素
+        const detailsTabs = document.getElementById('detailsTabs'); // Tab 容器现在在结果页内
+        const resultView = document.getElementById('result-overview-view'); // 引用结果视图
+
+        const historyList = document.getElementById('historyList');
+        const resultBackButton = document.getElementById('result-back-button');
+        const historyDetailBackButton = document.getElementById('history-detail-back-button');
+
+        let currentView = 'check-view';
+        let previousView = null; // 用于返回
+
+        // 模拟的历史数据
+        const mockHistory = [
+            { id: 1, title: "关于气候变化的最新研究", score: 85, date: "2023-10-26 14:05", type: "text" },
+            { id: 2, title: "https://example.com/news/tech", score: 62, date: "2023-10-25 09:15", type: "url" },
+            { id: 3, title: "健康饮食的十大误区", score: 40, date: "2023-10-24 18:30", type: "text" },
+        ];
+
+        // 模拟的分析结果数据 (结构参考 script.js)
+        const mockResultData = {
+            score: 78,
+            flags: { factuality: '中', objectivity: '高', reliability: '中', bias: '低' },
+            summary: '该内容总体可信度中等。部分信息来源可靠，但存在一些中立性问题和轻微偏见。建议结合其他来源进行判断。',
+            key_issues: [
+                "部分数据引用未明确来源。",
+                "存在少量情绪化表达。",
+                "对某一观点有所侧重。"
+            ],
+            source_verification: {
+                overall_source_credibility: '中等',
+                sources_found: ['Example News', 'https://verylongurl.example.com/path/to/a/very/deep/article/page.html', 'Research Institute A'],
+                credibility_scores: [7, 6, 8],
+                verification_details: [
+                    'Example News 是知名媒体，但近期有争议报道。',
+                    'verylongurl.example.com 来源评级较低。',
+                    'Research Institute A 是权威机构。',
+                    '部分论点缺少直接来源支持。'
+                ]
+            },
+            entity_verification: {
+                accuracy_assessment: '基本准确',
+                entities_found: ['AI 公司 X', '科学家 Y', '项目 Z', '某项技术'],
+                verification_details: [
+                    'AI 公司 X 的信息属实。',
+                    '科学家 Y 的引述基本准确，但略有简化。',
+                    '项目 Z 的描述与官方信息一致。'
+                ],
+                corrections: ['科学家 Y 的贡献应更详细说明。']
+            },
+            fact_check: {
+                overall_factual_accuracy: '较高',
+                claims_identified: ['AI 将在5年内取代50%的工作', '最新芯片性能提升3倍'],
+                verification_results: ['该预测存在争议，缺乏足够证据支持。', '官方数据显示性能提升约2.5倍，3倍说法略有夸大。'],
+                supporting_evidence: ['引用自某分析师报告，但未获广泛认同。', '参考官方发布的技术规格书。']
+            },
+            exaggeration_check: {
+                severity_assessment: '轻微',
+                exaggerations_found: ['"革命性"突破', '"彻底改变"行业'],
+                explanations: ['技术有进步，但称"革命性"可能过早。', '影响深远，但"彻底改变"用词绝对。'],
+                corrections: ['显著的技术进步', '可能深刻影响行业']
+            },
+            sources: [ // 参考来源 (如果输入是URL)
+                { title: "原始文章来源 - Example News", url: "https://example.com/news/original" },
+                { title: "相关研究报告 - Institute A", url: "https://institute-a.com/report" }
+            ]
+        };
+
+
+        function switchView(viewId, isBackAction = false) {
+            if (viewId === currentView) return;
+
+            const currentViewElement = document.getElementById(currentView);
+            const nextViewElement = document.getElementById(viewId);
+
+            if (currentViewElement) {
+                 currentViewElement.classList.remove('active');
+            }
+
+            if (nextViewElement) {
+                if (!isBackAction) {
+                    previousView = currentView; // 记录上一个视图
+                }
+                nextViewElement.classList.add('active');
+                // 滚动到视图顶部
+                nextViewElement.scrollTop = 0;
+                currentView = viewId;
+
+                 // 更新 Tab Bar 状态
+                tabItems.forEach(item => {
+                    item.classList.toggle('active', item.getAttribute('data-view') === viewId || (viewId === 'history-detail-view' && item.getAttribute('data-view') === 'history-view')); // 历史详情也激活历史tab
+                });
+
+                // 控制特定视图的返回按钮显示
+                resultBackButton.style.display = (viewId === 'result-overview-view' && previousView === 'history-view') ? 'flex' : 'none'; // 使用 flex
+                historyDetailBackButton.style.display = (viewId === 'history-detail-view') ? 'flex' : 'none'; // 使用 flex
+
+            } else {
+                 console.error("View not found:", viewId);
+            }
+        }
+
+        // --- 事件监听 ---
+
+        // Tab Bar 切换
+        tabItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const viewId = item.getAttribute('data-view');
+                switchView(viewId);
+                // 如果切换到历史页，加载历史记录
+                if (viewId === 'history-view') {
+                    renderHistoryList();
+                }
+            });
+        });
+
+        // 开始分析按钮
+        analyzeBtn.addEventListener('click', () => {
+            const urlValue = urlInput.value.trim();
+            const textValue = textInput.value.trim();
+            if (!urlValue && !textValue) {
+                alert("请输入网址或文本内容"); // 简单提示
+                return;
+            }
+            previousView = 'check-view'; // 明确来源是核查页
+            switchView('loading-view');
+            // 模拟分析过程
+            setTimeout(() => {
+                renderResultOverview(mockResultData); // 使用模拟数据渲染结果
+                switchView('result-overview-view');
+            }, 1500); // 模拟1.5秒加载
+        });
+
+        // 清除按钮
+        clearBtn.addEventListener('click', () => {
+            urlInput.value = '';
+            textInput.value = '';
+        });
+
+
+        // 结果页内部 Tab 切换 (事件委托到父元素)
+        resultView.addEventListener('click', (e) => {
+            if (e.target.classList.contains('tab-button')) {
+                // 移除所有按钮的 active 类
+                resultView.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                // 给点击的按钮添加 active 类
+                e.target.classList.add('active');
+
+                // 隐藏所有内容区域
+                resultView.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+                // 显示目标内容区域
+                const targetId = e.target.getAttribute('data-target');
+                const targetContent = resultView.querySelector(`#${targetId}`);
+                if (targetContent) {
+                    targetContent.classList.add('active');
+                }
+            }
+        });
+
+
+        // 历史记录项点击
+        historyList.addEventListener('click', (e) => {
+            const historyItem = e.target.closest('.history-item');
+            if (historyItem) {
+                const historyId = historyItem.getAttribute('data-history-id');
+                console.log("Clicked history item:", historyId);
+                // 实际应用中，会根据 historyId 获取数据并渲染
+                renderHistoryDetail(mockResultData); // 暂时用模拟数据
+                switchView('history-detail-view');
+            }
+        });
+
+        // 返回按钮
+        resultBackButton.addEventListener('click', () => switchView(previousView || 'history-view', true));
+        historyDetailBackButton.addEventListener('click', () => switchView(previousView || 'history-view', true));
+
+
+        // --- 渲染函数 ---
+
+        function renderResultOverview(data) {
+            const scoreCircle = resultView.querySelector('#scoreCircle');
+            const scoreText = resultView.querySelector('#scoreText');
+            const indicatorsGrid = resultView.querySelector('#indicatorsGrid');
+            const summaryText = resultView.querySelector('#summaryText');
+
+            // --- 渲染概览部分 ---
+            scoreText.textContent = data.score;
+            scoreCircle.style.setProperty('--score-percent', `${data.score}%`);
+            // 触发动画
+            scoreCircle.style.animation = 'none'; void scoreCircle.offsetWidth; scoreCircle.style.animation = `score-load 1s ease-out forwards`;
+            scoreText.style.animation = 'none'; void scoreText.offsetWidth; scoreText.style.animation = `fade-in 0.5s 0.5s ease-out forwards`;
+            resultView.querySelector('.score-label').style.animation = 'none'; void resultView.querySelector('.score-label').offsetWidth; resultView.querySelector('.score-label').style.animation = `fade-in 0.5s 0.7s ease-out forwards`;
+
+            indicatorsGrid.innerHTML = ''; // 清空
+            const flags = data.flags;
+            const flagMap = { factuality: '事实性', objectivity: '客观性', reliability: '可靠性', bias: '偏见度' };
+            let delay = 0.1;
+            for (const key in flags) {
+                const level = flags[key].toLowerCase();
+                let levelClass = 'level-medium'; let levelText = flags[key];
+                if (level === '高' || level === 'high') levelClass = 'level-high';
+                else if (level === '低' || level === 'low') levelClass = 'level-low';
+
+                const card = document.createElement('div');
+                card.className = `indicator-card ${levelClass}`;
+                card.style.animationDelay = `${delay}s`;
+                card.innerHTML = `<div class="indicator-title">${flagMap[key] || key}</div><span class="indicator-level">${levelText}</span>`;
+                indicatorsGrid.appendChild(card);
+                delay += 0.1;
+            }
+
+            summaryText.textContent = data.summary;
+
+             // --- 渲染详细信息部分 ---
+             const sourceOverallCredibility = resultView.querySelector('#sourceOverallCredibility');
+             const sourcesFoundList = resultView.querySelector('#sourcesFoundList');
+             const sourceVerificationDetails = resultView.querySelector('#sourceVerificationDetails');
+             const entityAccuracy = resultView.querySelector('#entityAccuracy');
+             const entitiesFoundTags = resultView.querySelector('#entitiesFoundTags');
+             const entityVerificationDetails = resultView.querySelector('#entityVerificationDetails');
+             const entityCorrectionsSection = resultView.querySelector('#entityCorrectionsSection');
+             const entityCorrectionsList = resultView.querySelector('#entityCorrectionsList');
+             const factOverallAccuracy = resultView.querySelector('#factOverallAccuracy');
+             const factClaimsList = resultView.querySelector('#factClaimsList');
+             const exaggerationSeverity = resultView.querySelector('#exaggerationSeverity');
+             const exaggerationsFoundList = resultView.querySelector('#exaggerationsFoundList');
+
+            // 来源验证
+            sourceOverallCredibility.textContent = data.source_verification.overall_source_credibility;
+            sourceOverallCredibility.className = `tag ${getLevelClass(data.source_verification.overall_source_credibility)}`; // 添加等级样式
+            sourcesFoundList.innerHTML = '';
+            if (data.source_verification.sources_found.length > 0) {
+                data.source_verification.sources_found.forEach((source, index) => {
+                    const li = document.createElement('li');
+                    const score = data.source_verification.credibility_scores[index];
+                    let scoreColor = 'var(--text-secondary)';
+                    if (score >= 8) scoreColor = '#34D399'; else if (score < 5) scoreColor = '#F87171';
+                    const scoreSpan = `<span style="font-size: 10px; color: ${scoreColor}; margin-left: 5px;">(${score}/10)</span>`;
+                     try {
+                        new URL(source); // Check if it's a valid URL
+                        li.innerHTML = `<a href="${source}" target="_blank" class="source-link">${source}</a> ${scoreSpan}`;
+                    } catch (_) { li.innerHTML = `${source} ${scoreSpan}`; }
+                    sourcesFoundList.appendChild(li);
+                });
+            } else { sourcesFoundList.innerHTML = '<li>未发现明确来源</li>'; }
+            sourceVerificationDetails.innerHTML = '';
+            data.source_verification.verification_details.forEach(detail => {
+                const li = document.createElement('li'); li.textContent = detail; sourceVerificationDetails.appendChild(li);
+            });
+
+            // 实体信息
+            entityAccuracy.textContent = data.entity_verification.accuracy_assessment;
+            entityAccuracy.className = `tag ${getLevelClass(data.entity_verification.accuracy_assessment)}`;
+            entitiesFoundTags.innerHTML = '';
+            if (data.entity_verification.entities_found.length > 0) {
+                data.entity_verification.entities_found.forEach(entity => {
+                    const span = document.createElement('span'); span.className = 'tag'; span.textContent = entity; entitiesFoundTags.appendChild(span);
+                });
+            } else { entitiesFoundTags.innerHTML = '<span class="tag">暂无实体</span>'; }
+            entityVerificationDetails.innerHTML = '';
+            data.entity_verification.verification_details.forEach(detail => {
+                const li = document.createElement('li'); li.textContent = detail; entityVerificationDetails.appendChild(li);
+            });
+            entityCorrectionsList.innerHTML = '';
+            if (data.entity_verification.corrections.length > 0) {
+                 entityCorrectionsSection.style.display = 'block';
+                 data.entity_verification.corrections.forEach(correction => {
+                    const li = document.createElement('li'); li.className = 'correction-item'; li.innerHTML = `${correction}`; entityCorrectionsList.appendChild(li);
+                });
+            } else { entityCorrectionsSection.style.display = 'none'; }
+
+            // 事实核查
+            factOverallAccuracy.textContent = data.fact_check.overall_factual_accuracy;
+            factOverallAccuracy.className = `tag ${getLevelClass(data.fact_check.overall_factual_accuracy)}`;
+            factClaimsList.innerHTML = '';
+             if (data.fact_check.claims_identified.length > 0) {
+                data.fact_check.claims_identified.forEach((claim, index) => {
+                    const div = document.createElement('div'); div.className = 'detail-item';
+                    div.innerHTML = `<h4>论述 ${index + 1}: "${claim}"</h4><p><strong>核查结果:</strong> ${data.fact_check.verification_results[index]}</p>${data.fact_check.supporting_evidence[index] ? `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;"><strong>证据:</strong> ${data.fact_check.supporting_evidence[index]}</p>` : ''}`;
+                    factClaimsList.appendChild(div);
+                });
+             } else { factClaimsList.innerHTML = '<div class="detail-item"><p>暂无具体论述核查结果</p></div>'; }
+
+            // 夸大检查
+            exaggerationSeverity.textContent = data.exaggeration_check.severity_assessment;
+            exaggerationSeverity.className = `tag ${getLevelClass(data.exaggeration_check.severity_assessment)}`;
+            exaggerationsFoundList.innerHTML = '';
+             if (data.exaggeration_check.exaggerations_found.length > 0) {
+                 data.exaggeration_check.exaggerations_found.forEach((exaggeration, index) => {
+                    const div = document.createElement('div'); div.className = 'detail-item correction-item';
+                    div.innerHTML = `<p><strong>夸大表述:</strong> "${exaggeration}"</p><p><strong>解释:</strong> ${data.exaggeration_check.explanations[index]}</p><p><strong>建议修正:</strong> "${data.exaggeration_check.corrections[index]}"</p>`;
+                    exaggerationsFoundList.appendChild(div);
+                });
+             } else { exaggerationsFoundList.innerHTML = '<div class="detail-item"><p>未检测到明显的夸大表述</p></div>'; }
+
+            // 重置到第一个 Tab
+            resultView.querySelectorAll('.tab-button').forEach((btn, index) => btn.classList.toggle('active', index === 0));
+            resultView.querySelectorAll('.tab-content').forEach((content, index) => content.classList.toggle('active', index === 0));
+            detailsTabs.scrollLeft = 0; // 滚动到开头
+        }
+
+        function renderHistoryList() {
+            historyList.innerHTML = ''; // 清空
+            if (mockHistory.length === 0) {
+                 historyList.innerHTML = '<li style="text-align: center; color: var(--text-secondary); padding: 20px 0;">暂无历史记录</li>';
+                 return;
+            }
+
+            mockHistory.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = 'history-item';
+                li.setAttribute('data-history-id', item.id);
+                li.style.animationDelay = `${0.1 + index * 0.05}s`; // 列表动画延迟
+
+                let scoreClass = 'score-medium';
+                if (item.score >= 80) scoreClass = 'score-high';
+                else if (item.score < 60) scoreClass = 'score-low';
+
+                li.innerHTML = `
+                    <div class="history-item-icon ${scoreClass}">${item.score}</div>
+                    <div class="history-item-content">
+                        <div class="history-item-title">${item.type === 'url' ? item.title : `文本片段: ${item.title.substring(0, 30)}...`}</div>
+                        <div class="history-item-meta">${item.date}</div>
+                    </div>
+                    <i class="fas fa-chevron-right history-item-arrow"></i>
+                `;
+                historyList.appendChild(li);
+            });
+        }
+
+        function renderHistoryDetail(data) {
+            // 仅渲染概览信息到历史详情页
+            const container = document.getElementById('historyDetailContent');
+            container.innerHTML = `
+                <div class="card">
+                    <div class="score-circle-container">
+                         <div class="score-circle" style="--score-percent: ${data.score}%;">
+                            <span class="score-text">${data.score}</span>
+                            <span class="score-label">可信度</span>
+                        </div>
+                        <h3 style="font-size: 18px; font-weight: 600;">综合评分</h3>
+                    </div>
+                     <h3 class="result-section-title"><i class="fas fa-chart-bar"></i>核心指标</h3>
+                    <div class="indicators-grid">
+                        ${Object.entries(data.flags).map(([key, value]) => {
+                            const flagMap = { factuality: '事实性', objectivity: '客观性', reliability: '可靠性', bias: '偏见度' };
+                            let levelClass = getLevelClass(value); // 使用辅助函数获取class
+                            return `<div class="indicator-card ${levelClass}" style="opacity: 1; transform: none;">
+                                        <div class="indicator-title">${flagMap[key] || key}</div>
+                                        <span class="indicator-level">${value}</span>
+                                    </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+                 <div class="card summary-card">
+                    <h3 class="result-section-title"><i class="fas fa-file-alt"></i>总体评估</h3>
+                    <p>${data.summary}</p>
+                </div>
+            `;
+             // 触发评分动画
+            const scoreCircle = container.querySelector('.score-circle');
+            const scoreText = container.querySelector('.score-text');
+            scoreCircle.style.animation = 'none'; void scoreCircle.offsetWidth; scoreCircle.style.animation = `score-load 1s ease-out forwards`;
+            scoreText.style.animation = 'none'; void scoreText.offsetWidth; scoreText.style.animation = `fade-in 0.5s 0.5s ease-out forwards`;
+            container.querySelector('.score-label').style.animation = 'none'; void container.querySelector('.score-label').offsetWidth; container.querySelector('.score-label').style.animation = `fade-in 0.5s 0.7s ease-out forwards`;
+        }
+
+        // 辅助函数：根据等级文本返回 CSS 类名
+        function getLevelClass(level) {
+            const lowerLevel = level.toLowerCase();
+            if (lowerLevel === '高' || lowerLevel === 'high' || lowerLevel === '基本准确' || lowerLevel === '较高') return 'level-high';
+            if (lowerLevel === '中' || lowerLevel === 'medium' || lowerLevel === '中等') return 'level-medium';
+            if (lowerLevel === '低' || lowerLevel === 'low' || lowerLevel === '轻微') return 'level-low';
+            return 'level-medium'; // 默认中等
+        }
+
+
+        // --- 初始化 ---
+        renderHistoryList(); // 初始加载历史记录 (虽然默认显示核查页)
+        switchView('check-view'); // 确保初始显示核查页
+
+    </script>
+</body>
+</html>

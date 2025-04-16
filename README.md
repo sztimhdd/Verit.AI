@@ -1,4 +1,4 @@
-# Oracle AI 辟谣助手 - PRD v2.1
+# Verit AI 辟谣助手 - PRD v2.1
 
 ## 项目定位
 基于Gemini API （gemini-1.5-flash）的Web端辟谣系统，提供便捷的在线内容真实性验证服务，通过Chrome扩展实现页面内容一键核查
