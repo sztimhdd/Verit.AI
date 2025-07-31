@@ -15,7 +15,7 @@ let modelState = {
 
 const CONFIG = {
   DAILY_GROUNDING_LIMIT: 500,
-  DEFAULT_MODEL: "gemini-2.0-flash",
+  DEFAULT_MODEL: process.env.DEFAULT_MODEL || "gemini-2.5-flash",
   FALLBACK_MODEL: "gemini-1.5-flash",
   HOURLY_TOKEN_THRESHOLD: 800000,
   STATE_FILE: path.join(__dirname, 'data', 'model-state.json')
