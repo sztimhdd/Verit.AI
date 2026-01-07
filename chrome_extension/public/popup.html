@@ -68,8 +68,14 @@
     </div>
     <script src="lib/i18n-manager.js"></script>
     <script>
-        console.log('[Popup] Script tag loaded');
+        console.log('[Popup] i18n-manager script loaded');
+        window.addEventListener('load', () => {
+            console.log('[Popup] DOM fully loaded, now initializing popup script...');
+            // Load popup script after i18n-manager is ready
+            const script = document.createElement('script');
+            script.src = 'popup.js';
+            document.head.appendChild(script);
+        });
     </script>
-    <script src="popup.js"></script>
 </body>
 </html>
