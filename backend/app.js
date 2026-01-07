@@ -774,104 +774,75 @@ async function translateToZhSimplified(analysisResult, modelName, model) {
     }
 }
 
-// 应用服务就绪中间件
-app.use(ensureServiceReady);
-
-// Detection endpoint
+// Detection endpoint (BEFORE middleware to ensure it always runs)
 app.post("/api/extension/detect", async (req, res) => {
-    const requestId = Math.random().toString(36).substring(7);
-    await logToFile('DETECT_START', `Start detection ${requestId}`, {
-        url: req.body.url,
-        contentLength: req.body.content?.length
-    });
-
     try {
-        const { content, url, lang = "en" } = req.body;
+        const { content } = req.body;
         
-        // Basic validation
-        if (!content && !url) {
-            return res.status(400).json({
-                status: 'error',
-                error: { message: 'Content or URL required' }
+        if (!content || content.length < 50) {
+            return res.json({
+                status: "success",
+                data: { requires_fact_check: false, category: "Unknown", confidence: 0.3, reason: "Content too short" }
             });
         }
 
-        // Fetch content if needed
-        let detectionContent = content;
-        if (url && !content) {
-            try {
-                const webContent = await fetchWebContent(url);
-                detectionContent = webContent.content;
-            } catch (e) {
-                console.warn(`Fetch failed for detection: ${e.message}`);
-                // Proceed if we have at least some content, otherwise fail
-                if (!detectionContent) {
-                    throw new Error("Failed to fetch content for detection");
-                }
-            }
+        // Truncate for speed
+        const truncatedContent = content.substring(0, 2000);
+
+        // Simple heuristic-based detection (faster than API call)
+        const lowerContent = truncatedContent.toLowerCase();
+        
+        // Keywords that indicate fact-checking is needed
+        const newsKeywords = ['news', 'breaking', 'report', 'according to', 'study shows', 'research', 'scientists', ' experts'];
+        const claimKeywords = ['claim', 'alleged', 'reportedly', 'suspected', 'believed'];
+        
+        // Keywords that indicate NO fact-checking needed
+        const recipeKeywords = ['recipe', 'ingredients', 'cook', 'bake', 'preparation', 'instructions'];
+        const fictionKeywords = ['chapter', 'novel', 'story', 'fiction', 'character', 'narrative'];
+        const navKeywords = ['home', 'about us', 'contact', 'menu', 'navigation', 'login', 'sign in'];
+        
+        let score = 0;
+        
+        // Check for news/claims
+        for (const kw of newsKeywords) {
+            if (lowerContent.includes(kw)) score += 0.15;
+        }
+        for (const kw of claimKeywords) {
+            if (lowerContent.includes(kw)) score += 0.1;
+        }
+        
+        // Subtract for non-relevant content
+        for (const kw of recipeKeywords) {
+            if (lowerContent.includes(kw)) score -= 0.3;
+        }
+        for (const kw of fictionKeywords) {
+            if (lowerContent.includes(kw)) score -= 0.3;
+        }
+        for (const kw of navKeywords) {
+            if (lowerContent.includes(kw)) score -= 0.2;
         }
 
-        // Truncate for speed (detection doesn't need full text)
-        const truncatedContent = detectionContent.substring(0, 3000);
-
-        // Get model (Gemini 1.5 Flash for speed)
-        // Note: modelManager handles fallback, but we explicitly request a lighter model if possible
-        // For now, we'll ask modelManager or direct genAI usage.
-        // Let's use gemini-1.5-flash directly for detection to ensure speed/low cost
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-        const prompt = `
-        Analyze the following text and determine if it belongs to a category that requires fact-checking.
+        const requiresFactCheck = score > 0.2;
         
-        Categories requiring fact-checking:
-        1. News Reports (Politics, Economics, Science, World Events)
-        2. Blog Posts / Opinion Pieces (Claims about reality, health, tech)
-        3. Social Media Content (Viral claims, threads)
-        4. Encyclopedic/Informational Content
-        
-        Categories NOT requiring fact-checking:
-        1. Recipes / Cooking
-        2. Fiction / Literature / Creative Writing
-        3. Product Listings / E-commerce (unless making health claims)
-        4. Navigation / Homepages / Dashboards
-        5. Code / Technical Documentation
-        6. Personal Profiles
-        
-        Return JSON:
-        {
-            "requires_fact_check": boolean,
-            "category": "string (one of the above or 'Other')",
-            "confidence": number (0-1),
-            "reason": "short explanation"
-        }
-
-        Content: "${truncatedContent.replace(/"/g, '\\"')}"
-        `;
-
-        const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-        });
-
-        const text = result.response.text();
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        let detectionResult = {};
-        
-        if (jsonMatch) {
-            detectionResult = JSON.parse(jsonMatch[0]);
+        let category = "Other Content";
+        if (requiresFactCheck) {
+            if (score > 0.6) category = "News Report";
+            else if (score > 0.4) category = "Blog Post";
+            else category = "Social Media";
         } else {
-            // Fallback default
-            detectionResult = { requires_fact_check: true, category: "Unknown", confidence: 0.5 };
+            if (lowerContent.includes('recipe') || lowerContent.includes('cook')) category = "Recipe";
+            else if (lowerContent.includes('chapter') || lowerContent.includes('novel')) category = "Fiction";
+            else category = "Navigation/Other";
         }
-
-        await logToFile('DETECT_END', `Detection result ${requestId}`, detectionResult);
-
-        // Update quota (approximate)
-        quotaTracker.updateQuota('gemini-1.5', Math.ceil(truncatedContent.length / 4));
 
         res.json({
             status: "success",
-            data: detectionResult
+            data: {
+                requires_fact_check: requiresFactCheck,
+                category: category,
+                confidence: Math.min(Math.abs(score) + 0.3, 0.95),
+                reason: `Keyword analysis score: ${score.toFixed(2)}`
+            }
         });
 
     } catch (error) {
@@ -882,6 +853,9 @@ app.post("/api/extension/detect", async (req, res) => {
         });
     }
 });
+
+// 应用服务就绪中间件
+app.use(ensureServiceReady);
 
 // Chrome Extension API endpoint
 app.post("/api/extension/analyze", async (req, res) => {
