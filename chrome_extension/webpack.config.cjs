@@ -7,6 +7,7 @@ module.exports = {
   entry: {
     background: './src/background/background.js',
     'floating-card': './src/floating-card/floating-card.js',
+    content: ['./src/content/highlight-manager.js', './src/content/content.js'],
     popup: './public/popup.js'
   },
   output: {
@@ -30,7 +31,7 @@ module.exports = {
         },
         extractComments: false,
       }),
-    ],
+    ]
   },
   plugins: [
     new CopyPlugin({
@@ -45,9 +46,32 @@ module.exports = {
         { from: 'node_modules/crypto-js/crypto-js.js', to: 'lib/crypto-js.js' },
         { from: 'node_modules/@google/generative-ai/dist/index.js', to: 'lib/generative-ai.js' },
         { from: 'node_modules/@mozilla/readability/Readability.js', to: 'lib/readability.js' },
-        { from: 'node_modules/fuse.js/dist/fuse.basic.min.js', to: 'lib/fuse.js' },
-        { from: 'node_modules/use.js/dist/use.basic.min.js', to: 'lib/fuse.js' }
+        { from: 'node_modules/fuse.js/dist/fuse.basic.min.js', to: 'lib/fuse.js' }
       ]
-    }
-  ]
+    })
+  ],
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: [
+              ['@babel/preset-env', {
+                targets: {
+                  chrome: '120'
+                }
+              }]
+            ]
+          }
+        }
+      },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader']
+      }
+    ]
+  }
 };
