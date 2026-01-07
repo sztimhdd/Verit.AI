@@ -8,8 +8,11 @@ class HighlightManager {
   constructor() {
     this.highlights = [];
     this.highlightStyle = null;
-    this.isEnabled = true;
-    this.matchThreshold = 0.6; // 60% similarity threshold for fuzzy matching
+    this.popoverEl = null;
+    this.popoverVisible = false;
+    this.highlightedAnchors = new Set();
+    this.matchThreshold = 0.6;
+    this.currentHighlight = null;
   }
 
   /**
@@ -18,7 +21,170 @@ class HighlightManager {
   init() {
     this.loadSettings();
     this.injectStyles();
+    this.createPopoverElement();
+    this.attachGlobalEventListeners();
+    this.attachKeyboardListeners();
     console.log('[HighlightManager] Initialized');
+  }
+
+  createPopoverElement() {
+    if (this.popoverEl) return;
+
+    this.popoverEl = document.createElement('div');
+    this.popoverEl.className = 'veritai-popover';
+    this.popoverEl.setAttribute('role', 'tooltip');
+    this.popoverEl.setAttribute('aria-live', 'polite');
+    this.popoverEl.setAttribute('tabindex', '-1');
+    this.popoverEl.innerHTML = `
+      <button class="veritai-popover-close" aria-label="Close tooltip">&times;</button>
+      <div class="veritai-popover-header">
+        <span class="veritai-popover-type-icon" aria-hidden="true"></span>
+        <span class="veritai-popover-title"></span>
+        <span class="veritai-popover-score"></span>
+      </div>
+      <div class="veritai-popover-section">
+        <div class="veritai-tooltip-label">Explanation</div>
+        <div class="veritai-tooltip-explanation-container">
+          <div class="veritai-tooltip-value veritai-tooltip-explanation"></div>
+          <button class="veritai-see-more" aria-expanded="false">See more</button>
+        </div>
+      </div>
+      <div class="veritai-tooltip-arrow" aria-hidden="true"></div>
+    `;
+    document.body.appendChild(this.popoverEl);
+
+    this.popoverEl.querySelector('.veritai-popover-close').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.hidePopover();
+    });
+
+    this.popoverEl.querySelector('.veritai-see-more').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleSeeMore();
+    });
+
+    console.log('[HighlightManager] Popover element created');
+  }
+
+  attachGlobalEventListeners() {
+    document.addEventListener('mouseover', (e) => {
+      if (e.target.classList.contains('veritai-highlight-dubious')) {
+        const tooltip = e.target.getAttribute('data-tooltip');
+        const type = e.target.getAttribute('data-type') || 'dubious';
+        const severity = e.target.getAttribute('data-severity') || 'Medium';
+        if (tooltip) {
+          this.currentHighlight = e.target;
+          this.showPopover(e.target, tooltip, type, severity);
+        }
+      }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+      if (e.target.classList.contains('veritai-highlight-dubious') && !this.popoverEl.contains(e.relatedTarget)) {
+        this.hidePopover();
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (this.popoverVisible && !this.popoverEl.contains(e.target) && !e.target.classList.contains('veritai-highlight-dubious')) {
+        this.hidePopover();
+      }
+    });
+  }
+
+  attachKeyboardListeners() {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.popoverVisible) {
+        this.hidePopover();
+      }
+    });
+  }
+
+  showPopover(targetElement, tooltipText, type, severity) {
+    if (!this.popoverEl) return;
+
+    let icon = '⚠️';
+    let title = 'Dubious Content';
+
+    if (type === 'exaggeration') {
+      icon = '📈';
+      title = 'Exaggeration Detected';
+    } else if (type === 'fact_check') {
+      icon = '🔍';
+      title = 'Fact Check';
+    } else if (type === 'entity') {
+      icon = '🏷️';
+      title = 'Entity Issue';
+    }
+
+    const explanationEl = this.popoverEl.querySelector('.veritai-tooltip-explanation');
+    explanationEl.textContent = tooltipText;
+
+    this.popoverEl.querySelector('.veritai-popover-type-icon').textContent = icon;
+    this.popoverEl.querySelector('.veritai-popover-title').textContent = title;
+
+    const scoreEl = this.popoverEl.querySelector('.veritai-popover-score');
+    scoreEl.textContent = this.getSeverityLabel(severity);
+    scoreEl.className = 'veritai-popover-score severity-' + severity.toLowerCase();
+
+    const rect = targetElement.getBoundingClientRect();
+    const scrollY = window.scrollY || window.pageYOffset;
+    const scrollX = window.scrollX || window.pageXOffset;
+
+    let left = rect.left + scrollX + (rect.width / 2);
+    let top = rect.top + scrollY - 12;
+
+    const popoverWidth = 320;
+    const padding = 10;
+
+    if (left - popoverWidth / 2 < padding) {
+      left = padding + popoverWidth / 2;
+    } else if (left + popoverWidth / 2 > window.innerWidth - padding) {
+      left = window.innerWidth - padding - popoverWidth / 2;
+    }
+
+    if (top < padding) {
+      top = rect.bottom + scrollY + 12;
+      this.popoverEl.querySelector('.veritai-tooltip-arrow').style.bottom = '-6px';
+      this.popoverEl.querySelector('.veritai-tooltip-arrow').style.top = 'auto';
+    } else {
+      this.popoverEl.querySelector('.veritai-tooltip-arrow').style.top = '-6px';
+      this.popoverEl.querySelector('.veritai-tooltip-arrow').style.bottom = 'auto';
+    }
+
+    this.popoverEl.style.left = left + 'px';
+    this.popoverEl.style.top = top + 'px';
+
+    this.popoverEl.classList.add('visible');
+    this.popoverVisible = true;
+
+    setTimeout(() => {
+      this.popoverEl.focus();
+    }, 100);
+  }
+
+  hidePopover() {
+    if (!this.popoverEl) return;
+    this.popoverEl.classList.remove('visible');
+    this.popoverVisible = false;
+    this.currentHighlight = null;
+  }
+
+  toggleSeeMore() {
+    const btn = this.popoverEl.querySelector('.veritai-see-more');
+    const isExpanded = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', !isExpanded);
+    btn.textContent = isExpanded ? 'See more' : 'See less';
+
+    const container = this.popoverEl.querySelector('.veritai-tooltip-explanation-container');
+    if (!isExpanded) {
+      container.style.maxHeight = 'none';
+    }
+  }
+
+  getSeverityLabel(severity) {
+    const labels = { 'High': 'HIGH', 'Medium': 'MED', 'Low': 'LOW' };
+    return labels[severity] || severity;
   }
 
   /**
@@ -43,136 +209,161 @@ class HighlightManager {
     this.highlightStyle = document.createElement('style');
     this.highlightStyle.id = 'veritai-highlight-styles';
     this.highlightStyle.textContent = `
-      /* Highlight base style */
       .veritai-highlight-dubious {
         background-color: rgba(239, 68, 68, 0.25) !important;
         border-bottom: 2px solid #ef4444 !important;
         cursor: help !important;
-        padding: 2px 3px !important;
-        border-radius: 3px !important;
+        padding: 1px 2px !important;
+        border-radius: 2px !important;
         transition: all 0.2s ease !important;
-        position: relative !important;
       }
 
-      .veritai-highlight-dubious:hover {
-        background-color: rgba(239, 68, 68, 0.5) !important;
-        border-bottom-color: #dc2626 !important;
-        z-index: 1 !important;
-      }
-
-      /* Custom tooltip container */
-      .veritai-tooltip {
+      .veritai-popover {
         position: fixed !important;
-        background: linear-gradient(135deg, #1f2937 0%, #111827 100%) !important;
-        color: white !important;
-        padding: 0 !important;
-        border-radius: 10px !important;
-        font-size: 13px !important;
+        background: #ffffff !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        font-size: 14px !important;
+        color: #1f2937 !important;
         line-height: 1.5 !important;
-        white-space: pre-wrap !important;
-        max-width: 350px !important;
-        min-width: 200px !important;
+        max-width: 320px !important;
+        min-width: 260px !important;
         z-index: 2147483647 !important;
-        pointer-events: none !important;
         opacity: 0 !important;
         visibility: hidden !important;
-        transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease !important;
-        transform: translateY(5px) !important;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
-        overflow: hidden !important;
+        transition: opacity 0.15s ease, visibility 0.15s ease, transform 0.15s ease !important;
+        transform: translateY(4px) !important;
+        padding: 14px 16px !important;
       }
 
-      .veritai-tooltip.visible {
+      .veritai-popover.visible {
         opacity: 1 !important;
         visibility: visible !important;
         transform: translateY(0) !important;
       }
 
-      /* Tooltip header */
-      .veritai-tooltip-header {
-        background: rgba(239, 68, 68, 0.2) !important;
-        padding: 10px 14px !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+      .veritai-popover-header {
         display: flex !important;
         align-items: center !important;
         gap: 8px !important;
+        margin-bottom: 10px !important;
+        border-bottom: 1px solid #e5e7eb !important;
+        padding-bottom: 10px !important;
       }
 
-      .veritai-tooltip-header .icon {
+      .veritai-popover-type-icon {
         font-size: 16px !important;
       }
 
-      .veritai-tooltip-header .title {
-        font-weight: 600 !important;
+      .veritai-popover-title {
         font-size: 13px !important;
-        color: #fca5a5 !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
+        font-weight: 600 !important;
+        color: #374151 !important;
+        flex-grow: 1 !important;
+        text-align: left !important;
       }
 
-      /* Tooltip body */
-      .veritai-tooltip-body {
-        padding: 12px 14px !important;
-      }
-
-      .veritai-tooltip-section {
-        margin-bottom: 10px !important;
-      }
-
-      .veritai-tooltip-section:last-child {
-        margin-bottom: 0 !important;
+      .veritai-popover-section {
+        margin-bottom: 8px !important;
       }
 
       .veritai-tooltip-label {
         font-size: 10px !important;
+        color: #6b7280 !important;
+        font-weight: 500 !important;
+        margin-bottom: 4px !important;
         text-transform: uppercase !important;
         letter-spacing: 0.5px !important;
-        color: #9ca3af !important;
-        margin-bottom: 4px !important;
-        font-weight: 500 !important;
+      }
+
+      .veritai-tooltip-explanation-container {
+        max-height: 80px !important;
+        overflow: hidden !important;
+        transition: max-height 0.2s ease !important;
       }
 
       .veritai-tooltip-value {
-        color: #e5e7eb !important;
-        font-size: 12px !important;
+        font-size: 13px !important;
+        color: #1f2937 !important;
         line-height: 1.5 !important;
+        word-wrap: break-word !important;
+        white-space: pre-wrap !important;
       }
 
-      /* Tooltip footer */
-      .veritai-tooltip-footer {
-        background: rgba(0, 0, 0, 0.2) !important;
-        padding: 8px 14px !important;
-        border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
-        font-size: 10px !important;
-        color: #6b7280 !important;
+      .veritai-see-more {
+        background: none !important;
+        border: none !important;
+        color: #3b82f6 !important;
+        font-size: 12px !important;
+        cursor: pointer !important;
+        padding: 4px 0 !important;
+        margin-top: 4px !important;
+        text-decoration: underline !important;
+      }
+
+      .veritai-see-more:hover {
+        color: #2563eb !important;
+      }
+
+      .veritai-popover-close {
+        position: absolute !important;
+        top: 8px !important;
+        right: 8px !important;
+        cursor: pointer !important;
+        background: #f3f4f6 !important;
+        border: none !important;
+        border-radius: 4px !important;
+        width: 20px !important;
+        height: 20px !important;
+        line-height: 1 !important;
         text-align: center !important;
+        font-size: 16px !important;
+        color: #6b7280 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
       }
 
-      /* Highlighted text preview */
-      .veritai-text-preview {
-        background: rgba(255, 255, 255, 0.1) !important;
-        padding: 8px 10px !important;
-        border-radius: 5px !important;
-        font-style: italic !important;
-        color: #d1d5db !important;
+      .veritai-popover-close:hover {
+        background: #e5e7eb !important;
+        color: #374151 !important;
+      }
+
+      .veritai-popover-score {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 9999px !important;
+        padding: 3px 10px !important;
+        font-weight: 600 !important;
         font-size: 11px !important;
-        margin-bottom: 8px !important;
-        border-left: 3px solid #ef4444 !important;
+        min-width: 40px !important;
+        line-height: 1 !important;
       }
 
-      /* Arrow */
+      .veritai-popover-score.severity-high {
+        background: #fef2f2 !important;
+        color: #dc2626 !important;
+      }
+
+      .veritai-popover-score.severity-medium {
+        background: #fffbeb !important;
+        color: #d97706 !important;
+      }
+
+      .veritai-popover-score.severity-low {
+        background: #f0fdf4 !important;
+        color: #16a34a !important;
+      }
+
       .veritai-tooltip-arrow {
         position: absolute !important;
-        bottom: -6px !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        width: 12px !important;
-        height: 12px !important;
-        background: #1f2937 !important;
-        rotate: 45deg !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        width: 10px !important;
+        height: 10px !important;
+        background: #ffffff !important;
+        transform: translateX(-50%) rotate(45deg) !important;
+        clip-path: polygon(0 0, 100% 0, 0 100%);
       }
     `;
     document.head.appendChild(this.highlightStyle);
@@ -264,13 +455,7 @@ class HighlightManager {
 
     // Apply highlights for each dubious item
     for (const item of dubiousItems) {
-      const tooltipData = {
-        text: item.text,
-        tooltip: item.tooltip,
-        type: item.type,
-        severity: item.severity
-      };
-      await this.highlightText(item.text, item.tooltip, item.type, tooltipData);
+      await this.highlightText(item.text, item.tooltip, item.type, item.severity);
     }
 
     // Store highlights for this URL
@@ -306,9 +491,9 @@ class HighlightManager {
    * @param {string} textToMatch - The text to search for and highlight
    * @param {string} tooltip - Tooltip text to show on hover
    * @param {string} type - Type of highlight (exaggeration, fact_check, entity)
-   * @param {Object} tooltipData - Full tooltip data for the enhanced tooltip
+   * @param {string} severity - Severity level (High, Medium, Low)
    */
-  async highlightText(textToMatch, tooltip, type = 'dubious', tooltipData = null) {
+  async highlightText(textToMatch, tooltip, type = 'dubious', severity = 'Medium') {
     if (!textToMatch || textToMatch.length < 10) {
       console.log('[HighlightManager] Skipping short text:', textToMatch?.substring(0, 20));
       return;
@@ -346,7 +531,7 @@ class HighlightManager {
         
         // Try exact match first
         if (this.containsText(textContent, textToMatch)) {
-          this.wrapTextNode(textNode, textToMatch, tooltip, tooltipData);
+          this.wrapTextNode(textNode, textToMatch, tooltip, type, severity);
           this.highlights.push({ text: textToMatch, type, tooltip });
           console.log('[HighlightManager] Highlighted exact match:', textToMatch.substring(0, 30));
           return; // Only highlight first exact match
@@ -356,7 +541,7 @@ class HighlightManager {
       // If no exact match, try fuzzy matching (simplified version)
       const fuzzyMatch = this.findFuzzyMatch(textNodes, textToMatch);
       if (fuzzyMatch) {
-        this.wrapTextNode(fuzzyMatch.node, fuzzyMatch.text, tooltip, tooltipData);
+        this.wrapTextNode(fuzzyMatch.node, fuzzyMatch.text, tooltip, type, severity);
         this.highlights.push({ text: fuzzyMatch.text, type, tooltip });
         console.log('[HighlightManager] Highlighted fuzzy match:', fuzzyMatch.text.substring(0, 30));
       }
@@ -407,53 +592,9 @@ class HighlightManager {
   }
 
   /**
-   * Create a custom tooltip element
-   */
-  createTooltipElement(tooltipData) {
-    const tooltip = document.createElement('div');
-    tooltip.className = 'veritai-tooltip';
-    
-    const headerIcon = tooltipData.type === 'exaggeration' ? '⚠️' : 
-                       tooltipData.type === 'fact_check' ? '❌' : 
-                       tooltipData.type === 'entity' ? '🏷️' : '🔍';
-    
-    const headerText = tooltipData.type === 'exaggeration' ? 'Exaggerated/Misleading' : 
-                       tooltipData.type === 'fact_check' ? 'Fact Check Failed' : 
-                       tooltipData.type === 'entity' ? 'Entity Issue' : 'Dubious Content';
-    
-    const severityColor = tooltipData.severity === 'High' ? '#ef4444' : 
-                          tooltipData.severity === 'Medium' ? '#f59e0b' : '#22c55e';
-
-    tooltip.innerHTML = `
-      <div class="veritai-tooltip-header">
-        <span class="icon">${headerIcon}</span>
-        <span class="title">${headerText}</span>
-      </div>
-      <div class="veritai-tooltip-body">
-        <div class="veritai-tooltip-section">
-          <div class="veritai-tooltip-label">Original Text</div>
-          <div class="veritai-text-preview">"${tooltipData.text.substring(0, 100)}${tooltipData.text.length > 100 ? '...' : ''}"</div>
-        </div>
-        <div class="veritai-tooltip-section">
-          <div class="veritai-tooltip-label">Analysis</div>
-          <div class="veritai-tooltip-value">${tooltipData.tooltip}</div>
-        </div>
-        <div class="veritai-tooltip-section">
-          <div class="veritai-tooltip-label">Severity</div>
-          <div class="veritai-tooltip-value" style="color: ${severityColor}; font-weight: 600;">${tooltipData.severity || 'Medium'}</div>
-        </div>
-      </div>
-      <div class="veritai-tooltip-arrow"></div>
-      <div class="veritai-tooltip-footer">VeritAI Fact Checker</div>
-    `;
-    
-    return tooltip;
-  }
-
-  /**
    * Wrap a portion of text in a highlight span
    */
-  wrapTextNode(textNode, searchText, tooltip, tooltipData) {
+  wrapTextNode(textNode, searchText, tooltip, type = 'dubious', severity = 'Medium') {
     const textContent = textNode.textContent;
     const searchLower = searchText.toLowerCase().trim();
     const contentLower = textContent.toLowerCase();
@@ -469,63 +610,14 @@ class HighlightManager {
     // Create highlight span
     const highlightSpan = document.createElement('span');
     highlightSpan.className = 'veritai-highlight-dubious';
+    highlightSpan.setAttribute('data-tooltip', tooltip);
+    highlightSpan.setAttribute('data-type', type);
+    highlightSpan.setAttribute('data-severity', severity);
     highlightSpan.textContent = match;
-    highlightSpan.setAttribute('data-tooltip-text', tooltip);
-
-    // Store tooltip data for hover
-    if (tooltipData) {
-      highlightSpan.setAttribute('data-tooltip-type', tooltipData.type || 'dubious');
-      highlightSpan.setAttribute('data-tooltip-severity', tooltipData.severity || 'Medium');
-    }
-
-    // Create and add tooltip element
-    let tooltipElement = null;
-    if (tooltipData) {
-      tooltipElement = this.createTooltipElement({
-        text: match,
-        tooltip: tooltip,
-        type: tooltipData.type || 'dubious',
-        severity: tooltipData.severity || 'Medium'
-      });
-      document.body.appendChild(tooltipElement);
-    }
-
-    // Add hover event listeners
-    if (tooltipElement) {
-      highlightSpan.addEventListener('mouseenter', (e) => {
-        const rect = highlightSpan.getBoundingClientRect();
-        const tooltipRect = tooltipElement.getBoundingClientRect();
-        
-        // Calculate position
-        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
-        let top = rect.top - tooltipRect.height - 10;
-        
-        // Keep tooltip in viewport
-        if (left < 10) left = 10;
-        if (left + tooltipRect.width > window.innerWidth - 10) {
-          left = window.innerWidth - tooltipRect.width - 10;
-        }
-        if (top < 10) {
-          // Show below instead if not enough space above
-          top = rect.bottom + 10;
-        }
-        
-        tooltipElement.style.left = left + 'px';
-        tooltipElement.style.top = top + 'px';
-        tooltipElement.classList.add('visible');
-      });
-
-      highlightSpan.addEventListener('mouseleave', () => {
-        tooltipElement.classList.remove('visible');
-      });
-    }
 
     // Replace text node with before text, highlight span, and after text
     const parent = textNode.parentNode;
-    if (!parent) {
-      if (tooltipElement) tooltipElement.remove();
-      return;
-    }
+    if (!parent) return;
 
     const beforeText = document.createTextNode(before);
     const afterText = document.createTextNode(after);
