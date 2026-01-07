@@ -3,6 +3,7 @@
   "name": "Oracle AI Fact Checker",
   "version": "1.0.0",
   "description": "AI-powered fact checking tool",
+  "default_locale": "zh",
   "permissions": [
     "activeTab",
     "scripting",
@@ -24,6 +25,7 @@
     }
   ],
   "action": {
+    "default_popup": "popup.html",
     "default_title": "Oracle AI Fact Checker"
   },
   "content_security_policy": {

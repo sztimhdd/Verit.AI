@@ -210,12 +210,22 @@ async function fetchWebContent(url) {
 
         // Get main content
         const title = $('title').text().trim();
-        const content = $('body').text().trim();
+        let content = $('body').text().trim();
+
+        // Clean content: remove image filenames, URLs, and other non-text content
+        content = content
+            // Remove image filenames and extensions
+            .replace(/\b\w+\.(png|jpg|jpeg|gif|svg|webp|bmp|tiff|ico)(\?\S*)?\b/gi, '')
+            // Remove URLs
+            .replace(/https?:\/\/[^\s]+/gi, '')
+            // Remove excessive whitespace and normalize
+            .replace(/\s+/g, ' ')
+            .trim();
 
         // Limit content length
         const maxLength = 10000;
-        const truncatedContent = content.length > maxLength 
-            ? content.substring(0, maxLength) + '...' 
+        const truncatedContent = content.length > maxLength
+            ? content.substring(0, maxLength) + '...'
             : content;
 
         return {
@@ -814,7 +824,7 @@ app.get('/health', (req, res) => {
 });
 
 // 启动服务
-app.listen(port, async () => {
+app.listen(port, '0.0.0.0', async () => {
     console.log(`服务器启动于 http://0.0.0.0:${port}`);
     
     // 初始化服务

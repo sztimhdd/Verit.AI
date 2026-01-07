@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verit.ai 照谣镜 | AI事实核查平台</title>
+    <title data-lang-key="page.title">Verit.ai 照谣镜 | AI事实核查平台</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -12,7 +12,7 @@
     <!-- 外部样式库 -->
     <link rel="stylesheet" href="https://cdn.staticfile.org/tailwindcss/2.2.19/tailwind.min.css">
     <link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&family=Roboto:wght@300;400;500;700&display=swap">
     
     <!-- 自定义样式 -->
     <link rel="stylesheet" href="styles/main.css">
@@ -43,6 +43,10 @@
             --hero-accent: #4CAF50;
             --hero-text: #FFFFFF;
             --navbar-bg: #0A1F2F;
+            --font-family-zh: 'Noto Sans SC', Tahoma, Arial, Roboto, "Droid Sans", "Helvetica Neue", "Droid Sans Fallback", "Heiti SC", "Hiragino Sans GB", Simsun, sans-serif;
+            --font-family-en: Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --font-family-serif-zh: 'Noto Serif SC', serif;
+            --font-family-serif-en: serif;
         }
 
         .dark {
@@ -72,14 +76,25 @@
         }
 
         body {
-            font-family: 'Noto Sans SC', Tahoma, Arial, Roboto, "Droid Sans", "Helvetica Neue", "Droid Sans Fallback", "Heiti SC", "Hiragino Sans GB", Simsun, sans-serif;
+            font-family: var(--font-family-zh);
             background-color: var(--bg-primary);
             color: var(--text-primary);
             transition: background-color 0.3s, color 0.3s;
         }
+        html[lang="zh"] body {
+             font-family: var(--font-family-zh);
+        }
+        html[lang="en"] body {
+             font-family: var(--font-family-en);
+        }
 
         h1, h2, h3, h4, h5, h6 {
-            font-family: 'Noto Serif SC', serif;
+        }
+         html[lang="zh"] h1, html[lang="zh"] h2, html[lang="zh"] h3, html[lang="zh"] h4, html[lang="zh"] h5, html[lang="zh"] h6 {
+            font-family: var(--font-family-serif-zh);
+        }
+        html[lang="en"] h1, html[lang="en"] h2, html[lang="en"] h3, html[lang="en"] h4, html[lang="en"] h5, html[lang="en"] h6 {
+            font-family: var(--font-family-serif-en);
         }
 
         .btn-primary {
@@ -639,9 +654,9 @@
                 <div class="flex items-center">
                     <a href="/" class="nav-brand">
                         <div class="logo-container">
-                            <img src="images/V-logo.svg" alt="Verit.ai Logo" class="logo-img">
+                            <img src="images/V-logo.svg" alt="Veri.ai Logo" class="logo-img">
                         </div>
-                        <span class="brand-text">Verit.ai 照谣镜</span>
+                        <span class="brand-text" data-lang-key="nav.brand">Verit.ai 照谣镜</span>
                     </a>
                 </div>
                 <div class="flex items-center">
@@ -649,18 +664,21 @@
                        target="_blank" 
                        class="edge-addon-btn hidden md:flex items-center mr-4">
                         <i class="fab fa-edge mr-2"></i>
-                        <span>Edge扩展</span>
+                        <span data-lang-key="nav.edge">Edge扩展</span>
                     </a>
                     <a href="https://chromewebstore.google.com/detail/veritai-fact-checker/alfhhpecmnhnpkdbbbnhcpmeldchonkf?authuser=0&hl=en" 
                        target="_blank" 
                        class="chrome-addon-btn hidden md:flex items-center mr-4 text-sm py-1 px-3 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300" style="color: var(--text-secondary);">
                         <i class="fab fa-chrome mr-2"></i>
-                        <span>Chrome扩展</span>
+                        <span data-lang-key="nav.chrome">Chrome扩展</span>
                     </a>
                     <div id="status-container" class="hidden sm:flex items-center mr-4 py-1 px-3 rounded-full text-sm" style="background-color: var(--bg-secondary);">
                         <span id="status-indicator" class="w-2 h-2 rounded-full mr-2"></span>
-                        <span id="status-text">检查服务状态...</span>
+                        <span id="status-text" data-lang-key="nav.status.checking">检查服务状态...</span>
                     </div>
+                    <button id="language-toggle" class="p-2 rounded-full focus:outline-none mr-2 text-sm font-medium" style="color: var(--text-secondary);">
+                        中/En
+                    </button>
                     <button id="theme-toggle" class="p-2 rounded-full focus:outline-none">
                         <i class="fas fa-moon text-gray-600 dark:text-gray-300" id="dark-icon"></i>
                         <i class="fas fa-sun text-amber-500 hidden" id="light-icon"></i>
@@ -682,25 +700,25 @@
                 
                 <div class="hero-grid">
                     <div class="hero-content">
-                        <h1 class="hero-title">AI驱动的<br>事实核查平台</h1>
-                        <p class="hero-description">利用先进的人工智能技术，分析内容可信度，识别虚假信息</p>
+                        <h1 class="hero-title" data-lang-key="hero.title">AI驱动的<br>事实核查平台</h1>
+                        <p class="hero-description" data-lang-key="hero.description">利用先进的人工智能技术，分析内容可信度，识别虚假信息</p>
                         
                         <div class="flex flex-wrap mb-6">
                             <span class="hero-feature-tag">
                                 <i class="fas fa-check-circle"></i>
-                                <span>事实核查</span>
+                                <span data-lang-key="hero.feature.fact">事实核查</span>
                             </span>
                             <span class="hero-feature-tag">
                                 <i class="fas fa-search"></i>
-                                <span>来源验证</span>
+                                <span data-lang-key="hero.feature.source">来源验证</span>
                             </span>
                             <span class="hero-feature-tag">
                                 <i class="fas fa-user-check"></i>
-                                <span>实体识别</span>
+                                <span data-lang-key="hero.feature.entity">实体识别</span>
                             </span>
                             <span class="hero-feature-tag">
                                 <i class="fas fa-exclamation-triangle"></i>
-                                <span>夸大检测</span>
+                                <span data-lang-key="hero.feature.exaggeration">夸大检测</span>
                             </span>
                         </div>
                         
@@ -712,7 +730,7 @@
                                 <span class="absolute inset-0 w-full h-full bg-gradient-to-r from-green-400 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
                                 <span class="relative flex items-center justify-center">
                                     <i class="fab fa-edge mr-2 text-lg"></i>
-                                    <span>获取Edge浏览器扩展</span>
+                                    <span data-lang-key="hero.button.edge">获取Edge浏览器扩展</span>
                                 </span>
                             </a>
                             <a href="https://chromewebstore.google.com/detail/veritai-fact-checker/alfhhpecmnhnpkdbbbnhcpmeldchonkf?authuser=0&hl=en" 
@@ -721,7 +739,7 @@
                                 <span class="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-400 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
                                 <span class="relative flex items-center justify-center">
                                     <i class="fab fa-chrome mr-2 text-lg"></i>
-                                    <span>获取Chrome浏览器扩展</span>
+                                    <span data-lang-key="hero.button.chrome">获取Chrome浏览器扩展</span>
                                 </span>
                             </a>
                         </div>
@@ -750,25 +768,25 @@
         <!-- 输入部分 -->
         <section class="mb-10">
             <div class="card rounded-xl p-6 hover:shadow-xl transition-all duration-300">
-                <h2 class="text-2xl font-bold mb-6 text-center">提交内容进行核查</h2>
+                <h2 class="text-2xl font-bold mb-6 text-center" data-lang-key="input.title">提交内容进行核查</h2>
                 <div class="mb-6">
-                    <label for="urlInput" class="block mb-2 text-sm font-medium">网址或文本内容</label>
+                    <label for="urlInput" class="block mb-2 text-sm font-medium" data-lang-key="input.label">网址或文本内容</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                             <i class="fas fa-link" style="color: var(--primary-color);"></i>
                         </div>
-                        <input type="text" id="urlInput" class="input-field w-full pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:ring-2" placeholder="粘贴网址或直接输入文本内容...">
+                        <input type="text" id="urlInput" class="input-field w-full pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:ring-2" data-lang-key="input.placeholder" placeholder="粘贴网址或直接输入文本内容...">
                     </div>
-                    <p class="mt-2 text-sm opacity-70">提示：输入网址进行网页分析，或直接粘贴文本内容进行核查</p>
+                    <p class="mt-2 text-sm opacity-70" data-lang-key="input.tip">提示：输入网址进行网页分析，或直接粘贴文本内容进行核查</p>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-4">
-                    <button id="analyzeBtn" class="btn-primary flex-1 py-3 px-6 rounded-lg flex justify-center items-center">
+                    <button id="analyzeBtn" class="btn-primary flex-1 py-3 px-6 rounded-lg flex justify-center items-center" data-target="button.analyze">
                         <i class="fas fa-microscope mr-2"></i>
-                        <span>开始核查</span>
+                        <span data-lang-key="button.analyze">开始核查</span>
                     </button>
                     <button id="clearBtn" class="py-3 px-6 rounded-lg flex justify-center items-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300" style="background-color: var(--bg-secondary);">
                         <i class="fas fa-trash-alt mr-2"></i>
-                        <span>清除</span>
+                        <span data-lang-key="button.clear">清除</span>
                     </button>
                 </div>
             </div>
@@ -777,8 +795,8 @@
         <!-- 加载状态 -->
         <section id="loadingState" class="hidden mb-10 text-center py-12">
             <div class="loading-spinner mx-auto mb-4"></div>
-            <p class="text-lg">正在分析中，请稍候...</p>
-            <p class="mt-2 text-sm opacity-70">AI正在深度分析内容，这可能需要几秒钟时间</p>
+            <p class="text-lg" data-lang-key="loading.message">正在分析中，请稍候...</p>
+            <p class="mt-2 text-sm opacity-70" data-lang-key="loading.tip">AI正在深度分析内容，这可能需要几秒钟时间</p>
         </section>
 
         <!-- 错误信息 -->
@@ -789,7 +807,7 @@
                         <i class="fas fa-exclamation-circle text-red-500 text-xl"></i>
                     </div>
                     <div class="ml-3">
-                        <p class="font-medium">分析过程中出现错误</p>
+                        <p class="font-medium" data-lang-key="error.title">分析过程中出现错误</p>
                         <p class="text-sm error-message">错误详情显示在这里</p>
                     </div>
                 </div>
@@ -808,20 +826,20 @@
                     <div class="logo-container footer-logo">
                         <img src="images/V-logo.svg" alt="Veri.ai Logo" class="logo-img">
                     </div>
-                    <p class="text-sm opacity-70 ml-2">© 2023 Veri.ai 照谣镜 - AI事实核查平台</p>
+                    <p class="text-sm opacity-70 ml-2" data-lang-key="footer.copyright">© 2023 Verit.ai 照谣镜 - AI事实核查平台</p>
                 </div>
                 <div class="flex items-center space-x-6">
                     <a href="https://microsoftedge.microsoft.com/addons/detail/veritai-%E4%BA%8B%E5%AE%9E%E6%A0%B8%E6%9F%A5/afhdopjkkonlpmpjdfaffooaginonmng" 
                        target="_blank" 
                        class="hover-scale flex items-center">
                         <i class="fab fa-edge mr-1" style="color: var(--text-primary);"></i>
-                        <span class="text-sm">Edge扩展</span>
+                        <span class="text-sm" data-lang-key="footer.edge">Edge扩展</span>
                     </a>
                     <a href="https://chromewebstore.google.com/detail/veritai-fact-checker/alfhhpecmnhnpkdbbbnhcpmeldchonkf?authuser=0&hl=en" 
                        target="_blank" 
                        class="hover-scale flex items-center">
                         <i class="fab fa-chrome mr-1" style="color: var(--text-primary);"></i>
-                        <span class="text-sm">Chrome扩展</span>
+                        <span class="text-sm" data-lang-key="footer.chrome">Chrome扩展</span>
                     </a>
                     <a href="https://github.com/sztimhdd/Verit.AI" target="_blank" class="hover-scale">
                         <i class="fab fa-github" style="color: var(--text-primary);"></i>
@@ -830,7 +848,7 @@
                         <i class="fab fa-weixin" style="color: var(--text-primary);"></i>
                         <div class="wechat-qrcode">
                             <img src="images/Wechat_barcode.png" alt="微信公众号二维码" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'160\' viewBox=\'0 0 160 160\'><rect width=\'160\' height=\'160\' fill=\'%234CAF50\' rx=\'8\'/><text x=\'50%\' y=\'50%\' font-family=\'Arial\' font-size=\'14\' fill=\'white\' text-anchor=\'middle\' dominant-baseline=\'middle\'>请替换为实际二维码</text><rect x=\'40\' y=\'60\' width=\'80\' height=\'80\' fill=\'none\' stroke=\'white\' stroke-width=\'4\' rx=\'4\'/><path d=\'M60 100 L100 60 M60 60 L100 100\' stroke=\'white\' stroke-width=\'4\'/></svg>';">
-                            <p>关注公众号</p>
+                            <p data-lang-key="footer.follow">关注公众号</p>
                         </div>
                     </div>
                     <a href="mailto:huhai.orion@gmail.com" class="hover-scale">
@@ -845,51 +863,41 @@
     <script src="/config.js"></script>
     <script src="script.js"></script>
     <script>
-        // 主题切换逻辑
         document.addEventListener('DOMContentLoaded', function() {
             const themeToggle = document.getElementById('theme-toggle');
             const darkIcon = document.getElementById('dark-icon');
             const lightIcon = document.getElementById('light-icon');
             const html = document.documentElement;
             
-            // 检查用户偏好
-            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                html.classList.add('dark');
-                darkIcon.classList.add('hidden');
-                lightIcon.classList.remove('hidden');
-            } else {
-                html.classList.remove('dark');
-                darkIcon.classList.remove('hidden');
-                lightIcon.classList.add('hidden');
-            }
-            
-            // 主题切换事件
-            themeToggle.addEventListener('click', function() {
-                if (html.classList.contains('dark')) {
-                    html.classList.remove('dark');
-                    localStorage.theme = 'light';
-                    darkIcon.classList.remove('hidden');
-                    lightIcon.classList.add('hidden');
-                } else {
+            function applyTheme(theme) {
+                if (theme === 'dark') {
                     html.classList.add('dark');
-                    localStorage.theme = 'dark';
                     darkIcon.classList.add('hidden');
                     lightIcon.classList.remove('hidden');
+                } else {
+                    html.classList.remove('dark');
+                    darkIcon.classList.remove('hidden');
+                    lightIcon.classList.add('hidden');
                 }
+            }
+
+            const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            applyTheme(savedTheme);
+
+            themeToggle.addEventListener('click', function() {
+                const newTheme = html.classList.contains('dark') ? 'light' : 'dark';
+                localStorage.theme = newTheme;
+                applyTheme(newTheme);
             });
             
-            // 移动设备上点击显示二维码
             const wechatContainer = document.querySelector('.wechat-container');
             const wechatQrcode = document.querySelector('.wechat-qrcode');
             
             if (wechatContainer && wechatQrcode) {
                 wechatContainer.addEventListener('click', function(e) {
-                    // 检测是否为移动设备
                     if (window.innerWidth < 768) {
                         e.preventDefault();
                         e.stopPropagation();
-                        
-                        // 切换二维码显示状态
                         const isVisible = wechatQrcode.style.opacity === '1';
                         wechatQrcode.style.opacity = isVisible ? '0' : '1';
                         wechatQrcode.style.visibility = isVisible ? 'hidden' : 'visible';
@@ -897,7 +905,6 @@
                     }
                 });
                 
-                // 点击其他区域隐藏二维码
                 document.addEventListener('click', function(e) {
                     if (window.innerWidth < 768 && !wechatContainer.contains(e.target)) {
                         wechatQrcode.style.opacity = '0';

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VeritAI Fact Checker - Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        p {
+            margin-bottom: 15px;
+        }
+        .test-content {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .test-highlight {
+            background: rgba(239, 68, 68, 0.3);
+            padding: 2px 4px;
+            border-radius: 3px;
+            cursor: help;
+        }
+    </style>
+</head>
+<body>
+    <h1>VeritAI Fact Checker - In-Page Highlights Test</h1>
+
+    <p>This page is designed to test the In-Page Highlights feature. Click the extension icon and select "开始核查" to see highlights appear on dubious claims below.</p>
+
+    <div class="test-content">
+        <h2>Sample News Article</h2>
+
+        <p>Washington, DC - President Biden announced today that the United States has achieved a historic breakthrough in renewable energy technology. "We have developed a revolutionary solar panel that can generate electricity even at night," the President claimed during his press conference.</p>
+
+        <p>The new technology supposedly uses advanced quantum mechanics to capture moonlight and convert it into usable power. Experts at MIT have reportedly confirmed that this breakthrough could eliminate the need for traditional power plants worldwide within the next decade.</p>
+
+        <p>Critics have questioned the feasibility of the claims, pointing out that basic physics suggests moonlight simply doesn't carry enough energy to power significant electrical loads. However, White House officials insist that independent testing has validated the technology's effectiveness.</p>
+
+        <p>The announcement has already caused stock prices for major energy companies to plummet by 15% in early trading, while renewable energy stocks surged by over 20%. Economists predict this could lead to millions of jobs being created in the green energy sector.</p>
+
+        <p>Government sources claim that the technology will be made available to the public within the next 18 months, with initial deployments planned for major cities across the United States. The President emphasized that this development would position America as the global leader in clean energy innovation for generations to come.</p>
+    </div>
+
+    <div class="test-content">
+        <h2>Key Dubious Claims (Should Be Highlighted)</h2>
+        <ul>
+            <li>"We have developed a revolutionary solar panel that can generate electricity even at night" - This contradicts basic physics</li>
+            <li>"Experts at MIT have reportedly confirmed that this breakthrough could eliminate the need for traditional power plants worldwide within the next decade" - Unverified claim</li>
+            <li>"independent testing has validated the technology's effectiveness" - Vague and unproven</li>
+            <li>"this could lead to millions of jobs being created in the green energy sector" - Exaggerated economic impact</li>
+        </ul>
+    </div>
+
+    <div class="test-content">
+        <h2>How to Test</h2>
+        <ol>
+            <li>Make sure the extension is loaded in Chrome</li>
+            <li>Click the VeritAI extension icon in the toolbar</li>
+            <li>Click "开始核查" (Start Analysis)</li>
+            <li>Wait for the analysis to complete</li>
+            <li>Look for red highlights on dubious claims in the article above</li>
+            <li>Hover over highlights to see tooltips with correction details</li>
+            <li>Check the popup settings to toggle highlights on/off</li>
+        </ol>
+    </div>
+
+    <script>
+        // Add some test highlights for visual reference
+        document.addEventListener('DOMContentLoaded', function() {
+            // This is just for visual testing - real highlights come from the extension
+            const testElements = document.querySelectorAll('.test-highlight');
+            testElements.forEach(el => {
+                el.title = 'Example highlight - hover to see tooltip';
+            });
+        });
+    </script>
+</body>
+</html></content>
+<parameter name="filePath">C:\Users\Administrator\Desktop\AI_study\factChecker_ai\factChecker_ai\test-highlights.html
