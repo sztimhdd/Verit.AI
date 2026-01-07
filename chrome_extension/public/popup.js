@@ -209,8 +209,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 分析按钮事件处理
     analyzeButton.addEventListener('click', () => {
-        console.log('[Popup] Analyze button clicked');
-        console.log('[Popup] serviceReady:', serviceReady, 'isAnalyzing:', isAnalyzing);
+        console.log('[Popup] ========== BUTTON CLICK STARTED ==========');
+        console.log('[Popup] Analyze button clicked, serviceReady:', serviceReady, 'isAnalyzing:', isAnalyzing);
         startAnalysis();
     });
 

@@ -25,6 +25,7 @@
     }
   ],
   "action": {
+    "default_popup": "popup.html",
     "default_title": "Oracle AI Fact Checker"
   },
   "content_security_policy": {
