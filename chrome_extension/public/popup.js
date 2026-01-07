@@ -1,4 +1,12 @@
 document.addEventListener('DOMContentLoaded', function () {
+    console.log('[Popup] DOMContentLoaded fired - POPUP.JS STARTING');
+    console.log('[Popup] DOM state:', document.readyState);
+    console.log('[Popup] Available elements:', {
+        analyzeButton: !!document.getElementById('analyzeButton'),
+        statusIndicator: !!document.getElementById('statusIndicator'),
+        loadingIndicator: !!document.getElementById('loadingIndicator')
+    });
+
     const analyzeButton = document.getElementById('analyzeButton');
     const statusIndicator = document.getElementById('statusIndicator');
     const loadingIndicator = document.getElementById('loadingIndicator');
