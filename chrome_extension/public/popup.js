@@ -139,23 +139,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 开始分析
     async function startAnalysis() {
-        if (!serviceReady || isAnalyzing) return;
+        if (!serviceReady || isAnalyzing) {
+            console.log('[Popup] Skipping analysis - serviceReady:', serviceReady, 'isAnalyzing:', isAnalyzing);
+            return;
+        }
 
         try {
             // 1. 更新UI状态为分析中
             isAnalyzing = true;
             analyzeButton.disabled = true;
-            analyzeButton.textContent = i18n.getText('buttons_analyzing');
+            const analyzingText = i18n?.getText ? i18n.getText('buttons_analyzing') : '核查中...';
+            analyzeButton.textContent = analyzingText;
             loadingIndicator.classList.remove('hidden');
             errorSection.classList.add('hidden');
+            console.log('[Popup] UI updated to analyzing state');
 
             // 2. 获取当前标签页
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (!tab) {
-                throw new Error(i18n.getText('errors_noActiveTab'));
+                throw new Error('没有活动标签页');
             }
+            console.log('[Popup] Got tab:', tab.id, tab.url);
 
-            // 3. 获取页面内容
+            // 3. 获取页面内容 (with timeout)
             console.log('[Popup] Extracting page content from tab:', tab.id);
             const contentResponse = await chrome.tabs.sendMessage(tab.id, {
                 action: 'EXTRACT_CONTENT'
@@ -163,47 +169,55 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log('[Popup] Content response:', contentResponse);
 
             if (!contentResponse?.success) {
-                throw new Error(contentResponse?.error || i18n.getText('errors_analysisError'));
+                throw new Error(contentResponse?.error || '内容提取失败');
             }
 
-            // 4. 发送分析请求
+            console.log('[Popup] Content extracted, length:', contentResponse.data?.content?.length);
+
+            // 4. 发送分析请求 (with 60 second timeout)
             console.log('[Popup] Sending analysis request to backend...');
-            const analysisResponse = await chrome.runtime.sendMessage({
+            const analysisPromise = chrome.runtime.sendMessage({
                 action: 'analyzeContent',
                 content: contentResponse.data.content,
                 url: tab.url,
                 title: contentResponse.data.title,
-                language: i18n.currentLang // 添加语言参数
+                language: i18n?.currentLang || 'zh'
             });
-            console.log('[Popup] Analysis response:', analysisResponse);
+            
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('分析请求超时 (60秒)')), 60000)
+            );
+            
+            const analysisResponse = await Promise.race([analysisPromise, timeoutPromise]);
+            console.log('[Popup] Analysis response received:', analysisResponse?.success);
 
             // 5. 处理分析结果
             if (analysisResponse?.success && analysisResponse?.data) {
-                // 高亮显示已在background.js中处理，这里只显示浮动卡片
+                console.log('[Popup] Analysis successful, showing floating card...');
                 await chrome.tabs.sendMessage(tab.id, {
                     action: 'showFloatingCard',
                     data: analysisResponse.data
                 });
-                window.close(); // 关闭popup
+                window.close();
             } else {
-                // 分析失败：显示错误信息
-                throw new Error(analysisResponse?.error || i18n.getText('errors_analysisError'));
+                throw new Error(analysisResponse?.error || '分析失败');
             }
 
         } catch (error) {
             // 6. 错误处理：显示错误信息
+            console.error('[Popup] Analysis error:', error.message);
             errorSection.classList.remove('hidden');
             errorMessageDisplay.textContent = error.message;
             retryButton.classList.remove('hidden');
             analyzeButton.disabled = false;
-            analyzeButton.textContent = i18n.getText('buttons_analyze');
+            analyzeButton.textContent = i18n?.getText ? i18n.getText('buttons_analyze') : '开始核查';
 
         } finally {
             // 7. 清理状态
             isAnalyzing = false;
             loadingIndicator.classList.add('hidden');
             if (!analyzeButton.disabled) {
-                analyzeButton.textContent = i18n.getText('buttons_analyze');
+                analyzeButton.textContent = i18n?.getText ? i18n.getText('buttons_analyze') : '开始核查';
             }
         }
     }
