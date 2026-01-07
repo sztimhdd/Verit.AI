@@ -58,6 +58,10 @@ module.exports = {
         {
           from: 'node_modules/@mozilla/readability/Readability.js',
           to: 'lib/readability.js'
+        },
+        {
+          from: 'node_modules/fuse.js/dist/fuse.basic.min.js',
+          to: 'lib/fuse.js'
         }
       ]
     })

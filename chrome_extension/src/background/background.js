@@ -196,6 +196,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           const result = await response.json();
           if (result.data) {
             updateQuotaInfo(result.data.quota);
+            
+            // 获取当前标签页并发送高亮指令
+            try {
+              const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+              if (tab && tab.id) {
+                // 先发送高亮指令
+                await chrome.tabs.sendMessage(tab.id, {
+                  action: 'applyHighlights',
+                  data: result.data
+                });
+                console.log('[Background] Highlights applied successfully');
+              }
+            } catch (highlightError) {
+              console.warn('[Background] Failed to apply highlights:', highlightError);
+              // 高亮失败不影响主流程
+            }
+            
             sendResponse({ 
               success: true, 
               data: result.data 

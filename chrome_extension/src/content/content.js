@@ -7,7 +7,8 @@ const state = {
   floatingCard: null,
   isCardVisible: false,
   currentData: null,
-  language: 'zh' // 默认语言
+  language: 'zh', // 默认语言
+  highlightManager: null // Highlight manager instance
 };
 
 // 创建浮动卡片
@@ -200,7 +201,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case 'setLanguage':
       sendResponse(setLanguage(message.language));
       break;
-        
+
+    case 'applyHighlights':
+      if (message.data && state.highlightManager) {
+        state.highlightManager.applyHighlights(message.data)
+          .then(() => sendResponse({ success: true }))
+          .catch(error => sendResponse({ success: false, error: error.message }));
+        return true; // 保持消息通道开放
+      } else {
+        sendResponse({ success: false, error: '无效的分析数据或HighlightManager未初始化' });
+      }
+      break;
+
+    case 'clearHighlights':
+      if (state.highlightManager) {
+        state.highlightManager.clearHighlights();
+        sendResponse({ success: true });
+      } else {
+        sendResponse({ success: false, error: 'HighlightManager未初始化' });
+      }
+      break;
+
     case 'ping':
       // 用于检查内容脚本是否已加载
       sendResponse({ success: true });
@@ -305,6 +326,11 @@ window.addEventListener('popstate', () => handleUrlChange());
 // 处理 URL 变化
 function handleUrlChange() {
   removeFloatingCard();
+  
+  // 清除页面上的高亮
+  if (state.highlightManager) {
+    state.highlightManager.clearHighlights();
+  }
   
   // 使用安全发送函数
   sendMessageSafely({ 
@@ -443,6 +469,15 @@ function setupReconnectionMechanism() {
 
 // 修改 initialize 函数
 function initialize() {
+  // 初始化HighlightManager
+  try {
+    state.highlightManager = new HighlightManager();
+    state.highlightManager.init();
+    console.log('[Content] HighlightManager initialized');
+  } catch (error) {
+    console.error('[Content] Failed to initialize HighlightManager:', error);
+  }
+
   // 等待 DOM 加载完成
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
@@ -505,6 +540,12 @@ initialize();
 function cleanup() {
   // 移除浮动卡片
   removeFloatingCard();
+  
+  // 清理HighlightManager
+  if (state.highlightManager) {
+    state.highlightManager.destroy();
+    state.highlightManager = null;
+  }
   
   // 断开 URL 观察器
   if (urlObserver) {

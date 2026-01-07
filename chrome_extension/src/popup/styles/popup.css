@@ -299,3 +299,62 @@ body {
 .hidden {
   display: none !important;
 }
+
+/* 设置区域 */
+.settings-section {
+  background-color: var(--background-secondary);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.setting-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.toggle-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  flex-grow: 1;
+}
+
+.toggle-label input[type="checkbox"] {
+  display: none;
+}
+
+.toggle-label input[type="checkbox"] + .toggle-text::before {
+  content: '\f204';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+  font-size: 20px;
+  color: var(--border-color);
+  margin-right: 8px;
+  transition: color 0.2s;
+}
+
+.toggle-label input[type="checkbox"]:checked + .toggle-text::before {
+  content: '\f205';
+  color: var(--primary-color);
+}
+
+.toggle-label input[type="checkbox"]:checked + .toggle-text {
+  color: var(--text-primary);
+}
+
+.toggle-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+}
+
+.toggle-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: 28px;
+  line-height: 1.4;
+}

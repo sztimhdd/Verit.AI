@@ -5,10 +5,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const errorSection = document.getElementById('errorSection');
     const errorMessageDisplay = document.getElementById('errorMessage');
     const retryButton = document.getElementById('retryButton');
-    // const quotaInfo = document.querySelector('.quota-info'); //  移除配额信息相关元素引用
-    // const groundingQuotaDisplay = document.getElementById('groundingQuota'); //  移除配额信息相关元素引用
-    // const gemini20QuotaDisplay = document.getElementById('gemini20Quota'); //  移除配额信息相关元素引用
-    // const gemini15QuotaDisplay = document.getElementById('gemini15Quota'); //  移除配额信息相关元素引用
+    const highlightsToggle = document.getElementById('highlightsToggle');
 
     let serviceReady = false;
     let isAnalyzing = false;
@@ -19,6 +16,42 @@ document.addEventListener('DOMContentLoaded', function () {
         // 初始化完成后更新界面文本
         updateUITexts();
     });
+
+    // 初始化Highlights设置
+    async function initHighlightsSettings() {
+        try {
+            const result = await chrome.storage.sync.get(['highlightsEnabled']);
+            const enabled = result.highlightsEnabled !== false; // Default to true
+            highlightsToggle.checked = enabled;
+            
+            // 监听设置变化
+            highlightsToggle.addEventListener('change', async () => {
+                const enabled = highlightsToggle.checked;
+                await chrome.storage.sync.set({ highlightsEnabled: enabled });
+                
+                // 通知content script设置已更改
+                try {
+                    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                    if (tab && tab.id) {
+                        if (enabled) {
+                            // 如果启用，重新应用高亮（需要重新分析的结果）
+                            console.log('[Popup] Highlights enabled - user needs to re-analyze for new highlights');
+                        } else {
+                            // 如果禁用，清除当前页面的高亮
+                            await chrome.tabs.sendMessage(tab.id, { action: 'clearHighlights' });
+                        }
+                    }
+                } catch (error) {
+                    console.warn('[Popup] Failed to notify content script:', error);
+                }
+            });
+        } catch (error) {
+            console.error('[Popup] Failed to load highlights settings:', error);
+        }
+    }
+    
+    // 初始化设置
+    initHighlightsSettings();
     
     // 更新界面上的所有文本
     function updateUITexts() {
@@ -120,7 +153,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // 5. 处理分析结果
             if (analysisResponse?.success && analysisResponse?.data) {
-                // 成功：显示浮动卡片
+                // 高亮显示已在background.js中处理，这里只显示浮动卡片
                 await chrome.tabs.sendMessage(tab.id, {
                     action: 'showFloatingCard',
                     data: analysisResponse.data
