@@ -197,7 +197,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           if (result.data) {
             updateQuotaInfo(result.data.quota);
             
-            // 获取当前标签页并发送高亮指令
+            // 先发送高亮指令
             try {
               const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
               if (tab && tab.id) {
@@ -208,6 +208,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 });
                 console.log('[Background] Highlights applied successfully');
               }
+            } catch (highlightError) {
+              console.warn('[Background] Failed to apply highlights:', highlightError);
+              // 高亮失败不影响主流程
+            }
+            
+            sendResponse({ 
+              success: true, 
+              data: result.data 
+            });
+          } else {
+            console.error('内容分析失败:', result.error || 'Unknown error');
+            sendResponse({ 
+              success: false, 
+              error: result.error || 'Unknown error' 
+            });
+          }
+        } else {
+        } else {
+          const errorMsg = `HTTP ${response.status}: ${response.statusText || 'Network error'}`;
+          console.error('内容分析请求失败:', errorMsg);
+          sendResponse({ 
+            success: false, 
+            error: errorMsg 
+          });
+        }
             } catch (highlightError) {
               console.warn('[Background] Failed to apply highlights:', highlightError);
               // 高亮失败不影响主流程

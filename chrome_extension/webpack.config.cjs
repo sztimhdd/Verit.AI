@@ -7,13 +7,11 @@ module.exports = {
   entry: {
     background: './src/background/background.js',
     'floating-card': './src/floating-card/floating-card.js',
-    content: ['./src/content/highlight-manager.js', './src/content/content.js'],
     popup: './public/popup.js'
   },
   output: {
     filename: '[name].js',
-    path: path.resolve(__dirname, 'dist'),
-    clean: true
+    path: path.resolve(__dirname, 'dist')
   },
   mode: 'production',
   optimization: {
@@ -35,9 +33,6 @@ module.exports = {
     ],
   },
   plugins: [
-    new webpack.DefinePlugin({
-      'process.env.API_URL': JSON.stringify('https://veritai-api.up.railway.app')
-    }),
     new CopyPlugin({
       patterns: [
         { from: 'manifest.json' },
@@ -47,47 +42,12 @@ module.exports = {
         { from: 'public/icons', to: 'icons' },
         { from: 'styles/popup.css', to: 'styles/popup.css' },
         { from: 'src/content/content.css', to: 'styles/content.css' },
-        { 
-          from: 'node_modules/crypto-js/crypto-js.js',
-          to: 'lib/crypto-js.js'
-        },
-        {
-          from: 'node_modules/@google/generative-ai/dist/index.js',
-          to: 'lib/generative-ai.js'
-        },
-        {
-          from: 'node_modules/@mozilla/readability/Readability.js',
-          to: 'lib/readability.js'
-        },
-        {
-          from: 'node_modules/fuse.js/dist/fuse.basic.min.js',
-          to: 'lib/fuse.js'
-        }
+        { from: 'node_modules/crypto-js/crypto-js.js', to: 'lib/crypto-js.js' },
+        { from: 'node_modules/@google/generative-ai/dist/index.js', to: 'lib/generative-ai.js' },
+        { from: 'node_modules/@mozilla/readability/Readability.js', to: 'lib/readability.js' },
+        { from: 'node_modules/fuse.js/dist/fuse.basic.min.js', to: 'lib/fuse.js' },
+        { from: 'node_modules/use.js/dist/use.basic.min.js', to: 'lib/fuse.js' }
       ]
-    })
-  ],
-  module: {
-    rules: [
-      {
-        test: /\.js$/,
-        exclude: /node_modules/,
-        use: {
-          loader: 'babel-loader',
-          options: {
-            presets: [
-              ['@babel/preset-env', {
-                targets: {
-                  chrome: "88"
-                }
-              }]
-            ]
-          }
-        }
-      },
-      {
-        test: /\.css$/,
-        use: ['style-loader', 'css-loader']
-      }
-    ]
-  }
-}; 
+    }
+  ]
+};
