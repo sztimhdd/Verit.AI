@@ -4,8 +4,8 @@
 
 // 配置常量
 const API_BASE_URLS = [
-  'https://veritai-api.up.railway.app', // Railway生产URL
-  'http://localhost:4000'  // 保留本地测试URL作为备用
+  'http://127.0.0.1:4000', // 本地测试URL (优先)
+  'https://veritai-api.up.railway.app' // Railway生产URL
 ];
 const STATE_KEY = 'veritai_state';
 const QUOTA_KEY = 'veritai_quota';

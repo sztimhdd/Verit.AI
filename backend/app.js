@@ -824,7 +824,7 @@ app.get('/health', (req, res) => {
 });
 
 // 启动服务
-app.listen(port, async () => {
+app.listen(port, '0.0.0.0', async () => {
     console.log(`服务器启动于 http://0.0.0.0:${port}`);
     
     // 初始化服务

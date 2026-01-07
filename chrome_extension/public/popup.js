@@ -9,13 +9,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let serviceReady = false;
     let isAnalyzing = false;
-    
-    // 初始化 i18n 管理器
-    const i18n = new I18nManager();
-    i18n.initialize().then(() => {
-        // 初始化完成后更新界面文本
+    let i18n = null;
+
+    // 初始化 i18n 管理器 (带错误处理)
+    try {
+        i18n = new I18nManager();
+        i18n.initialize().then(() => {
+            // 初始化完成后更新界面文本
+            updateUITexts();
+        }).catch(error => {
+            console.error('[Popup] I18n initialization failed:', error);
+            // Fallback to default text if i18n fails
+            updateUITexts();
+        });
+    } catch (error) {
+        console.error('[Popup] Failed to create I18nManager:', error);
+        // Initialize with minimal functionality even if i18n fails
         updateUITexts();
-    });
+    }
 
     // 初始化Highlights设置
     async function initHighlightsSettings() {
@@ -105,12 +116,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // 检查服务状态
     async function checkServiceStatus() {
         try {
+            console.log('[Popup] Checking service status...');
             const response = await chrome.runtime.sendMessage({ action: 'checkServiceStatus' });
+            console.log('[Popup] Service status response:', response);
             updateServiceStatusUI(
                 response.isReady ? 'ready' : 'error',
                 response.error
             );
         } catch (error) {
+            console.error('[Popup] Error checking service status:', error);
             updateServiceStatusUI('error', error.message);
         }
     }
@@ -134,15 +148,18 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // 3. 获取页面内容
-            const contentResponse = await chrome.tabs.sendMessage(tab.id, { 
-                action: 'EXTRACT_CONTENT' 
+            console.log('[Popup] Extracting page content from tab:', tab.id);
+            const contentResponse = await chrome.tabs.sendMessage(tab.id, {
+                action: 'EXTRACT_CONTENT'
             });
-            
+            console.log('[Popup] Content response:', contentResponse);
+
             if (!contentResponse?.success) {
                 throw new Error(contentResponse?.error || i18n.getText('errors_analysisError'));
             }
 
             // 4. 发送分析请求
+            console.log('[Popup] Sending analysis request to backend...');
             const analysisResponse = await chrome.runtime.sendMessage({
                 action: 'analyzeContent',
                 content: contentResponse.data.content,
@@ -150,6 +167,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 title: contentResponse.data.title,
                 language: i18n.currentLang // 添加语言参数
             });
+            console.log('[Popup] Analysis response:', analysisResponse);
 
             // 5. 处理分析结果
             if (analysisResponse?.success && analysisResponse?.data) {
@@ -190,7 +208,11 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // 分析按钮事件处理
-    analyzeButton.addEventListener('click', startAnalysis);
+    analyzeButton.addEventListener('click', () => {
+        console.log('[Popup] Analyze button clicked');
+        console.log('[Popup] serviceReady:', serviceReady, 'isAnalyzing:', isAnalyzing);
+        startAnalysis();
+    });
 
     // 初始化
     checkServiceStatus();
