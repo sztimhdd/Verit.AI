@@ -1,11 +1,6 @@
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
     console.log('[Popup] DOMContentLoaded fired - POPUP.JS STARTING');
     console.log('[Popup] DOM state:', document.readyState);
-    console.log('[Popup] Available elements:', {
-        analyzeButton: !!document.getElementById('analyzeButton'),
-        statusIndicator: !!document.getElementById('statusIndicator'),
-        loadingIndicator: !!document.getElementById('loadingIndicator')
-    });
 
     const analyzeButton = document.getElementById('analyzeButton');
     const statusIndicator = document.getElementById('statusIndicator');
@@ -18,45 +13,77 @@ document.addEventListener('DOMContentLoaded', function () {
     let serviceReady = false;
     let isAnalyzing = false;
     let i18n = null;
+    let cachedResult = null;
 
     // 初始化 i18n 管理器 (带错误处理)
     try {
         i18n = new I18nManager();
         i18n.initialize().then(() => {
-            // 初始化完成后更新界面文本
             updateUITexts();
         }).catch(error => {
             console.error('[Popup] I18n initialization failed:', error);
-            // Fallback to default text if i18n fails
             updateUITexts();
         });
     } catch (error) {
         console.error('[Popup] Failed to create I18nManager:', error);
-        // Initialize with minimal functionality even if i18n fails
         updateUITexts();
+    }
+
+    // 检查缓存结果和徽章状态
+    async function checkCachedState() {
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab) return;
+
+            // 检查徽章文本 (检测/分析中状态)
+            try {
+                const badgeText = await chrome.action.getBadgeText({ tabId: tab.id });
+                if (badgeText === '...' || badgeText === '⟳') {
+                    console.log('[Popup] Analysis in progress, showing loading state');
+                    isAnalyzing = true;
+                    analyzeButton.disabled = true;
+                    analyzeButton.textContent = '自动核查中...';
+                    loadingIndicator.classList.remove('hidden');
+                    return;
+                }
+            } catch (e) {
+                console.warn('[Popup] Could not get badge text:', e);
+            }
+
+            // 检查缓存的分析结果
+            const resultResponse = await chrome.runtime.sendMessage({
+                action: 'getAnalysisResult',
+                tabId: tab.id
+            });
+
+            if (resultResponse?.success && resultResponse?.data) {
+                console.log('[Popup] Found cached result, score:', resultResponse.data.score);
+                cachedResult = resultResponse.data;
+                serviceReady = true;
+                updateUITexts();
+            }
+        } catch (error) {
+            console.error('[Popup] Error checking cached state:', error);
+        }
     }
 
     // 初始化Highlights设置
     async function initHighlightsSettings() {
         try {
             const result = await chrome.storage.sync.get(['highlightsEnabled']);
-            const enabled = result.highlightsEnabled !== false; // Default to true
+            const enabled = result.highlightsEnabled !== false;
             highlightsToggle.checked = enabled;
-            
-            // 监听设置变化
+
             highlightsToggle.addEventListener('change', async () => {
                 const enabled = highlightsToggle.checked;
                 await chrome.storage.sync.set({ highlightsEnabled: enabled });
-                
-                // 通知content script设置已更改
+
                 try {
                     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
                     if (tab && tab.id) {
                         if (enabled) {
-                            // 如果启用，重新应用高亮（需要重新分析的结果）
                             console.log('[Popup] Highlights enabled - user needs to re-analyze for new highlights');
                         } else {
-                            // 如果禁用，清除当前页面的高亮
                             await chrome.tabs.sendMessage(tab.id, { action: 'clearHighlights' });
                         }
                     }
@@ -68,18 +95,32 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error('[Popup] Failed to load highlights settings:', error);
         }
     }
-    
+
     // 初始化设置
     initHighlightsSettings();
-    
+    checkCachedState();
+
     // 更新界面上的所有文本
     function updateUITexts() {
-        // 更新按钮文本
-        analyzeButton.textContent = i18n.getText('buttons_analyze');
+        if (cachedResult) {
+            // 显示已完成的分析结果
+            const score = cachedResult.score || 0;
+            analyzeButton.textContent = `查看结果 (得分: ${score})`;
+            analyzeButton.disabled = false;
+            serviceReady = true;
+            statusIndicator.className = 'status-indicator status-indicator-success';
+            statusIndicator.querySelector('.status-text').textContent = '已完成';
+            statusIndicator.querySelector('.status-icon').className = 'status-icon fas fa-check-circle status-icon-success';
+            errorSection.classList.add('hidden');
+            retryButton.classList.add('hidden');
+        } else {
+            analyzeButton.textContent = i18n.getText('buttons_analyze');
+        }
         retryButton.textContent = i18n.getText('buttons_retry');
-        
-        // 更新当前显示的状态文本
-        updateServiceStatusUI(serviceReady ? 'ready' : 'error');
+
+        if (!cachedResult) {
+            updateServiceStatusUI(serviceReady ? 'ready' : 'error');
+        }
     }
 
     // 更新服务状态显示
@@ -95,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function () {
             serviceReady = true;
             errorSection.classList.add('hidden');
             retryButton.classList.add('hidden');
-            analyzeButton.disabled = false;
+            if (!cachedResult) analyzeButton.disabled = false;
         } else if (status === 'initializing') {
             statusText = i18n.getText('serviceStatusInitializing');
             statusIconClass = 'fas fa-spinner fa-spin status-icon-initializing';
@@ -137,8 +178,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // 开始分析
+    // 开始分析或显示结果
     async function startAnalysis() {
+        // 如果有缓存结果，直接显示
+        if (cachedResult) {
+            try {
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                if (tab) {
+                    await chrome.tabs.sendMessage(tab.id, {
+                        action: 'showFloatingCard',
+                        data: cachedResult
+                    });
+                    window.close();
+                }
+            } catch (error) {
+                console.error('[Popup] Error showing cached result:', error);
+            }
+            return;
+        }
+
         if (!serviceReady || isAnalyzing) {
             console.log('[Popup] Skipping analysis - serviceReady:', serviceReady, 'isAnalyzing:', isAnalyzing);
             return;
@@ -183,17 +241,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 title: contentResponse.data.title,
                 language: i18n?.currentLang || 'zh'
             });
-            
-            const timeoutPromise = new Promise((_, reject) => 
+
+            const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('分析请求超时 (60秒)')), 60000)
             );
-            
+
             const analysisResponse = await Promise.race([analysisPromise, timeoutPromise]);
             console.log('[Popup] Analysis response received:', analysisResponse?.success);
 
             // 5. 处理分析结果
             if (analysisResponse?.success && analysisResponse?.data) {
                 console.log('[Popup] Analysis successful, showing floating card...');
+                cachedResult = analysisResponse.data;
                 await chrome.tabs.sendMessage(tab.id, {
                     action: 'showFloatingCard',
                     data: analysisResponse.data
@@ -216,7 +275,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // 7. 清理状态
             isAnalyzing = false;
             loadingIndicator.classList.add('hidden');
-            if (!analyzeButton.disabled) {
+            if (!analyzeButton.disabled && !cachedResult) {
                 analyzeButton.textContent = i18n?.getText ? i18n.getText('buttons_analyze') : '开始核查';
             }
         }
@@ -226,16 +285,16 @@ document.addEventListener('DOMContentLoaded', function () {
     retryButton.addEventListener('click', async () => {
         errorSection.classList.add('hidden');
         retryButton.classList.add('hidden');
-        await startAnalysis(); // 直接重试分析
+        await startAnalysis();
     });
 
     // 分析按钮事件处理
     analyzeButton.addEventListener('click', () => {
         console.log('[Popup] ========== BUTTON CLICK STARTED ==========');
-        console.log('[Popup] Analyze button clicked, serviceReady:', serviceReady, 'isAnalyzing:', isAnalyzing);
+        console.log('[Popup] Analyze button clicked, serviceReady:', serviceReady, 'isAnalyzing:', isAnalyzing, 'cachedResult:', !!cachedResult);
         startAnalysis();
     });
 
     // 初始化
     checkServiceStatus();
-}); 
+});

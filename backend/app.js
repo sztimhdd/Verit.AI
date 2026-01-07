@@ -777,6 +777,112 @@ async function translateToZhSimplified(analysisResult, modelName, model) {
 // 应用服务就绪中间件
 app.use(ensureServiceReady);
 
+// Detection endpoint
+app.post("/api/extension/detect", async (req, res) => {
+    const requestId = Math.random().toString(36).substring(7);
+    await logToFile('DETECT_START', `Start detection ${requestId}`, {
+        url: req.body.url,
+        contentLength: req.body.content?.length
+    });
+
+    try {
+        const { content, url, lang = "en" } = req.body;
+        
+        // Basic validation
+        if (!content && !url) {
+            return res.status(400).json({
+                status: 'error',
+                error: { message: 'Content or URL required' }
+            });
+        }
+
+        // Fetch content if needed
+        let detectionContent = content;
+        if (url && !content) {
+            try {
+                const webContent = await fetchWebContent(url);
+                detectionContent = webContent.content;
+            } catch (e) {
+                console.warn(`Fetch failed for detection: ${e.message}`);
+                // Proceed if we have at least some content, otherwise fail
+                if (!detectionContent) {
+                    throw new Error("Failed to fetch content for detection");
+                }
+            }
+        }
+
+        // Truncate for speed (detection doesn't need full text)
+        const truncatedContent = detectionContent.substring(0, 3000);
+
+        // Get model (Gemini 1.5 Flash for speed)
+        // Note: modelManager handles fallback, but we explicitly request a lighter model if possible
+        // For now, we'll ask modelManager or direct genAI usage.
+        // Let's use gemini-1.5-flash directly for detection to ensure speed/low cost
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const prompt = `
+        Analyze the following text and determine if it belongs to a category that requires fact-checking.
+        
+        Categories requiring fact-checking:
+        1. News Reports (Politics, Economics, Science, World Events)
+        2. Blog Posts / Opinion Pieces (Claims about reality, health, tech)
+        3. Social Media Content (Viral claims, threads)
+        4. Encyclopedic/Informational Content
+        
+        Categories NOT requiring fact-checking:
+        1. Recipes / Cooking
+        2. Fiction / Literature / Creative Writing
+        3. Product Listings / E-commerce (unless making health claims)
+        4. Navigation / Homepages / Dashboards
+        5. Code / Technical Documentation
+        6. Personal Profiles
+        
+        Return JSON:
+        {
+            "requires_fact_check": boolean,
+            "category": "string (one of the above or 'Other')",
+            "confidence": number (0-1),
+            "reason": "short explanation"
+        }
+
+        Content: "${truncatedContent.replace(/"/g, '\\"')}"
+        `;
+
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+        });
+
+        const text = result.response.text();
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        let detectionResult = {};
+        
+        if (jsonMatch) {
+            detectionResult = JSON.parse(jsonMatch[0]);
+        } else {
+            // Fallback default
+            detectionResult = { requires_fact_check: true, category: "Unknown", confidence: 0.5 };
+        }
+
+        await logToFile('DETECT_END', `Detection result ${requestId}`, detectionResult);
+
+        // Update quota (approximate)
+        quotaTracker.updateQuota('gemini-1.5', Math.ceil(truncatedContent.length / 4));
+
+        res.json({
+            status: "success",
+            data: detectionResult
+        });
+
+    } catch (error) {
+        console.error("Detection error:", error);
+        res.status(500).json({
+            status: "error",
+            error: { message: error.message }
+        });
+    }
+});
+
 // Chrome Extension API endpoint
 app.post("/api/extension/analyze", async (req, res) => {
     // 由于中间件已经处理了服务就绪状态，这里直接处理请求

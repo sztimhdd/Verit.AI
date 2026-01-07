@@ -484,11 +484,13 @@ function initialize() {
       initializeMessageListeners();
       initializeUrlObserver();
       signalContentReady();
+      triggerAutoDetection(); // Trigger auto detection on load
     });
   } else {
     initializeMessageListeners();
     initializeUrlObserver();
     signalContentReady();
+    triggerAutoDetection(); // Trigger auto detection on load
   }
 
   // 监听 History API 变化
@@ -499,6 +501,28 @@ function initialize() {
 
   // 确保setupReconnectionMechanism在使用前已定义
   setupReconnectionMechanism();
+}
+
+// Auto-Detection Trigger
+function triggerAutoDetection() {
+  // Delay slightly to ensure page is settled
+  setTimeout(() => {
+    if (!isExtensionContextValid()) return;
+    
+    const content = extractContent();
+    if (content.success && content.data.content.length > 200) { // Min length check
+      console.log('[Content] Triggering auto-detection...');
+      sendMessageSafely({
+        action: 'detectContentCategory',
+        content: content.data.content,
+        url: content.data.url,
+        title: content.data.title,
+        language: state.language
+      });
+    } else {
+      console.log('[Content] Content too short or extraction failed, skipping auto-detection');
+    }
+  }, 1000);
 }
 
 // 分离出消息处理函数

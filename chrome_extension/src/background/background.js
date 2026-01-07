@@ -154,12 +154,85 @@ async function saveServiceState() {
 // 定期检查服务状态 (每5分钟)
 setInterval(checkServiceStatus, 5 * 60 * 1000);
 
+// Helper: Update Badge
+async function updateBadge(tabId, text, color = '#4caf50') {
+  try {
+    await chrome.action.setBadgeText({ tabId, text: text.toString() });
+    await chrome.action.setBadgeBackgroundColor({ tabId, color });
+  } catch (e) {
+    console.warn('Failed to update badge:', e);
+  }
+}
+
+// Helper: Save Analysis Result
+async function saveAnalysisResult(tabId, data) {
+  try {
+    await chrome.storage.local.set({ [`analysis_${tabId}`]: data });
+  } catch (e) {
+    console.error('Failed to save analysis result:', e);
+  }
+}
+
+// Helper: Get Badge Color based on score
+function getScoreColor(score) {
+  if (score >= 80) return '#4caf50'; // Green
+  if (score >= 50) return '#ff9800'; // Orange
+  return '#f44336'; // Red
+}
+
+// Core Analysis Logic (Reusable)
+async function performAnalysis(content, url, title, lang, tabId) {
+  try {
+    const response = await fetch(`${CURRENT_API_URL}/api/extension/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, url, title, lang: lang || 'zh' })
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      if (result.data) {
+        updateQuotaInfo(result.data.quota);
+        
+        // Save result
+        await saveAnalysisResult(tabId, result.data);
+        
+        // Update badge with score
+        if (result.data.score !== undefined) {
+          updateBadge(tabId, result.data.score, getScoreColor(result.data.score));
+        }
+
+        // Apply highlights if tab is still available
+        try {
+          await chrome.tabs.sendMessage(tabId, {
+            action: 'applyHighlights',
+            data: result.data
+          });
+          console.log('[Background] Highlights applied automatically');
+        } catch (err) {
+          console.log('[Background] Tab might be closed or inactive:', err);
+        }
+
+        return { success: true, data: result.data };
+      } else {
+        throw new Error(result.error || 'Unknown error');
+      }
+    } else {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('Analysis failed:', error);
+    updateBadge(tabId, 'ERR', '#999');
+    return { success: false, error: error.message };
+  }
+}
+
 // 消息处理
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   (async () => {
+    // 1. Service Status
     if (request.action === 'getServiceStatus' || request.action === 'checkServiceStatus') {
-      if (request.action === 'getServiceStatus' && (Date.now() - serviceStatus.lastCheck <= 5 * 60 * 1000)) {
-      } else {
+      if (request.action !== 'getServiceStatus' || (Date.now() - serviceStatus.lastCheck > 5 * 60 * 1000)) {
         await checkServiceStatus();
       }
       sendResponse({
@@ -167,80 +240,125 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         error: serviceStatus.error,
         quota: serviceStatus.quota
       });
-    } else if (request.action === 'analyzeContent') {
-      if (!serviceStatus.isReady) {
-        await checkServiceStatus();
-        if (!serviceStatus.isReady) {
-          sendResponse({ 
-            success: false, 
-            error: serviceStatus.error || '服务不可用' 
-          });
-          return;
-        }
-      }
+    } 
+    
+    // 2. Detect Content Category (New Auto-Flow)
+    else if (request.action === 'detectContentCategory') {
+      const tabId = sender.tab?.id;
+      if (!tabId) return;
 
+      // Show loading state
+      updateBadge(tabId, '...', '#2196f3');
+
+      if (!serviceStatus.isReady) await checkServiceStatus();
+      
       try {
-        const response = await fetch(`${CURRENT_API_URL}/api/extension/analyze`, {
+        const response = await fetch(`${CURRENT_API_URL}/api/extension/detect`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             content: request.content, 
             url: request.url,
-            title: request.title,
-            lang: request.language || request.lang || 'zh'
+            lang: request.language 
           })
         });
 
         if (response.ok) {
           const result = await response.json();
-          if (result.data) {
-            updateQuotaInfo(result.data.quota);
+          const detection = result.data;
+          
+          console.log(`[Background] Detection result for tab ${tabId}:`, detection);
+
+          if (detection.requires_fact_check) {
+            // Proceed to Stage 2: Analysis
+            console.log(`[Background] Auto-starting analysis for tab ${tabId}`);
+            updateBadge(tabId, '⟳', '#2196f3'); // Analyzing icon
             
-            // 发送高亮指令
-            try {
-              const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-              if (tab && tab.id) {
-                await chrome.tabs.sendMessage(tab.id, {
-                  action: 'applyHighlights',
-                  data: result.data
-                });
-                console.log('[Background] Highlights applied successfully');
-              }
-            } catch (highlightError) {
-              console.warn('[Background] Failed to apply highlights:', highlightError);
-            }
+            const analysisResult = await performAnalysis(
+              request.content, 
+              request.url, 
+              request.title, 
+              request.language, 
+              tabId
+            );
             
-            sendResponse({ 
-              success: true, 
-              data: result.data 
-            });
+            sendResponse({ success: true, stage: 'analysis_complete', data: analysisResult.data });
           } else {
-            console.error('内容分析失败: result.error || Unknown error');
-            sendResponse({ 
-              success: false, 
-              error: result.error || 'Unknown error' 
-            });
+            // No check needed
+            console.log(`[Background] Content ignored: ${detection.category}`);
+            updateBadge(tabId, ''); // Clear badge
+            sendResponse({ success: true, stage: 'detection_ignored', category: detection.category });
           }
         } else {
-          const errorMsg = `HTTP ${response.status}: ${response.statusText || 'Network error'}`;
-          console.error('内容分析请求失败:', errorMsg);
-          sendResponse({ 
-            success: false, 
-            error: errorMsg 
-          });
+          throw new Error('Detection endpoint failed');
         }
       } catch (error) {
-        console.error('内容分析请求异常:', error);
-        sendResponse({ 
-          success: false, 
-          error: `请求失败: ${error.message}` 
-        });
+        console.error('[Background] Detection failed:', error);
+        updateBadge(tabId, '');
+        sendResponse({ success: false, error: error.message });
       }
-    } else if (request.action === 'contentScriptReady') {
+    }
+
+    // 3. Manual Analysis (Legacy/Popup triggered)
+    else if (request.action === 'analyzeContent') {
+      if (!serviceStatus.isReady) {
+        await checkServiceStatus();
+        if (!serviceStatus.isReady) {
+          sendResponse({ success: false, error: serviceStatus.error || '服务不可用' });
+          return;
+        }
+      }
+
+      // Determine Tab ID (might be from popup, try to get active tab)
+      let tabId = sender.tab?.id;
+      if (!tabId) {
+        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        tabId = activeTab?.id;
+      }
+
+      if (tabId) updateBadge(tabId, '⟳', '#2196f3');
+
+      const result = await performAnalysis(
+        request.content, 
+        request.url, 
+        request.title, 
+        request.language || request.lang, 
+        tabId
+      );
+      
+      sendResponse(result);
+    } 
+    
+    // 4. Get Cached Result (For Popup)
+    else if (request.action === 'getAnalysisResult') {
+      let tabId = request.tabId;
+      if (!tabId) {
+        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        tabId = activeTab?.id;
+      }
+      
+      if (tabId) {
+        try {
+          const data = await chrome.storage.local.get(`analysis_${tabId}`);
+          sendResponse({ success: true, data: data[`analysis_${tabId}`] });
+        } catch (e) {
+          sendResponse({ success: false });
+        }
+      } else {
+        sendResponse({ success: false });
+      }
+    }
+    
+    else if (request.action === 'contentScriptReady') {
       sendResponse({ ready: true });
     }
   })();
   return true;
+});
+
+// Clean up storage when tab is closed
+chrome.tabs.onRemoved.addListener((tabId) => {
+  chrome.storage.local.remove(`analysis_${tabId}`);
 });
 
 // 初始化扩展
