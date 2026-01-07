@@ -3,6 +3,7 @@
  * Handles in-page text highlighting for dubious content
  */
 
+// Make HighlightManager available globally for the extension
 class HighlightManager {
   constructor() {
     this.highlights = [];

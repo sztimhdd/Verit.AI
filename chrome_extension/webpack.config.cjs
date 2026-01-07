@@ -7,7 +7,7 @@ module.exports = {
   entry: {
     background: './src/background/background.js',
     'floating-card': './src/floating-card/floating-card.js',
-    content: './src/content/content.js',
+    content: ['./src/content/highlight-manager.js', './src/content/content.js'],
     popup: './public/popup.js'
   },
   output: {
