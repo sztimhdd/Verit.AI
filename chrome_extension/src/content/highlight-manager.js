@@ -499,6 +499,13 @@ class HighlightManager {
       return;
     }
 
+    console.log('[HighlightManager] highlightText called with:', {
+      textLength: textToMatch?.length,
+      tooltipLength: tooltip?.length,
+      type,
+      severity
+    });
+
     try {
       // Create a TreeWalker to find text nodes
       const walker = document.createTreeWalker(

@@ -27,6 +27,11 @@ let serviceStatus = {
 // 初始化
 async function init() {
   console.log('VeritAI Fact Checker 初始化...');
+  
+  // 强制使用本地服务器进行测试
+  CURRENT_API_URL = 'http://127.0.0.1:4000';
+  console.log('使用本地API URL:', CURRENT_API_URL);
+  
   await loadState();
   await checkServiceStatus();
 }
@@ -49,10 +54,7 @@ async function loadState() {
         serviceStatus.quota = savedQuota;
       }
     }
-    if (data['api_url'] && API_BASE_URLS.includes(data['api_url'])) {
-      CURRENT_API_URL = data['api_url'];
-      console.log('使用已保存API URL:', CURRENT_API_URL);
-    }
+    // 不再加载保存的api_url，始终使用本地服务器
   } catch (error) {
     console.error('加载状态失败:', error);
   }

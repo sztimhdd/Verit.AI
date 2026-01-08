@@ -256,6 +256,122 @@ function calculateTokenUsage(content, response) {
     };
 }
 
+// 修复常见JSON格式问题
+function repairJSON(jsonString) {
+    let repaired = jsonString;
+    
+    // 移除所有换行符和多余空格
+    repaired = repaired.replace(/\n/g, ' ');
+    repaired = repaired.replace(/\s+/g, ' ');
+    
+    // 移除数组后的多余逗号（包括嵌套的）
+    repaired = repaired.replace(/,\s*\]/g, ']');
+    repaired = repaired.replace(/,\s*\}/g, '}');
+    
+    // 移除连续的多余逗号
+    repaired = repaired.replace(/,\s*,/g, ',');
+    
+    // 修复不完整的结束符
+    const openBraces = (repaired.match(/\{/g) || []).length;
+    const closeBraces = (repaired.match(/\}/g) || []).length;
+    const openBrackets = (repaired.match(/\[/g) || []).length;
+    const closeBrackets = (repaired.match(/\]/g) || []).length;
+    
+    while (closeBraces < openBraces) {
+        repaired += '}';
+        // eslint-disable-next-line no-plusplus
+        closeBraces++;
+    }
+    while (closeBrackets < openBrackets) {
+        repaired += ']';
+        // eslint-disable-next-line no-plusplus
+        closeBrackets++;
+    }
+    
+    // 处理markdown代码块
+    if (repaired.includes('```json')) {
+        const match = repaired.match(/```json\s*(\{[\s\S]*\})\s*```/);
+        if (match) {
+            repaired = match[1];
+        }
+    }
+    if (repaired.includes('```')) {
+        const match = repaired.match(/```\s*(\{[\s\S]*\})\s*```/);
+        if (match) {
+            repaired = match[1];
+        }
+    }
+    
+    // 确保以 } 或 ] 结尾
+    repaired = repaired.trim();
+    if (!repaired.endsWith('}') && !repaired.endsWith(']')) {
+        const lastBrace = Math.max(repaired.lastIndexOf('}'), repaired.lastIndexOf(']'));
+        if (lastBrace > 0) {
+            repaired = repaired.substring(0, lastBrace + 1);
+        }
+    }
+    
+    // 移除前后可能存在的非JSON字符
+    repaired = repaired.replace(/^[^{[]*/, '');
+    repaired = repaired.replace(/[^}\]]*$/, '');
+    
+    return repaired;
+}
+    while (closeBrackets < openBrackets) {
+        repaired += ']';
+        // eslint-disable-next-line no-plusplus
+        closeBrackets++;
+    }
+    
+    // 处理markdown代码块
+    if (repaired.includes('```json')) {
+        repaired = repaired.replace(/```json\n?/g, '');
+    }
+    if (repaired.includes('```')) {
+        const parts = repaired.split('```');
+        for (let i = 1; i < parts.length; i += 2) {
+            if (parts[i].includes('{')) {
+                repaired = parts[i];
+                break;
+            }
+        }
+    }
+    
+    // 确保以 } 结尾
+    repaired = repaired.trim();
+    if (!repaired.endsWith('}') && !repaired.endsWith(']')) {
+        const lastBrace = Math.max(repaired.lastIndexOf('}'), repaired.lastIndexOf(']'));
+        if (lastBrace > 0) {
+            repaired = repaired.substring(0, lastBrace + 1);
+        }
+    }
+    
+    return repaired;
+}
+
+// 尝试多种JSON提取策略
+function extractJSON(text) {
+    // 策略1: 直接匹配
+    let match = text.match(/\{[\s\S]*\}/);
+    if (match) {
+        return match[0];
+    }
+    
+    // 策略2: 寻找 ```json ``` 块
+    const jsonBlockMatch = text.match(/```json\s*(\{[\s\S]*\})\s*```/);
+    if (jsonBlockMatch) {
+        return jsonBlockMatch[1];
+    }
+    
+    // 策略3: 寻找 ``` 块
+    const codeBlockMatch = text.match(/```\s*(\{[\s\S]*\})\s*```/);
+    if (codeBlockMatch) {
+        return codeBlockMatch[1];
+    }
+    
+    return null;
+}
+
 // 主要分析处理函数
 async function processAnalysisRequest(req, res) {
     const requestId = Math.random().toString(36).substring(7);
@@ -313,10 +429,12 @@ async function processAnalysisRequest(req, res) {
         console.log(`生成配置:`, modelConfig.generationConfig);
 
         // 分析Prompt
-        let prompt = `You are a professional fact checker. Please analyze the following content with multi-dimensional analysis.
+        let prompt = `OUTPUT INSTRUCTIONS: Output ONLY valid JSON. No markdown code blocks. No explanatory text. No text before or after. Just pure JSON.
 
-        First, carefully read the entire text, identifying key information, claims, and information sources.
-        Then, think through your analysis process step by step:`;
+You are a professional fact checker. Please analyze the following content with multi-dimensional analysis.
+
+First, carefully read the entire text, identifying key information, claims, and information sources.
+Then, think through your analysis process step by step:`;
         
         // 如果使用Grounding，添加特殊的搜索引擎查询提示
         if (useGrounding) {
@@ -358,47 +476,44 @@ async function processAnalysisRequest(req, res) {
         Think through your analysis carefully, considering all evidence before reaching final conclusions.
         Consider different perspectives and viewpoints, avoiding personal bias in your judgment.
 
-        Please return the analysis results in the following JSON format:
+        OUTPUT JSON ONLY. No markdown formatting. No code blocks. Pure JSON starting with { and ending with }.
+
+        Required JSON structure:
         {
-            "score": integer from 0-100,
+            "score": 0-100,
             "flags": {
-                "factuality": "High/Medium/Low",
-                "objectivity": "High/Medium/Low",
-                "reliability": "High/Medium/Low",
-                "bias": "High/Medium/Low"
+                "factuality": "High",
+                "objectivity": "Medium",
+                "reliability": "Low",
+                "bias": "Medium"
             },
             "source_verification": {
-                "sources_found": ["list of sources"],
-                "credibility_scores": [list of scores from 1-10],
-                "verification_details": ["detailed verification results, including whether sources support related claims"],
-                "overall_source_credibility": "High/Medium/Low"
+                "sources_found": [],
+                "credibility_scores": [],
+                "verification_details": [],
+                "overall_source_credibility": "Medium"
             },
             "entity_verification": {
-                "entities_found": ["list of entities"],
-                "verification_details": ["verification details for each entity"],
-                "accuracy_assessment": "High/Medium/Low",
-                "corrections": ["content needing correction"]
+                "entities_found": [],
+                "verification_details": [],
+                "accuracy_assessment": "Medium",
+                "corrections": []
             },
             "fact_check": {
-                "claims_identified": ["list of main claims"],
-                "verification_results": ["list of verification results, including true/partially true/false judgments and reasons"],
-                "supporting_evidence": ["evidence or references supporting verification results"],
-                "overall_factual_accuracy": "High/Medium/Low"
+                "claims_identified": [],
+                "verification_results": [],
+                "supporting_evidence": [],
+                "overall_factual_accuracy": "Medium"
             },
             "exaggeration_check": {
-                "exaggerations_found": ["list of exaggerated statements"],
-                "explanations": ["explanations of why these are exaggerated or misleading"],
-                "corrections": ["more accurate statements"],
-                "severity_assessment": "High/Medium/Low"
+                "exaggerations_found": [],
+                "explanations": [],
+                "corrections": [],
+                "severity_assessment": "Medium"
             },
-            "key_issues": ["list of the main issues in the content"],
-            "summary": "As a trusted friend and expert in this field, provide a 40-word summary about the truthfulness and credibility of this content in a friendly yet professional tone",
-            "sources": [
-                {
-                    "title": "Reference source title",
-                    "url": "link"
-                }
-            ]
+            "key_issues": [],
+            "summary": "",
+            "sources": []
         }`;
 
         // Log request start
@@ -412,21 +527,88 @@ async function processAnalysisRequest(req, res) {
             // 获取模型实例
             const model = genAI.getGenerativeModel({ 
                 model: activeModel,
-                // 如果启用Grounding，直接在模型配置中添加tools
                 tools: useGrounding ? [{ googleSearch: {} }] : undefined
             });
             
-            // 构建生成请求
+            // 定义响应JSON Schema (使用Gemini API的结构化输出)
+            const responseSchema = {
+                type: "OBJECT",
+                required: ["score", "flags", "source_verification", "entity_verification", "fact_check", "exaggeration_check", "summary", "sources", "key_issues"],
+                properties: {
+                    score: { type: "INTEGER", minimum: 0, maximum: 100 },
+                    flags: {
+                        type: "OBJECT",
+                        properties: {
+                            factuality: { type: "STRING", enum: ["High", "Medium", "Low"] },
+                            objectivity: { type: "STRING", enum: ["High", "Medium", "Low"] },
+                            reliability: { type: "STRING", enum: ["High", "Medium", "Low"] },
+                            bias: { type: "STRING", enum: ["High", "Medium", "Low"] }
+                        }
+                    },
+                    source_verification: {
+                        type: "OBJECT",
+                        properties: {
+                            sources_found: { type: "ARRAY", items: { type: "STRING" } },
+                            credibility_scores: { type: "ARRAY", items: { type: "INTEGER" } },
+                            verification_details: { type: "ARRAY", items: { type: "STRING" } },
+                            overall_source_credibility: { type: "STRING", enum: ["High", "Medium", "Low"] }
+                        }
+                    },
+                    entity_verification: {
+                        type: "OBJECT",
+                        properties: {
+                            entities_found: { type: "ARRAY", items: { type: "STRING" } },
+                            verification_details: { type: "ARRAY", items: { type: "STRING" } },
+                            accuracy_assessment: { type: "STRING", enum: ["High", "Medium", "Low"] },
+                            corrections: { type: "ARRAY", items: { type: "STRING" } }
+                        }
+                    },
+                    fact_check: {
+                        type: "OBJECT",
+                        properties: {
+                            claims_identified: { type: "ARRAY", items: { type: "STRING" } },
+                            verification_results: { type: "ARRAY", items: { type: "STRING" } },
+                            supporting_evidence: { type: "ARRAY", items: { type: "STRING" } },
+                            overall_factual_accuracy: { type: "STRING", enum: ["High", "Medium", "Low"] }
+                        }
+                    },
+                    exaggeration_check: {
+                        type: "OBJECT",
+                        properties: {
+                            exaggerations_found: { type: "ARRAY", items: { type: "STRING" } },
+                            explanations: { type: "ARRAY", items: { type: "STRING" } },
+                            corrections: { type: "ARRAY", items: { type: "STRING" } },
+                            severity_assessment: { type: "STRING", enum: ["High", "Medium", "Low"] }
+                        }
+                    },
+                    key_issues: { type: "ARRAY", items: { type: "STRING" } },
+                    summary: { type: "STRING" },
+                    sources: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                title: { type: "STRING" },
+                                url: { type: "STRING" }
+                            }
+                        }
+                    }
+                }
+            };
+            
+            // 构建生成请求 (使用结构化输出)
             const requestConfig = {
                 contents: [{ 
                     role: "user", 
                     parts: [{ text: prompt }] 
                 }],
                 generationConfig: {
-                    temperature: 0.7,
-                    maxOutputTokens: 4096,
+                    temperature: 0.1,
+                    maxOutputTokens: 8192,
                     topP: 0.8,
-                    topK: 40
+                    topK: 40,
+                    responseMimeType: "application/json",
+                    responseSchema: responseSchema
                 },
                 safetySettings: [
                     {
@@ -488,26 +670,45 @@ async function processAnalysisRequest(req, res) {
                 throw new Error("无法从响应中提取文本");
             }
 
-            // 解析JSON响应
+            // 解析JSON响应 (结构化输出应该直接返回有效JSON)
             let analysisResult;
             try {
-                const jsonMatch = text.match(/\{[\s\S]*\}/);
-                if (!jsonMatch) {
-                    throw new Error("No valid JSON found in response");
-                }
-                analysisResult = JSON.parse(jsonMatch[0]);
+                // 尝试直接解析
+                analysisResult = JSON.parse(text);
+                console.log("✅ JSON解析成功（结构化输出）");
             } catch (parseError) {
-                console.error("JSON Parse Error:", parseError);
-                console.log("Raw Response:", text);
+                console.warn("直接解析失败，尝试修复:", parseError.message);
+                
+                // 尝试修复常见的JSON问题
+                let repaired = text
+                    .replace(/,\s*}/g, '}')
+                    .replace(/,\s*]/g, ']')
+                    .replace(/,\s*,/g, ',')
+                    .replace(/(\w)\s+(\w)/g, '$1 $2')
+                    .replace(/(\w)\s*:\s*/g, '$1:');
+                
+                try {
+                    analysisResult = JSON.parse(repaired);
+                    console.log("✅ JSON解析成功（修复后）");
+                } catch (e2) {
+                    // 最后尝试：提取JSON部分
+                    const jsonMatch = repaired.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        try {
+                            analysisResult = JSON.parse(jsonMatch[0]);
+                            console.log("✅ JSON解析成功（提取后）");
+                        } catch (e3) {
+            // 如果解析失败，尝试修复后再次解析
+            if (!analysisResult) {
                 return res.status(500).json({
                     status: "error",
                     error: {
                         message: "Failed to parse analysis result",
-                        details: parseError.message,
+                        details: "Unable to parse JSON from response"
                     },
                 });
             }
-
+            
             // 验证响应格式
             const requiredFields = [
                 "score",
@@ -519,18 +720,20 @@ async function processAnalysisRequest(req, res) {
                 "summary",
                 "sources"
             ];
-
+            
             for (const field of requiredFields) {
                 if (!analysisResult[field]) {
-                    return res.status(500).json({
-                        status: "error",
-                        error: {
-                            message: `Missing required field: ${field}`,
-                        },
-                    });
+                    throw new Error(`Missing required field: ${field}`);
                 }
             }
-
+            
+            // 打印解析结果的关键字段用于调试
+            console.log("解析结果字段:", Object.keys(analysisResult));
+            if (!analysisResult.score) {
+                console.warn("警告: 缺少 score 字段");
+                console.warn("完整响应:", JSON.stringify(analysisResult, null, 2).substring(0, 2000));
+            }
+            
             // 如果需要中文，对结果进行翻译
             let finalResult = analysisResult;
             if (needsTranslation) {
@@ -584,7 +787,12 @@ async function processAnalysisRequest(req, res) {
                         contents: [{ 
                             role: "user", 
                             parts: [{ text: prompt }] 
-                        }]
+                        }],
+                        generationConfig: {
+                            temperature: 0.1,
+                            maxOutputTokens: 8192,
+                            responseMimeType: "application/json"
+                        }
                     };
                     
                     const result = await model.generateContent(fallbackRequest);
@@ -602,75 +810,62 @@ async function processAnalysisRequest(req, res) {
                         throw new Error("无法从回退响应中提取文本");
                     }
                     
-                    // 解析JSON响应
-                    let analysisResult;
+                    // 解析JSON响应（带修复机制）
+                    let analysisResult = null;
+                    
                     try {
-                        const jsonMatch = text.match(/\{[\s\S]*\}/);
-                        if (!jsonMatch) {
-                            throw new Error("No valid JSON found in response");
-                        }
-                        analysisResult = JSON.parse(jsonMatch[0]);
-                        
-                        // 验证所需字段
-                        const requiredFields = [
-                            "score",
-                            "flags",
-                            "source_verification",
-                            "entity_verification",
-                            "fact_check",
-                            "exaggeration_check",
-                            "summary",
-                            "sources"
-                        ];
-
-                        for (const field of requiredFields) {
-                            if (!analysisResult[field]) {
-                                throw new Error(`Missing required field: ${field}`);
+                        let jsonText = text;
+                        let parsedResult = null;
+                        try {
+                            parsedResult = JSON.parse(jsonText);
+                        } catch (e) {
+                            // 尝试修复
+                            const repaired = repairJSON(jsonText);
+                            try {
+                                parsedResult = JSON.parse(repaired);
+                            } catch (e2) {
+                                // 提取JSON部分
+                                const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+                                if (jsonMatch) {
+                                    try {
+                                        parsedResult = JSON.parse(jsonMatch[0]);
+                                    } catch (e3) {
+                                        console.warn("回退模式：JSON解析失败");
+                                    }
+                                }
                             }
                         }
                         
-                        // 如果需要中文，对结果进行翻译
-                        let finalResult = analysisResult;
-                        if (needsTranslation) {
-                            console.log("回退模式：翻译结果为中文...");
-                            finalResult = await translateToZhSimplified(analysisResult, activeModel, model);
+                        if (parsedResult) {
+                            // 验证所需字段
+                            const requiredFields = [
+                                "score",
+                                "flags",
+                                "source_verification",
+                                "entity_verification",
+                                "fact_check",
+                                "exaggeration_check",
+                                "summary",
+                                "sources"
+                            ];
+
+                            for (const field of requiredFields) {
+                                if (!parsedResult[field]) {
+                                    throw new Error(`Missing required field: ${field}`);
+                            }
+                            
+                            analysisResult = parsedResult;
+                            console.log("回退模式：JSON解析成功");
                         }
                         
-                        // 计算和记录token使用情况
-                        const tokenUsage = calculateTokenUsage(analysisContent, finalResult);
-                        const timeUsed = Date.now() - startTime;
-
-                        console.log("\n=== 回退API调用统计 ===");
-                        console.log(`输入Token: ${tokenUsage.inputTokens}`);
-                        console.log(`输出Token: ${tokenUsage.outputTokens}`);
-                        console.log(`总Token: ${tokenUsage.totalTokens}`);
-                        console.log(`处理时间: ${timeUsed}ms`);
-                        console.log(`语言: ${lang}`);
-                        console.log(`模型: ${activeModel}, 使用Grounding: false (回退模式)`);
-                        console.log("==================\n");
-                        
-                        // 记录API响应
-                        await logToFile('API_RESPONSE', `API响应 ${requestId}`, {
-                            responseTime: timeUsed,
-                            hasText: !!text,
-                            textLength: text.length
-                        });
-
-                        // 返回成功响应
-                        return res.json({
-                            status: "success",
-                            data: finalResult,
-                        });
-                        
-                    } catch (parseError) {
-                        console.error("回退模式解析失败:", parseError);
-                        throw parseError; // 继续向外层抛出异常
+                    } catch (fallbackError) {
+                        console.error("回退模式解析失败:", fallbackError);
+                        throw apiError;
                     }
                     
-                } catch (fallbackError) {
-                    console.error("回退模式API调用也失败:", fallbackError);
-                    throw apiError;
-                }
+                    if (!analysisResult) {
+                        throw new Error("回退模式：无法解析响应");
+                    }
             } else {
                 throw apiError;
             }
