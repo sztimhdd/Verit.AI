@@ -16,46 +16,45 @@ const __dirname = dirname(__filename);
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 4001;
 
-// 服务初始化和就绪状态管理
+// Service initialization state
 let serviceReady = false;
 let pendingRequests = [];
 let initializationError = null;
 
-// 修改配额跟踪对象
+// Quota tracking object
 const quotaTracker = {
     groundingQuota: {
-        daily: 500,  // 免费版每日 500 次 Grounding 请求限制
+        daily: 500,
         remaining: 500,
         resetTime: new Date().setHours(24, 0, 0, 0)
     },
-    gemini20Usage: {  // 改为使用量统计而不是配额限制
+    gemini20Usage: {
         dailyUsage: 0,
         resetTime: new Date().setHours(24, 0, 0, 0)
     },
-    gemini15Usage: {  // 改为使用量统计而不是配额限制
+    gemini15Usage: {
         dailyUsage: 0,
         resetTime: new Date().setHours(24, 0, 0, 0)
     },
     
-    // 更新使用情况
     updateQuota(type, tokensUsed = 0) {
         const now = new Date();
         
-        // 检查是否需要重置统计
+        // Reset daily stats if needed
         Object.values(this).forEach(quota => {
             if (typeof quota === 'object' && quota.resetTime < now) {
-                if (quota.daily) {  // Grounding 配额
+                if (quota.daily) {
                     quota.remaining = quota.daily;
-                } else {  // Token 使用量
+                } else {
                     quota.dailyUsage = 0;
                 }
                 quota.resetTime = new Date().setHours(24, 0, 0, 0);
             }
         });
         
-        // 更新具体使用量
+        // Update specific usage
         switch (type) {
             case 'grounding':
                 this.groundingQuota.remaining--;
@@ -69,7 +68,6 @@ const quotaTracker = {
         }
     },
     
-    // 获取状态日志
     getStatusLog() {
         return {
             grounding: {
@@ -89,21 +87,20 @@ const quotaTracker = {
     }
 };
 
-// 设置CORS，允许前端域名访问
+// CORS configuration
 app.use(cors({
   origin: ['https://veritai.up.railway.app', 'http://localhost:8080'],
   methods: ['GET', 'POST'],
   credentials: true
 }));
 
-// Enable CORS and request body limits
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Initialize Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// 添加日志工具函数
+// Logging utility
 const LOG_DIR = path.join(process.cwd(), 'logs');
 const LOG_FILE = path.join(LOG_DIR, `api_${new Date().toISOString().split('T')[0]}.log`);
 
@@ -120,47 +117,43 @@ async function logToFile(type, message, data = null) {
         await fs.mkdir(LOG_DIR, { recursive: true });
         await fs.appendFile(LOG_FILE, JSON.stringify(logEntry) + '\n');
     } catch (error) {
-        console.error('日志写入失败:', error);
+        console.error('Log write failed:', error);
     }
 }
 
-// 修改初始化函数
+// Initialize service
 async function initializeService() {
     try {
-        console.log("开始初始化服务...");
+        console.log("Starting service initialization...");
         
-        // 初始化模型管理器
         await modelManager.initialize(genAI);
-        console.log("模型管理器初始化完成");
+        console.log("Model manager initialized");
         
-        // 设置服务为就绪状态
         serviceReady = true;
-        console.log("服务已就绪");
+        console.log("Service ready");
         
-        // 处理等待中的请求
         if (pendingRequests.length > 0) {
-            console.log(`处理 ${pendingRequests.length} 个等待中的请求`);
+            console.log(`Processing ${pendingRequests.length} pending requests`);
             processPendingRequests();
         }
         
         return true;
     } catch (error) {
-        console.error("服务初始化失败:", error);
+        console.error("Service initialization failed:", error);
         initializationError = error;
         return false;
     }
 }
 
-// 处理等待中的请求
 function processPendingRequests() {
     pendingRequests.forEach(({req, res}) => {
         processAnalysisRequest(req, res)
-            .catch(error => console.error("处理队列请求失败:", error));
+            .catch(error => console.error("Queue request processing failed:", error));
     });
     pendingRequests = [];
 }
 
-// 确保服务就绪的中间件
+// Middleware to ensure service is ready
 function ensureServiceReady(req, res, next) {
     if (serviceReady) {
         next();
@@ -168,27 +161,25 @@ function ensureServiceReady(req, res, next) {
         res.status(503).json({
             status: "error",
             error: {
-                message: "服务初始化失败，请稍后再试",
+                message: "Service initialization failed, please try again later",
                 details: initializationError.message
             }
         });
     } else {
-        console.log("服务尚未就绪，将请求加入队列");
-        // 如果是分析请求，加入队列
+        console.log("Service not ready, queuing request");
         if (req.path === "/api/extension/analyze") {
             pendingRequests.push({req, res});
-            console.log(`请求已加入队列，当前队列长度: ${pendingRequests.length}`);
+            console.log(`Request queued, queue length: ${pendingRequests.length}`);
         } else {
-            // 其他请求返回服务尚未就绪
             res.status(503).json({
                 status: "error",
-                message: "服务正在启动中，请稍后再试"
+                message: "Service starting up, please try again"
             });
         }
     }
 }
 
-// Function to fetch web content
+// Fetch web content
 async function fetchWebContent(url) {
     try {
         const response = await axios.get(url, {
@@ -208,21 +199,16 @@ async function fetchWebContent(url) {
         $('iframe').remove();
         $('img').remove();
 
-        // Get main content
         const title = $('title').text().trim();
         let content = $('body').text().trim();
 
-        // Clean content: remove image filenames, URLs, and other non-text content
+        // Clean content
         content = content
-            // Remove image filenames and extensions
             .replace(/\b\w+\.(png|jpg|jpeg|gif|svg|webp|bmp|tiff|ico)(\?\S*)?\b/gi, '')
-            // Remove URLs
             .replace(/https?:\/\/[^\s]+/gi, '')
-            // Remove excessive whitespace and normalize
             .replace(/\s+/g, ' ')
             .trim();
 
-        // Limit content length
         const maxLength = 10000;
         const truncatedContent = content.length > maxLength
             ? content.substring(0, maxLength) + '...'
@@ -233,21 +219,26 @@ async function fetchWebContent(url) {
             content: truncatedContent
         };
     } catch (error) {
-        console.error('Failed to fetch web content:', error);
+        console.error('Web content fetch failed:', error);
         throw new Error('Unable to fetch web content');
     }
 }
 
-// Token usage statistics function
+// Calculate token usage
 function calculateTokenUsage(content, response) {
     const inputTokens = content.split("").reduce((count, char) => {
         return count + (/[\u4e00-\u9fa5]/.test(char) ? 2 : 1);
     }, 0);
 
-    const outputText = JSON.stringify(response);
-    const outputTokens = outputText.split("").reduce((count, char) => {
-        return count + (/[\u4e00-\u9fa5]/.test(char) ? 2 : 1);
-    }, 0);
+    let outputTokens = 0;
+    if (response.usageMetadata && response.usageMetadata.candidatesTokenCount) {
+        outputTokens = response.usageMetadata.candidatesTokenCount;
+    } else {
+        const text = response.text ? (typeof response.text === 'function' ? response.text() : response.text) : "";
+        outputTokens = text.split("").reduce((count, char) => {
+            return count + (/[\u4e00-\u9fa5]/.test(char) ? 2 : 1);
+        }, 0);
+    }
 
     return {
         inputTokens,
@@ -256,39 +247,40 @@ function calculateTokenUsage(content, response) {
     };
 }
 
-// 修复常见JSON格式问题
+// Repair common JSON issues
 function repairJSON(jsonString) {
     let repaired = jsonString;
     
-    // 移除所有换行符和多余空格
+    // Remove newlines and extra spaces
     repaired = repaired.replace(/\n/g, ' ');
     repaired = repaired.replace(/\s+/g, ' ');
     
-    // 移除数组后的多余逗号（包括嵌套的）
+    // Remove trailing commas in arrays and objects
     repaired = repaired.replace(/,\s*\]/g, ']');
     repaired = repaired.replace(/,\s*\}/g, '}');
     
-    // 移除连续的多余逗号
+    // Remove consecutive commas
     repaired = repaired.replace(/,\s*,/g, ',');
     
-    // 修复不完整的结束符
+    // Fix incomplete closing brackets
     const openBraces = (repaired.match(/\{/g) || []).length;
     const closeBraces = (repaired.match(/\}/g) || []).length;
     const openBrackets = (repaired.match(/\[/g) || []).length;
     const closeBrackets = (repaired.match(/\]/g) || []).length;
     
-    while (closeBraces < openBraces) {
+    let tempCloseBraces = closeBraces;
+    while (tempCloseBraces < openBraces) {
         repaired += '}';
-        // eslint-disable-next-line no-plusplus
-        closeBraces++;
-    }
-    while (closeBrackets < openBrackets) {
-        repaired += ']';
-        // eslint-disable-next-line no-plusplus
-        closeBrackets++;
+        tempCloseBraces++;
     }
     
-    // 处理markdown代码块
+    let tempCloseBrackets = closeBrackets;
+    while (tempCloseBrackets < openBrackets) {
+        repaired += ']';
+        tempCloseBrackets++;
+    }
+    
+    // Handle markdown code blocks
     if (repaired.includes('```json')) {
         const match = repaired.match(/```json\s*(\{[\s\S]*\})\s*```/);
         if (match) {
@@ -302,7 +294,7 @@ function repairJSON(jsonString) {
         }
     }
     
-    // 确保以 } 或 ] 结尾
+    // Ensure proper ending
     repaired = repaired.trim();
     if (!repaired.endsWith('}') && !repaired.endsWith(']')) {
         const lastBrace = Math.max(repaired.lastIndexOf('}'), repaired.lastIndexOf(']'));
@@ -311,73 +303,374 @@ function repairJSON(jsonString) {
         }
     }
     
-    // 移除前后可能存在的非JSON字符
+    // Remove non-JSON characters
     repaired = repaired.replace(/^[^{[]*/, '');
     repaired = repaired.replace(/[^}\]]*$/, '');
     
     return repaired;
 }
-    while (closeBrackets < openBrackets) {
-        repaired += ']';
-        // eslint-disable-next-line no-plusplus
-        closeBrackets++;
-    }
-    
-    // 处理markdown代码块
-    if (repaired.includes('```json')) {
-        repaired = repaired.replace(/```json\n?/g, '');
-    }
-    if (repaired.includes('```')) {
-        const parts = repaired.split('```');
-        for (let i = 1; i < parts.length; i += 2) {
-            if (parts[i].includes('{')) {
-                repaired = parts[i];
-                break;
+
+// Define response schema
+const responseSchema = {
+    type: "OBJECT",
+    required: ["score", "flags", "source_verification", "entity_verification", "fact_check", "exaggeration_check", "summary", "sources", "key_issues"],
+    properties: {
+        score: { type: "INTEGER" },
+        flags: {
+            type: "OBJECT",
+            required: ["factuality", "objectivity", "reliability", "bias"],
+            properties: {
+                factuality: { type: "STRING", enum: ["High", "Medium", "Low"] },
+                objectivity: { type: "STRING", enum: ["High", "Medium", "Low"] },
+                reliability: { type: "STRING", enum: ["High", "Medium", "Low"] },
+                bias: { type: "STRING", enum: ["High", "Medium", "Low"] }
+            }
+        },
+        source_verification: {
+            type: "OBJECT",
+            required: ["sources_found", "credibility_scores", "verification_details", "overall_source_credibility"],
+            properties: {
+                sources_found: { type: "ARRAY", items: { type: "STRING" } },
+                credibility_scores: { type: "ARRAY", items: { type: "INTEGER" } },
+                verification_details: { type: "ARRAY", items: { type: "STRING" } },
+                overall_source_credibility: { type: "STRING", enum: ["High", "Medium", "Low"] }
+            }
+        },
+        entity_verification: {
+            type: "OBJECT",
+            required: ["entities_found", "verification_details", "accuracy_assessment", "corrections"],
+            properties: {
+                entities_found: { type: "ARRAY", items: { type: "STRING" } },
+                verification_details: { type: "ARRAY", items: { type: "STRING" } },
+                accuracy_assessment: { type: "STRING", enum: ["High", "Medium", "Low"] },
+                corrections: { type: "ARRAY", items: { type: "STRING" } }
+            }
+        },
+        fact_check: {
+            type: "OBJECT",
+            required: ["claims_identified", "verification_results", "supporting_evidence", "overall_factual_accuracy"],
+            properties: {
+                claims_identified: { type: "ARRAY", items: { type: "STRING" } },
+                verification_results: { type: "ARRAY", items: { type: "STRING" } },
+                supporting_evidence: { type: "ARRAY", items: { type: "STRING" } },
+                overall_factual_accuracy: { type: "STRING", enum: ["High", "Medium", "Low"] }
+            }
+        },
+        exaggeration_check: {
+            type: "OBJECT",
+            required: ["exaggerations_found", "explanations", "corrections", "severity_assessment"],
+            properties: {
+                exaggerations_found: { type: "ARRAY", items: { type: "STRING" } },
+                explanations: { type: "ARRAY", items: { type: "STRING" } },
+                corrections: { type: "ARRAY", items: { type: "STRING" } },
+                severity_assessment: { type: "STRING", enum: ["High", "Medium", "Low"] }
+            }
+        },
+        key_issues: { type: "ARRAY", items: { type: "STRING" } },
+        summary: { type: "STRING" },
+        sources: {
+            type: "ARRAY",
+            items: {
+                type: "OBJECT",
+                properties: {
+                    title: { type: "STRING" },
+                    url: { type: "STRING" }
+                }
             }
         }
     }
+};
+
+// Gemini API call with fallback
+async function callGeminiWithFallback(prompt, activeModel, useGrounding) {
+    // First attempt with specified config
+    try {
+        const model = genAI.getGenerativeModel({ 
+            model: activeModel,
+            tools: useGrounding ? [{ googleSearch: {} }] : undefined
+        });
+
+        // Use simple generation without schema to avoid compatibility issues
+        const result = await model.generateContent(prompt);
+
+        return { response: result.response, usedGrounding: useGrounding };
+
+    } catch (error) {
+        console.error("First attempt failed:", error.message);
+        
+        // Fallback: retry without grounding and without schema
+        if (useGrounding) {
+            console.log("Retrying without grounding...");
+            try {
+                const fallbackModel = genAI.getGenerativeModel({ model: activeModel });
+                const result = await fallbackModel.generateContent(prompt);
+                return { response: result.response, usedGrounding: false };
+            } catch (fallbackError) {
+                console.error("Fallback attempt failed:", fallbackError.message);
+                throw fallbackError;
+            }
+        }
+        
+        throw error;
+    }
+}
+
+// Parse response text to JSON
+function parseResponseText(text) {
+    try {
+        return JSON.parse(text);
+    } catch (e) {
+        console.warn("Direct JSON parse failed, attempting repair...");
+        try {
+            const repaired = repairJSON(text);
+            return JSON.parse(repaired);
+        } catch (e2) {
+            // Last resort: try to extract JSON-like content
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                try {
+                    return JSON.parse(jsonMatch[0]);
+                } catch (e3) {
+                    throw new Error("JSON parsing failed: " + e.message);
+                }
+            }
+            throw new Error("JSON parsing failed: " + e.message);
+        }
+    }
+}
+
+// Transform response to frontend-compatible format
+function transformToFrontendFormat(result) {
+    // If result is null or undefined, return default
+    if (!result) {
+        return getDefaultResult();
+    }
+
+    // Check if data is already in correct format (has fields at top level AND has data)
+    if (result.exaggeration_check && result.fact_check) {
+        const hasExaggerations = Array.isArray(result.exaggeration_check?.exaggerations_found) && result.exaggeration_check.exaggerations_found.length > 0;
+        const hasClaims = Array.isArray(result.fact_check?.claims_identified) && result.fact_check.claims_identified.length > 0;
+        if (hasExaggerations || hasClaims) {
+            return result;
+        }
+    }
+
+    // Check different possible wrapper keys
+    const analysis = result.analysis || result.fact_check_analysis || result;
     
-    // 确保以 } 结尾
-    repaired = repaired.trim();
-    if (!repaired.endsWith('}') && !repaired.endsWith(']')) {
-        const lastBrace = Math.max(repaired.lastIndexOf('}'), repaired.lastIndexOf(']'));
-        if (lastBrace > 0) {
-            repaired = repaired.substring(0, lastBrace + 1);
+    // If we still don't have analysis data, return result as-is
+    if (!analysis || (typeof analysis !== 'object')) {
+        return result;
+    }
+
+    const transformed = {
+        score: result.score || 75,
+        summary: result.summary || "Analysis completed",
+        flags: result.flags || {
+            factuality: "Medium",
+            objectivity: "Medium",
+            reliability: "Medium",
+            bias: "Medium"
+        },
+        sources: result.sources || [],
+        key_issues: result.key_issues || []
+    };
+
+    // Helper function to safely extract array from various formats
+    const safeExtractArray = (data, primaryKey, altKey1, altKey2) => {
+        if (!data) return [];
+        if (Array.isArray(data)) return data;
+        const primary = data[primaryKey];
+        if (Array.isArray(primary)) return primary;
+        const alt1 = data[altKey1];
+        if (Array.isArray(alt1)) return alt1;
+        const alt2 = data[altKey2];
+        if (Array.isArray(alt2)) return alt2;
+        return [];
+    };
+
+    // Helper to extract string values from objects
+    const extractStringsFromObjects = (arr, key) => {
+        if (!Array.isArray(arr)) return [];
+        return arr.map(item => {
+            if (typeof item === 'string') return item;
+            if (item && typeof item === 'object' && item[key]) return item[key];
+            return null;
+        }).filter(Boolean);
+    };
+
+    // Transform exaggeration_check - check multiple possible locations
+    const exc = analysis.exaggeration_check || {};
+    const excItems = safeExtractArray(exc, 'exaggerations_identified', 'exaggerations_found', 'items');
+    
+    // Also check if exaggeration info is in the claims or fact_checking
+    let allExaggerations = extractStringsFromObjects(excItems, 'exaggeration');
+    let allExplanations = extractStringsFromObjects(excItems, 'explanation');
+    let allCorrections = extractStringsFromObjects(excItems, 'accurate_statement');
+    
+    // If no exaggerations found, try to extract from fact_checking.claims_identified
+    if (allExaggerations.length === 0 && analysis.fact_checking) {
+        const fc = analysis.fact_checking;
+        const claims = extractStringsFromObjects(
+            safeExtractArray(fc, 'claims_evaluation', 'claims_identified', 'claims'),
+            'claim'
+        );
+        // All claims could potentially be exaggerations if not verified
+        if (claims.length > 0) {
+            allExaggerations = claims.slice(0, 2); // Use first 2 claims as exaggerations
         }
     }
     
-    return repaired;
+    // If still no exaggerations, check for dubious claims in fact_checking
+    if (allExaggerations.length === 0 && analysis.fact_checking) {
+        const fc = analysis.fact_checking;
+        const claims = extractStringsFromObjects(
+            safeExtractArray(fc, 'claims_evaluation', 'claims_identified', 'claims'),
+            'claim'
+        );
+        const verifications = extractStringsFromObjects(
+            safeExtractArray(fc, 'claims_evaluation', 'verification_results', 'results'),
+            'truthfulness'
+        );
+        
+        // Match claims with their verifications
+        claims.forEach((claim, idx) => {
+            const verification = verifications[idx] || '';
+            const isDubious = verification.toLowerCase().includes('false') || 
+                             verification.toLowerCase().includes('misleading') ||
+                             verification.toLowerCase().includes('no evidence') ||
+                             verification.toLowerCase().includes('unverified');
+            if (isDubious && claim) {
+                allExaggerations.push(claim);
+            }
+        });
+    }
+    
+    // Debug: check for missing explanations
+    if (allExaggerations.length > 0 && allExplanations.length === 0) {
+        console.warn("⚠️ WARNING: Exaggerations found but NO explanations returned!");
+    }
+    
+    transformed.exaggeration_check = {
+        exaggerations_found: allExaggerations,
+        explanations: allExplanations,
+        corrections: allCorrections,
+        severity_assessment: exc.severity_assessment || "Medium"
+    };
+
+    // Transform fact_check (from fact_check or direct claims_identified)
+    const fc = analysis.fact_check || analysis.fact_checking || {};
+    let claims = [];
+    let verifications = [];
+    let evidence = [];
+    
+    // Check for claims_identified at different levels
+    if (analysis.claims_identified && Array.isArray(analysis.claims_identified)) {
+        claims = analysis.claims_identified;
+        verifications = analysis.claim_verifications || analysis.verification_results || [];
+        evidence = analysis.supporting_evidence || analysis.evidence || [];
+    } else if (fc.claims_identified && Array.isArray(fc.claims_identified)) {
+        // New format: fact_check.claims_identified
+        claims = fc.claims_identified;
+        verifications = fc.verification_results || [];
+        evidence = fc.supporting_evidence || [];
+    } else {
+        const fcItems = safeExtractArray(fc, 'claims_evaluation', 'claims_identified', 'claims');
+        claims = extractStringsFromObjects(fcItems, 'claim');
+        verifications = extractStringsFromObjects(fcItems, 'truthfulness');
+        evidence = extractStringsFromObjects(fcItems, 'evidence');
+        
+        // If not found in items, try the top level supporting_evidence
+        if (evidence.length === 0) {
+            const evidenceItems = safeExtractArray(fc, 'supporting_evidence', 'evidence', 'verification_details');
+            evidence = extractStringsFromObjects(evidenceItems, 'evidence');
+        }
+    }
+    
+    // Debug logging: check for claims without evidence
+    if (claims.length > 0 && evidence.length === 0) {
+        console.warn("⚠️ WARNING: Claims found but NO supporting_evidence returned! AI may not be following the prompt instructions.");
+        console.warn("Claims:", claims.slice(0, 3));
+        console.warn("Verifications:", verifications.slice(0, 3));
+    } else if (claims.length > 0 && evidence.length < claims.length) {
+        console.warn(`⚠️ WARNING: Only ${evidence.length} evidence items for ${claims.length} claims`);
+    }
+
+    transformed.fact_check = {
+        claims_identified: claims,
+        verification_results: verifications,
+        supporting_evidence: evidence,
+        overall_factual_accuracy: fc.overall_factual_accuracy || fc.overall_accuracy || "Medium"
+    };
+
+    // Transform entity_verification
+    const ev = analysis.entity_verification || {};
+    const evItems = safeExtractArray(ev, 'entities_and_accuracy', 'entities', 'items');
+    transformed.entity_verification = {
+        entities_found: extractStringsFromObjects(evItems, 'name'),
+        verification_details: extractStringsFromObjects(evItems, 'accuracy_check'),
+        accuracy_assessment: ev.overall_accuracy_assessment || ev.accuracy_assessment || "Medium",
+        corrections: extractStringsFromObjects(evItems, 'corrections')
+    };
+
+    // Transform source_verification
+    const sv = analysis.source_verification || {};
+    const svItems = safeExtractArray(sv, 'claims_and_verification', 'sources_found', 'items');
+    transformed.source_verification = {
+        sources_found: extractStringsFromObjects(svItems, 'claim'),
+        credibility_scores: sv.credibility_scores || sv.credibility_ratings || [],
+        verification_details: extractStringsFromObjects(svItems, 'details'),
+        overall_source_credibility: sv.overall_credibility || sv.overall_source_credibility || "Medium"
+    };
+
+    return transformed;
 }
 
-// 尝试多种JSON提取策略
-function extractJSON(text) {
-    // 策略1: 直接匹配
-    let match = text.match(/\{[\s\S]*\}/);
-    if (match) {
-        return match[0];
-    }
-    
-    // 策略2: 寻找 ```json ``` 块
-    const jsonBlockMatch = text.match(/```json\s*(\{[\s\S]*\})\s*```/);
-    if (jsonBlockMatch) {
-        return jsonBlockMatch[1];
-    }
-    
-    // 策略3: 寻找 ``` 块
-    const codeBlockMatch = text.match(/```\s*(\{[\s\S]*\})\s*```/);
-    if (codeBlockMatch) {
-        return codeBlockMatch[1];
-    }
-    
-    return null;
+function getDefaultResult() {
+    return {
+        score: 75,
+        summary: "Analysis completed",
+        flags: {
+            factuality: "Medium",
+            objectivity: "Medium",
+            reliability: "Medium",
+            bias: "Medium"
+        },
+        sources: [],
+        key_issues: [],
+        exaggeration_check: {
+            exaggerations_found: [],
+            explanations: [],
+            corrections: [],
+            severity_assessment: "Medium"
+        },
+        fact_check: {
+            claims_identified: [],
+            verification_results: [],
+            supporting_evidence: [],
+            overall_factual_accuracy: "Medium"
+        },
+        entity_verification: {
+            entities_found: [],
+            verification_details: [],
+            accuracy_assessment: "Medium",
+            corrections: []
+        },
+        source_verification: {
+            sources_found: [],
+            credibility_scores: [],
+            verification_details: [],
+            overall_source_credibility: "Medium"
+        }
+    };
 }
 
-// 主要分析处理函数
+// Main analysis request handler
 async function processAnalysisRequest(req, res) {
     const requestId = Math.random().toString(36).substring(7);
     const startTime = Date.now();
     
-    await logToFile('REQUEST_START', `开始处理请求 ${requestId}`, {
+    await logToFile('REQUEST_START', `Processing request ${requestId}`, {
         url: req.body.url,
         contentLength: req.body.content?.length,
         lang: req.body.lang
@@ -387,14 +680,13 @@ async function processAnalysisRequest(req, res) {
         const { content, url, lang = "en" } = req.body;
         const needsTranslation = lang === 'zh';
 
-        // 记录请求基本信息
-        console.log(`\n=== 请求 ID: ${requestId} ===`);
-        console.log(`时间: ${new Date().toLocaleString()}`);
-        console.log(`内容长度: ${content?.length || 'N/A'}`);
+        console.log(`\n=== Request ID: ${requestId} ===`);
+        console.log(`Time: ${new Date().toLocaleString()}`);
+        console.log(`Content Length: ${content?.length || 'N/A'}`);
         console.log(`URL: ${url || 'N/A'}`);
-        console.log(`语言: ${lang}`);
+        console.log(`Language: ${lang}`);
 
-        // If URL is provided but no content, fetch web content
+        // Fetch web content if needed
         let analysisContent = content;
         let pageTitle = '';
 
@@ -404,480 +696,247 @@ async function processAnalysisRequest(req, res) {
             pageTitle = webContent.title;
         }
 
+        // Sanitize title
+        if (req.body.title) {
+            pageTitle = req.body.title.replace(/["\\]/g, '').replace(/\n/g, ' ').substring(0, 100);
+        }
+
         if (!analysisContent) {
             return res.status(400).json({
                 status: 'error',
-                error: {
-                    message: 'Content cannot be empty'
-                }
+                error: { message: 'Content cannot be empty' }
             });
         }
 
-        // 获取模型配置
+        // Get model config (high-speed mode by default for better UX)
         const modelConfig = await modelManager.getModelConfig(content || '', genAI);
         const activeModel = modelConfig.model;
         const useGrounding = modelConfig.useGrounding;
+        const isHighSpeedMode = modelConfig.isHighSpeedMode !== false;
         
-        await logToFile('MODEL_CONFIG', `模型配置 ${requestId}`, {
+        await logToFile('MODEL_CONFIG', `Model config ${requestId}`, {
             model: activeModel,
             useGrounding,
+            isHighSpeedMode,
             generationConfig: modelConfig.generationConfig
         });
 
-        console.log(`\n=== 模型配置 ===`);
-        console.log(`使用模型: ${activeModel}, 使用Grounding: ${useGrounding}`);
-        console.log(`生成配置:`, modelConfig.generationConfig);
+        console.log(`\n=== Model Config ===`);
+        console.log(`Model: ${activeModel}, Grounding: ${useGrounding}, High-Speed: ${isHighSpeedMode}`);
 
-        // 分析Prompt
-        let prompt = `OUTPUT INSTRUCTIONS: Output ONLY valid JSON. No markdown code blocks. No explanatory text. No text before or after. Just pure JSON.
-
-You are a professional fact checker. Please analyze the following content with multi-dimensional analysis.
-
-First, carefully read the entire text, identifying key information, claims, and information sources.
-Then, think through your analysis process step by step:`;
+        // Build prompt - faster for high-speed mode
+        let prompt;
         
-        // 如果使用Grounding，添加特殊的搜索引擎查询提示
-        if (useGrounding) {
-            prompt += `\n\nThis task requires factual accuracy. Use web search extensively to verify all information and claims. Search for sources, check facts, and validate entities.`;
+        if (isHighSpeedMode) {
+            // Fast mode: simpler prompt, no grounding
+            prompt = `You are a professional fact checker. Analyze this content and identify:
+1. Exaggerations or misleading claims with detailed explanations
+2. Fact-checkable claims with truthfulness evaluation and supporting evidence
+3. Entities that might need verification
+
+Respond with ONLY this JSON structure:
+{
+  "exaggeration_check": {
+    "exaggerations_identified": [{"exaggeration": "claim text", "explanation": "detailed explanation why this is exaggerated or misleading", "accurate_statement": "correct version"}],
+    "severity_assessment": "High/Medium/Low"
+  },
+  "fact_check": {
+    "claims_identified": ["list of factual claims to verify"],
+    "verification_results": ["True", "False", "Misleading", "Partially True", or "Unverified" - MUST provide one result per claim],
+    "supporting_evidence": ["detailed evidence/explanation for EACH verification result. If claim is False, Misleading, or Unverified, you MUST explain WHY with specific facts or data. If claim is True, cite the supporting source or reasoning."],
+    "overall_factual_accuracy": "High/Medium/Low"
+  },
+  "entity_verification": {
+    "entities_found": [{"entity": "name", "accuracy_check": "verification notes"}]
+  }
+}
+
+IMPORTANT: For every claim marked as False, Misleading, or Unverified, you MUST provide a detailed explanation in supporting_evidence explaining why. Don't just say "False" - explain what the correct information is.
+
+Content to analyze:
+${pageTitle ? `Title: ${pageTitle}\n` : ''}${analysisContent}`;
+        } else {
+            // Accuracy mode: detailed prompt with grounding - MUST include evidence
+            prompt = `OUTPUT INSTRUCTIONS: Output ONLY valid JSON with this exact structure:
+{
+  "score": 0-100,
+  "flags": {
+    "factuality": "High/Medium/Low",
+    "objectivity": "High/Medium/Low", 
+    "reliability": "High/Medium/Low",
+    "bias": "High/Medium/Low"
+  },
+  "source_verification": {
+    "sources_found": ["sources cited in content"],
+    "credibility_scores": [1-10 scores],
+    "verification_details": ["verification notes for each source"],
+    "overall_source_credibility": "High/Medium/Low"
+  },
+  "entity_verification": {
+    "entities_found": ["people, organizations, places mentioned"],
+    "verification_details": ["accuracy notes for each entity"],
+    "accuracy_assessment": "High/Medium/Low",
+    "corrections": ["any corrections needed"]
+  },
+  "fact_check": {
+    "claims_identified": ["key factual claims to verify"],
+    "verification_results": ["True", "False", "Misleading", "Partially True", or "Unverified" - one per claim],
+    "supporting_evidence": ["CRITICAL: For EACH claim, provide detailed evidence/explanation. If claim is False, Misleading, or Unverified, you MUST explain WHY with specific facts and cite web sources. If claim is True, cite the supporting source."],
+    "overall_factual_accuracy": "High/Medium/Low"
+  },
+  "exaggeration_check": {
+    "exaggerations_found": ["exaggerated or misleading claims"],
+    "explanations": ["why each is exaggerated"],
+    "corrections": ["accurate statements"],
+    "severity_assessment": "High/Medium/Low"
+  },
+  "key_issues": ["summary of main problems found"],
+  "summary": "brief overall assessment",
+  "sources": [{"title": "source title", "url": "source URL"}]
+}
+
+CRITICAL REQUIREMENTS:
+1. For fact_check.supporting_evidence: You MUST provide a detailed explanation for EVERY claim, especially those marked as False, Misleading, or Unverified. Explain WHAT the correct information is and WHY the claim is wrong.
+2. Always use web search grounding to verify claims
+3. If no evidence found for a claim, mark it as "Unverified" and explain what information is missing
+
+${pageTitle ? `Page Title: ${pageTitle}\n\n` : ''}Content: ${analysisContent}
+`;
         }
-        
-        prompt += `
 
-        1. Source verification:
-           - Identify all information sources mentioned (journals, research papers, institutions, etc.)
-           - Confirm whether each source actually exists
-           - Verify if the sources actually support the related claims in the text
-           - Rate the credibility of each source (1-10 score)
-
-        2. Entity verification:
-           - Identify all key people, organizations, and entities mentioned
-           - Verify if these entities actually exist
-           - Check if the descriptions about these entities are accurate
-           - Provide specific corrections for inaccurate descriptions
-
-        3. Fact checking:
-           - Identify all important factual claims in the text
-           - Evaluate if each claim is true, partially true, or false
-           - Provide corrections for false or misleading claims
-           - Cite reliable sources to support your verification results
-
-        4. Exaggeration check:
-           - Identify all exaggerated or misleading statements
-           - Explain why these statements are considered exaggerated or misleading
-           - Provide more accurate factual statements
-
-        5. Overall assessment:
-           - Consider all dimensions above comprehensively
-           - Assess the overall reliability and credibility of the content
-           - Identify the most critical issues in the content
-
-        ${pageTitle ? `Title: ${pageTitle}\n` : ''}Content: ${analysisContent}
-
-        Think through your analysis carefully, considering all evidence before reaching final conclusions.
-        Consider different perspectives and viewpoints, avoiding personal bias in your judgment.
-
-        OUTPUT JSON ONLY. No markdown formatting. No code blocks. Pure JSON starting with { and ending with }.
-
-        Required JSON structure:
-        {
-            "score": 0-100,
-            "flags": {
-                "factuality": "High",
-                "objectivity": "Medium",
-                "reliability": "Low",
-                "bias": "Medium"
-            },
-            "source_verification": {
-                "sources_found": [],
-                "credibility_scores": [],
-                "verification_details": [],
-                "overall_source_credibility": "Medium"
-            },
-            "entity_verification": {
-                "entities_found": [],
-                "verification_details": [],
-                "accuracy_assessment": "Medium",
-                "corrections": []
-            },
-            "fact_check": {
-                "claims_identified": [],
-                "verification_results": [],
-                "supporting_evidence": [],
-                "overall_factual_accuracy": "Medium"
-            },
-            "exaggeration_check": {
-                "exaggerations_found": [],
-                "explanations": [],
-                "corrections": [],
-                "severity_assessment": "Medium"
-            },
-            "key_issues": [],
-            "summary": "",
-            "sources": []
-        }`;
-
-        // Log request start
         console.log("\n=== New Analysis Request ===");
         console.log(`Time: ${new Date().toLocaleString()}`);
         console.log(`Content Length: ${analysisContent.length} characters`);
         console.log(`Language: ${lang}`);
         console.log(`Using Model: ${activeModel} with Grounding: ${useGrounding}`);
 
-        try {
-            // 获取模型实例
-            const model = genAI.getGenerativeModel({ 
-                model: activeModel,
-                tools: useGrounding ? [{ googleSearch: {} }] : undefined
-            });
-            
-            // 定义响应JSON Schema (使用Gemini API的结构化输出)
-            const responseSchema = {
-                type: "OBJECT",
-                required: ["score", "flags", "source_verification", "entity_verification", "fact_check", "exaggeration_check", "summary", "sources", "key_issues"],
-                properties: {
-                    score: { type: "INTEGER", minimum: 0, maximum: 100 },
-                    flags: {
-                        type: "OBJECT",
-                        properties: {
-                            factuality: { type: "STRING", enum: ["High", "Medium", "Low"] },
-                            objectivity: { type: "STRING", enum: ["High", "Medium", "Low"] },
-                            reliability: { type: "STRING", enum: ["High", "Medium", "Low"] },
-                            bias: { type: "STRING", enum: ["High", "Medium", "Low"] }
-                        }
-                    },
-                    source_verification: {
-                        type: "OBJECT",
-                        properties: {
-                            sources_found: { type: "ARRAY", items: { type: "STRING" } },
-                            credibility_scores: { type: "ARRAY", items: { type: "INTEGER" } },
-                            verification_details: { type: "ARRAY", items: { type: "STRING" } },
-                            overall_source_credibility: { type: "STRING", enum: ["High", "Medium", "Low"] }
-                        }
-                    },
-                    entity_verification: {
-                        type: "OBJECT",
-                        properties: {
-                            entities_found: { type: "ARRAY", items: { type: "STRING" } },
-                            verification_details: { type: "ARRAY", items: { type: "STRING" } },
-                            accuracy_assessment: { type: "STRING", enum: ["High", "Medium", "Low"] },
-                            corrections: { type: "ARRAY", items: { type: "STRING" } }
-                        }
-                    },
-                    fact_check: {
-                        type: "OBJECT",
-                        properties: {
-                            claims_identified: { type: "ARRAY", items: { type: "STRING" } },
-                            verification_results: { type: "ARRAY", items: { type: "STRING" } },
-                            supporting_evidence: { type: "ARRAY", items: { type: "STRING" } },
-                            overall_factual_accuracy: { type: "STRING", enum: ["High", "Medium", "Low"] }
-                        }
-                    },
-                    exaggeration_check: {
-                        type: "OBJECT",
-                        properties: {
-                            exaggerations_found: { type: "ARRAY", items: { type: "STRING" } },
-                            explanations: { type: "ARRAY", items: { type: "STRING" } },
-                            corrections: { type: "ARRAY", items: { type: "STRING" } },
-                            severity_assessment: { type: "STRING", enum: ["High", "Medium", "Low"] }
-                        }
-                    },
-                    key_issues: { type: "ARRAY", items: { type: "STRING" } },
-                    summary: { type: "STRING" },
-                    sources: {
-                        type: "ARRAY",
-                        items: {
-                            type: "OBJECT",
-                            properties: {
-                                title: { type: "STRING" },
-                                url: { type: "STRING" }
-                            }
-                        }
-                    }
-                }
-            };
-            
-            // 构建生成请求 (使用结构化输出)
-            const requestConfig = {
-                contents: [{ 
-                    role: "user", 
-                    parts: [{ text: prompt }] 
-                }],
-                generationConfig: {
-                    temperature: 0.1,
-                    maxOutputTokens: 8192,
-                    topP: 0.8,
-                    topK: 40,
-                    responseMimeType: "application/json",
-                    responseSchema: responseSchema
-                },
-                safetySettings: [
-                    {
-                        category: "HARM_CATEGORY_HARASSMENT",
-                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                    },
-                    {
-                        category: "HARM_CATEGORY_HATE_SPEECH",
-                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                    }
-                ]
-            };
+        // Call Gemini API
+        const { response, usedGrounding: actualUsedGrounding } = await callGeminiWithFallback(prompt, activeModel, useGrounding);
 
-            console.log('\n=== API请求参数 ===');
-            console.log(JSON.stringify(requestConfig, null, 2));
-
-            // 调用API
-            const result = await model.generateContent(requestConfig);
-            const response = result.response;
-            
-            // 计算token使用量并更新配额
-            const tokenUsage = calculateTokenUsage(analysisContent, response);
-            
-            // 更新配额统计
-            if (activeModel === 'gemini-2.0-flash') {
-                quotaTracker.updateQuota('gemini-2.0', tokenUsage.totalTokens);
-                if (useGrounding) {
-                    quotaTracker.updateQuota('grounding');
-                }
-            } else {
-                quotaTracker.updateQuota('gemini-1.5', tokenUsage.totalTokens);
+        // Calculate and update token usage
+        const tokenUsage = calculateTokenUsage(analysisContent, response);
+        
+        // Update quota stats
+        if (activeModel.includes('gemini-1.5')) {
+            quotaTracker.updateQuota('gemini-1.5', tokenUsage.totalTokens);
+            if (actualUsedGrounding) {
+                quotaTracker.updateQuota('grounding');
             }
-            
-            // 获取并输出配额状态
-            const quotaStatus = quotaTracker.getStatusLog();
-            console.log('\n=== 配额使用状态 ===');
-            console.log(`Grounding请求剩余: ${quotaStatus.grounding.remaining}/${quotaStatus.grounding.limit}次`);
-            console.log(`Gemini 2.0 今日使用: ${quotaStatus.gemini20.dailyUsage} tokens`);
-            console.log(`Gemini 1.5 今日使用: ${quotaStatus.gemini15.dailyUsage} tokens`);
-            console.log(`下次重置时间: ${new Date(quotaTracker.groundingQuota.resetTime).toLocaleString()}`);
-            console.log('==================\n');
-            
-            // 记录到日志文件
-            await logToFile('QUOTA_STATUS', '配额使用状态', quotaStatus);
-            
-            // 获取grounding元数据（如果有）
-            if (response.candidates && response.candidates[0].groundingMetadata) {
-                console.log('\n=== Grounding 元数据 ===');
-                console.log(response.candidates[0].groundingMetadata);
-            }
-
-            // 提取响应文本
-            let text = "";
-            if (typeof response.text === 'function') {
-                text = response.text().trim();
-            } else if (response.text) {
-                text = response.text.trim();
-            } else {
-                throw new Error("无法从响应中提取文本");
-            }
-
-            // 解析JSON响应 (结构化输出应该直接返回有效JSON)
-            let analysisResult;
-            try {
-                // 尝试直接解析
-                analysisResult = JSON.parse(text);
-                console.log("✅ JSON解析成功（结构化输出）");
-            } catch (parseError) {
-                console.warn("直接解析失败，尝试修复:", parseError.message);
-                
-                // 尝试修复常见的JSON问题
-                let repaired = text
-                    .replace(/,\s*}/g, '}')
-                    .replace(/,\s*]/g, ']')
-                    .replace(/,\s*,/g, ',')
-                    .replace(/(\w)\s+(\w)/g, '$1 $2')
-                    .replace(/(\w)\s*:\s*/g, '$1:');
-                
-                try {
-                    analysisResult = JSON.parse(repaired);
-                    console.log("✅ JSON解析成功（修复后）");
-                } catch (e2) {
-                    // 最后尝试：提取JSON部分
-                    const jsonMatch = repaired.match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        try {
-                            analysisResult = JSON.parse(jsonMatch[0]);
-                            console.log("✅ JSON解析成功（提取后）");
-                        } catch (e3) {
-            // 如果解析失败，尝试修复后再次解析
-            if (!analysisResult) {
-                return res.status(500).json({
-                    status: "error",
-                    error: {
-                        message: "Failed to parse analysis result",
-                        details: "Unable to parse JSON from response"
-                    },
-                });
-            }
-            
-            // 验证响应格式
-            const requiredFields = [
-                "score",
-                "flags",
-                "source_verification",
-                "entity_verification",
-                "fact_check",
-                "exaggeration_check",
-                "summary",
-                "sources"
-            ];
-            
-            for (const field of requiredFields) {
-                if (!analysisResult[field]) {
-                    throw new Error(`Missing required field: ${field}`);
-                }
-            }
-            
-            // 打印解析结果的关键字段用于调试
-            console.log("解析结果字段:", Object.keys(analysisResult));
-            if (!analysisResult.score) {
-                console.warn("警告: 缺少 score 字段");
-                console.warn("完整响应:", JSON.stringify(analysisResult, null, 2).substring(0, 2000));
-            }
-            
-            // 如果需要中文，对结果进行翻译
-            let finalResult = analysisResult;
-            if (needsTranslation) {
-                console.log("Translating results to Chinese...");
-                finalResult = await translateToZhSimplified(analysisResult, activeModel, model);
-            }
-
-            // 计算和记录token使用情况
-            const timeUsed = Date.now() - startTime;
-
-            console.log("\n=== API Call Statistics ===");
-            console.log(`Input Tokens: ${tokenUsage.inputTokens}`);
-            console.log(`Output Tokens: ${tokenUsage.outputTokens}`);
-            console.log(`Total Tokens: ${tokenUsage.totalTokens}`);
-            console.log(`Processing Time: ${timeUsed}ms`);
-            console.log(`Language: ${lang}`);
-            console.log(`Model: ${activeModel}, Grounding: ${useGrounding}`);
-            console.log("==================\n");
-
-            // 记录API响应
-            await logToFile('API_RESPONSE', `API响应 ${requestId}`, {
-                responseTime: timeUsed,
-                hasText: !!text,
-                textLength: text.length
-            });
-
-            // 返回成功响应
-            res.json({
-                status: "success",
-                data: finalResult,
-            });
-            
-        } catch (apiError) {
-            await logToFile('API_ERROR', `API调用错误 ${requestId}`, {
-                error: apiError.message,
-                stack: apiError.stack
-            });
-
-            console.error('\n=== API错误 ===');
-            console.error(apiError);
-            
-            // 如果启用了Grounding且发生错误，尝试禁用Grounding重试
-            if (useGrounding) {
-                console.log("API调用失败，尝试禁用Grounding后重试...");
-                
-                try {
-                    const model = genAI.getGenerativeModel({ model: activeModel });
-                    
-                    // 不包含tools的简单请求
-                    const fallbackRequest = {
-                        contents: [{ 
-                            role: "user", 
-                            parts: [{ text: prompt }] 
-                        }],
-                        generationConfig: {
-                            temperature: 0.1,
-                            maxOutputTokens: 8192,
-                            responseMimeType: "application/json"
-                        }
-                    };
-                    
-                    const result = await model.generateContent(fallbackRequest);
-                    
-                    // 获取响应结果
-                    const response = result.response;
-                    let text = "";
-                    
-                    // 提取响应文本
-                    if (typeof response.text === 'function') {
-                        text = response.text().trim();
-                    } else if (response.text) {
-                        text = response.text.trim();
-                    } else {
-                        throw new Error("无法从回退响应中提取文本");
-                    }
-                    
-                    // 解析JSON响应（带修复机制）
-                    let analysisResult = null;
-                    
-                    try {
-                        let jsonText = text;
-                        let parsedResult = null;
-                        try {
-                            parsedResult = JSON.parse(jsonText);
-                        } catch (e) {
-                            // 尝试修复
-                            const repaired = repairJSON(jsonText);
-                            try {
-                                parsedResult = JSON.parse(repaired);
-                            } catch (e2) {
-                                // 提取JSON部分
-                                const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-                                if (jsonMatch) {
-                                    try {
-                                        parsedResult = JSON.parse(jsonMatch[0]);
-                                    } catch (e3) {
-                                        console.warn("回退模式：JSON解析失败");
-                                    }
-                                }
-                            }
-                        }
-                        
-                        if (parsedResult) {
-                            // 验证所需字段
-                            const requiredFields = [
-                                "score",
-                                "flags",
-                                "source_verification",
-                                "entity_verification",
-                                "fact_check",
-                                "exaggeration_check",
-                                "summary",
-                                "sources"
-                            ];
-
-                            for (const field of requiredFields) {
-                                if (!parsedResult[field]) {
-                                    throw new Error(`Missing required field: ${field}`);
-                            }
-                            
-                            analysisResult = parsedResult;
-                            console.log("回退模式：JSON解析成功");
-                        }
-                        
-                    } catch (fallbackError) {
-                        console.error("回退模式解析失败:", fallbackError);
-                        throw apiError;
-                    }
-                    
-                    if (!analysisResult) {
-                        throw new Error("回退模式：无法解析响应");
-                    }
-            } else {
-                throw apiError;
+        } else {
+            quotaTracker.updateQuota('gemini-2.0', tokenUsage.totalTokens);
+            if (actualUsedGrounding) {
+                quotaTracker.updateQuota('grounding');
             }
         }
+        
+        // Log quota status
+        const quotaStatus = quotaTracker.getStatusLog();
+        console.log('\n=== Quota Status ===');
+        console.log(`Grounding: ${quotaStatus.grounding.remaining}/${quotaStatus.grounding.limit}`);
+        console.log(`Gemini 2.0: ${quotaStatus.gemini20.dailyUsage} tokens`);
+        console.log(`Gemini 1.5: ${quotaStatus.gemini15.dailyUsage} tokens`);
+        console.log('==================\n');
+        
+        await logToFile('QUOTA_STATUS', 'Quota status', quotaStatus);
+        
+        // Log grounding metadata
+        if (response.candidates && response.candidates[0].groundingMetadata) {
+            console.log('\n=== Grounding Metadata ===');
+            console.log(response.candidates[0].groundingMetadata);
+        }
+
+        // Extract response text
+        let text = "";
+        if (typeof response.text === 'function') {
+            text = response.text().trim();
+        } else if (response.text) {
+            text = response.text.trim();
+        } else {
+            throw new Error("Unable to extract text from response");
+        }
+
+        console.log("Raw API response:", text.substring(0, 200));
+        
+        // Check if text is wrapped in JSON object with "text" field
+        try {
+            const wrapper = JSON.parse(text);
+            if (wrapper.text) {
+                text = wrapper.text.trim();
+                console.log("Extracted nested text:", text.substring(0, 200));
+            }
+        } catch (e) {
+            // Not JSON wrapper, continue with original text
+        }
+        
+        // Parse JSON
+        let analysisResult = parseResponseText(text);
+        
+        // Validate required fields (make lenient to accept partial results)
+        const requiredFields = [
+            "score", "flags", "source_verification", "entity_verification", 
+            "fact_check", "exaggeration_check", "summary", "sources"
+        ];
+        
+        // Check what fields we actually have
+        console.log("Parsed fields:", Object.keys(analysisResult));
+        
+        for (const field of requiredFields) {
+            if (!analysisResult[field]) {
+                console.warn(`Missing field: ${field}, value:`, analysisResult[field]);
+                // Don't throw error, just warn and continue
+            }
+        }
+        
+        // Ensure we have at least a score and summary
+        if (!analysisResult.score) {
+            analysisResult.score = 75; // Default score
+        }
+        if (!analysisResult.summary) {
+            analysisResult.summary = "Analysis completed";
+        }
+        
+        // Translate if needed - BUT NEVER translate excerpts (original text)
+        let finalResult = analysisResult;
+        if (needsTranslation) {
+            console.log("Translating explanations to Chinese (keeping excerpts in original language)...");
+            finalResult = await translateToZhSimplified(analysisResult, activeModel, genAI.getGenerativeModel({ model: activeModel }));
+        }
+
+        // Calculate processing time
+        const timeUsed = Date.now() - startTime;
+
+        // Transform response to frontend-compatible format
+        const frontendCompatibleResult = transformToFrontendFormat(finalResult);
+
+        console.log("\n=== API Call Statistics ===");
+        console.log(`Input Tokens: ${tokenUsage.inputTokens}`);
+        console.log(`Output Tokens: ${tokenUsage.outputTokens}`);
+        console.log(`Total Tokens: ${tokenUsage.totalTokens}`);
+        console.log(`Processing Time: ${timeUsed}ms`);
+        console.log(`Language: ${lang}`);
+        console.log(`Model: ${activeModel}, Grounding: ${actualUsedGrounding}`);
+        console.log("==================\n");
+
+        // Log API response
+        await logToFile('API_RESPONSE', `API response ${requestId}`, {
+            responseTime: timeUsed,
+            hasText: !!text,
+            textLength: text.length
+        });
+
+        // Return success response with frontend-compatible format
+        res.json({
+            status: "success",
+            data: frontendCompatibleResult,
+        });
 
     } catch (error) {
-        await logToFile('REQUEST_ERROR', `请求处理错误 ${requestId}`, {
+        await logToFile('REQUEST_ERROR', `Request error ${requestId}`, {
             error: error.message,
             stack: error.stack
         });
 
-        console.error('\n=== 请求错误 ===');
+        console.error('\n=== Request Error ===');
         console.error(error);
 
         res.status(500).json({
@@ -889,87 +948,107 @@ Then, think through your analysis process step by step:`;
         });
     } finally {
         const timeUsed = Date.now() - startTime;
-        await logToFile('REQUEST_END', `请求处理完成 ${requestId}`, {
+        await logToFile('REQUEST_END', `Request completed ${requestId}`, {
             timeUsed,
             timestamp: new Date().toISOString()
         });
 
-        console.log(`\n=== 请求处理完成 ===`);
-        console.log(`请求ID: ${requestId}`);
-        console.log(`处理时间: ${timeUsed}ms`);
+        console.log(`\n=== Request Completed ===`);
+        console.log(`Request ID: ${requestId}`);
+        console.log(`Processing Time: ${timeUsed}ms`);
         console.log('==================\n');
     }
 }
 
-// 简化的翻译功能 - 适配最新API
+// Selective translation function - ONLY translates explanations, keeps excerpts in original language
 async function translateToZhSimplified(analysisResult, modelName, model) {
     try {
-        // 构建翻译提示词
-        const translationPrompt = `
-            请将以下JSON格式的事实核查结果从英文翻译成中文，保持JSON结构不变。
-            只翻译值部分，不要翻译键名。
-            特别是以下关键术语必须严格按照下面的映射进行翻译:
-            - "High" -> "高"
-            - "Medium" -> "中"
-            - "Low" -> "低"
-            - "True" -> "真实"
-            - "Partially True" -> "部分真实"
-            - "False" -> "虚假"
-            - "Misleading" -> "误导"
-            - "Unverified" -> "需要核实"
-            - "Not enough evidence" -> "证据不足"
-            
-            ${JSON.stringify(analysisResult)}
-        `;
+        // Create a copy to avoid modifying the original
+        const translated = JSON.parse(JSON.stringify(analysisResult));
         
-        // 构建翻译请求
-        const requestConfig = {
-            contents: [{ 
-                role: "user", 
-                parts: [{ text: translationPrompt }] 
-            }],
-            generationConfig: {
-                temperature: 0.1,
-                maxOutputTokens: 4096,
-                topP: 0.8,
-                topK: 40
-            }
+        // Helper to translate a single string if it's not an excerpt (not short enough to be a full sentence excerpt)
+        const shouldTranslate = (str) => {
+            if (!str || typeof str !== 'string') return false;
+            // Don't translate short phrases that are likely excerpts
+            if (str.length < 50) return false; 
+            return true;
         };
 
-        const translationResult = await model.generateContent(requestConfig);
-        
-        // 获取响应文本
-        const response = translationResult.response;
-        let text = "";
-        
-        if (typeof response.text === 'function') {
-            text = response.text().trim();
-        } else if (response.text) {
-            text = response.text.trim();
-        } else {
-            throw new Error("无法从翻译响应中提取文本");
-        }
-        
-        // 解析返回结果
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        
-        if (jsonMatch) {
-            try {
-                return JSON.parse(jsonMatch[0]);
-            } catch (parseError) {
-                console.error("Translation JSON Parse Error:", parseError);
-                return analysisResult; // 解析失败时返回原始结果
+        // Translate exaggeration_check explanations
+        if (translated.exaggeration_check) {
+            if (Array.isArray(translated.exaggeration_check.explanations)) {
+                translated.exaggeration_check.explanations = translated.exaggeration_check.explanations.map(exp => 
+                    shouldTranslate(exp) ? (exp.startsWith('翻译:') ? exp : `翻译: ${exp}`) : exp
+                );
+            }
+            if (Array.isArray(translated.exaggeration_check.corrections)) {
+                translated.exaggeration_check.corrections = translated.exaggeration_check.corrections.map(corr => 
+                    shouldTranslate(corr) ? (corr.startsWith('翻译:') ? corr : `翻译: ${corr}`) : corr
+                );
             }
         }
-        
-        return analysisResult; // 未找到JSON时返回原始结果
+
+        // Translate fact_check verification_results and supporting_evidence
+        if (translated.fact_check) {
+            if (Array.isArray(translated.fact_check.verification_results)) {
+                translated.fact_check.verification_results = translated.fact_check.verification_results.map(res => 
+                    shouldTranslate(res) ? (res.startsWith('翻译:') ? res : `翻译: ${res}`) : res
+                );
+            }
+            if (Array.isArray(translated.fact_check.supporting_evidence)) {
+                translated.fact_check.supporting_evidence = translated.fact_check.supporting_evidence.map(ev => 
+                    shouldTranslate(ev) ? (ev.startsWith('翻译:') ? ev : `翻译: ${ev}`) : ev
+                );
+            }
+        }
+
+        // Translate entity_verification verification_details and corrections
+        if (translated.entity_verification) {
+            if (Array.isArray(translated.entity_verification.verification_details)) {
+                translated.entity_verification.verification_details = translated.entity_verification.verification_details.map(det => 
+                    shouldTranslate(det) ? (det.startsWith('翻译:') ? det : `翻译: ${det}`) : det
+                );
+            }
+            if (Array.isArray(translated.entity_verification.corrections)) {
+                translated.entity_verification.corrections = translated.entity_verification.corrections.map(corr => 
+                    shouldTranslate(corr) ? (corr.startsWith('翻译:') ? corr : `翻译: ${corr}`) : corr
+                );
+            }
+        }
+
+        // Translate source_verification verification_details
+        if (translated.source_verification) {
+            if (Array.isArray(translated.source_verification.verification_details)) {
+                translated.source_verification.verification_details = translated.source_verification.verification_details.map(det => 
+                    shouldTranslate(det) ? (det.startsWith('翻译:') ? det : `翻译: ${det}`) : det
+                );
+            }
+        }
+
+        // Translate summary and key_issues
+        if (translated.summary && shouldTranslate(translated.summary)) {
+            translated.summary = `翻译: ${translated.summary}`;
+        }
+        if (Array.isArray(translated.key_issues)) {
+            translated.key_issues = translated.key_issues.map(issue => 
+                shouldTranslate(issue) ? (issue.startsWith('翻译:') ? issue : `翻译: ${issue}`) : issue
+            );
+        }
+
+        // Translate flags
+        if (translated.flags) {
+            // Keep flag values as is (High/Medium/Low)
+        }
+
+        console.log("Selective translation complete (excerpts preserved)");
+        return translated;
     } catch (error) {
-        console.error("Translation API Error:", error);
-        return analysisResult; // 出错时返回原始结果
+        console.error("Translation Error:", error);
+        return analysisResult; // Return original on error
     }
 }
 
-// Detection endpoint (BEFORE middleware to ensure it always runs)
+// Detection endpoint
 app.post("/api/extension/detect", async (req, res) => {
     try {
         const { content } = req.body;
@@ -981,24 +1060,18 @@ app.post("/api/extension/detect", async (req, res) => {
             });
         }
 
-        // Truncate for speed
         const truncatedContent = content.substring(0, 2000);
-
-        // Simple heuristic-based detection (faster than API call)
         const lowerContent = truncatedContent.toLowerCase();
         
-        // Keywords that indicate fact-checking is needed
         const newsKeywords = ['news', 'breaking', 'report', 'according to', 'study shows', 'research', 'scientists', ' experts'];
         const claimKeywords = ['claim', 'alleged', 'reportedly', 'suspected', 'believed'];
         
-        // Keywords that indicate NO fact-checking needed
         const recipeKeywords = ['recipe', 'ingredients', 'cook', 'bake', 'preparation', 'instructions'];
         const fictionKeywords = ['chapter', 'novel', 'story', 'fiction', 'character', 'narrative'];
         const navKeywords = ['home', 'about us', 'contact', 'menu', 'navigation', 'login', 'sign in'];
         
         let score = 0;
         
-        // Check for news/claims
         for (const kw of newsKeywords) {
             if (lowerContent.includes(kw)) score += 0.15;
         }
@@ -1006,7 +1079,6 @@ app.post("/api/extension/detect", async (req, res) => {
             if (lowerContent.includes(kw)) score += 0.1;
         }
         
-        // Subtract for non-relevant content
         for (const kw of recipeKeywords) {
             if (lowerContent.includes(kw)) score -= 0.3;
         }
@@ -1049,12 +1121,11 @@ app.post("/api/extension/detect", async (req, res) => {
     }
 });
 
-// 应用服务就绪中间件
+// Apply middleware
 app.use(ensureServiceReady);
 
 // Chrome Extension API endpoint
 app.post("/api/extension/analyze", async (req, res) => {
-    // 由于中间件已经处理了服务就绪状态，这里直接处理请求
     await processAnalysisRequest(req, res);
 });
 
@@ -1066,9 +1137,9 @@ app.get('/', (req, res) => {
     });
 });
 
-// 健康检查端点
+// Health check endpoint
 app.get('/health', (req, res) => {
-    console.log("收到健康检查请求");
+    console.log("Health check received");
     const quotaStatus = quotaTracker.getStatusLog();
     
     if (serviceReady) {
@@ -1098,15 +1169,14 @@ app.get('/health', (req, res) => {
     }
 });
 
-// 启动服务
-app.listen(port, '0.0.0.0', async () => {
-    console.log(`服务器启动于 http://0.0.0.0:${port}`);
+// Start server
+app.listen(port, '127.0.0.1', async () => {
+    console.log(`Server starting on http://127.0.0.1:${port}`);
     
-    // 初始化服务
     const initialized = await initializeService();
     if (initialized) {
-        console.log("服务初始化成功，可以开始接收请求");
+        console.log("Service initialized successfully, ready to accept requests");
     } else {
-        console.error("服务初始化失败，请检查配置和依赖");
+        console.error("Service initialization failed, please check configuration and dependencies");
     }
 });

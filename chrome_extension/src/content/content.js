@@ -2,6 +2,8 @@
  * VeritAI Fact Checker - 内容脚本
  */
 
+console.log('[Content] Content script starting...');
+
 // 全局状态
 const state = {
   floatingCard: null,
@@ -255,46 +257,11 @@ window.addEventListener('message', (event) => {
   }
 });
 
-// 初始化
+// 初始化旧版本（已弃用，使用initialize代替）
 function init() {
-  console.log('VeritAI Fact Checker内容脚本已加载');
-  
-  // 添加样式
-  const style = document.createElement('style');
-  style.textContent = `
-    .veritai-floating-card-frame {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      width: 350px;
-      height: 600px;
-      border: none;
-      z-index: 2147483647;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      border-radius: 8px;
-      transition: opacity 0.3s ease, transform 0.3s ease;
-      opacity: 0;
-      transform: translateY(-10px);
-      background-color: white;
-    }
-    
-    .veritai-frame-visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  `;
-  document.head.appendChild(style);
-  
-  // 从存储中获取语言设置
-  chrome.storage.local.get('language', (result) => {
-    if (result.language) {
-      state.language = result.language;
-    }
-  });
+  console.log('[Content] Old init() called - redirecting to initialize()');
+  initialize();
 }
-
-// 启动
-init();
 
 // 监听页面卸载事件
 window.addEventListener('beforeunload', removeFloatingCard);
@@ -467,8 +434,45 @@ function setupReconnectionMechanism() {
   }, 30000);
 }
 
+// 注入浮动卡片样式
+function injectFloatingCardStyles() {
+  if (document.getElementById('veritai-floating-card-styles')) return;
+
+  const style = document.createElement('style');
+  style.id = 'veritai-floating-card-styles';
+  style.textContent = `
+    .veritai-floating-card-frame {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 350px;
+      height: 600px;
+      border: none;
+      z-index: 2147483647;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      border-radius: 8px;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      opacity: 0;
+      transform: translateY(-10px);
+      background-color: white;
+    }
+    
+    .veritai-frame-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  `;
+  document.head.appendChild(style);
+  console.log('[Content] Floating card styles injected');
+}
+
 // 修改 initialize 函数
 function initialize() {
+  console.log('[Content] Initializing VeritAI Fact Checker...');
+  
+  // 注入样式
+  injectFloatingCardStyles();
+
   // 初始化HighlightManager
   try {
     state.highlightManager = new HighlightManager();
@@ -507,9 +511,14 @@ function initialize() {
 function triggerAutoDetection() {
   // Delay slightly to ensure page is settled
   setTimeout(() => {
-    if (!isExtensionContextValid()) return;
+    if (!isExtensionContextValid()) {
+        console.log('[Content] Extension context invalid, skipping auto-detection');
+        return;
+    }
     
     const content = extractContent();
+    console.log('[Content] Auto-detection check - Content length:', content.data?.content?.length);
+    
     if (content.success && content.data.content.length > 200) { // Min length check
       console.log('[Content] Triggering auto-detection...');
       sendMessageSafely({
@@ -518,6 +527,8 @@ function triggerAutoDetection() {
         url: content.data.url,
         title: content.data.title,
         language: state.language
+      }, (response) => {
+          console.log('[Content] Auto-detection response:', response);
       });
     } else {
       console.log('[Content] Content too short or extraction failed, skipping auto-detection');
@@ -557,8 +568,7 @@ function handleFrameMessages(event) {
   }
 }
 
-// 启动初始化
-initialize();
+// 启动初始化 (已移除，由init()调用)
 
 // 添加 cleanup 函数
 function cleanup() {
@@ -705,3 +715,6 @@ function sendMessageToFloatingCard(message) {
     return false;
   }
 }
+
+// 启动初始化
+initialize();

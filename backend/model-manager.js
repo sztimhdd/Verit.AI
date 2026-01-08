@@ -7,18 +7,23 @@ const __dirname = path.dirname(__filename);
 
 // 全局单例状态对象
 let modelState = {
-  currentModel: "gemini-2.0-flash",
+  currentModel: "gemini-2.5-flash",
   groundingCount: 0,
-  hourlyTokens: {},  // 格式: {"2025-03-26-14": 1234}
+  hourlyTokens: {},
   lastReset: new Date().toISOString()
 };
 
 const CONFIG = {
   DAILY_GROUNDING_LIMIT: 500,
   DEFAULT_MODEL: process.env.DEFAULT_MODEL || "gemini-2.5-flash",
-  FALLBACK_MODEL: "gemini-1.5-flash",
+  // Use 2.0-flash for high-speed mode (faster, cheaper)
+  HIGH_SPEED_MODEL: "gemini-2.0-flash",
+  FALLBACK_MODEL: "gemini-2.0-flash",
   HOURLY_TOKEN_THRESHOLD: 800000,
-  STATE_FILE: path.join(__dirname, 'data', 'model-state.json')
+  STATE_FILE: path.join(__dirname, 'data', 'model-state.json'),
+  // Speed vs Accuracy settings
+  USE_GROUNDING_DEFAULT: true, // Enable web search grounding for accuracy
+  HIGH_SPEED_MODE: false // Disable high-speed mode for better accuracy with grounding
 };
 
 // 初始化系统
@@ -70,35 +75,36 @@ async function logModelState() {
 }
 
 // 获取当前应该使用的模型配置
-async function getModelConfig(content, genAI) {
+async function getModelConfig(content, genAI, options = {}) {
   // 检查日期重置
   checkDateReset();
   
-  // 记录当前状态
-  console.log('\n=== 模型状态检查 ===');
-  console.log('当前模型:', modelState.currentModel);
-  console.log('Grounding使用次数:', modelState.groundingCount);
-  console.log('上次重置时间:', modelState.lastReset);
+  // 如果请求明确要求使用 grounding（高精度模式）
+  const forceGrounding = options.useGrounding === true;
   
-  // Token估算
-  const estimatedTokens = Math.ceil(content.length / 4);
-  console.log('预估Token数:', estimatedTokens);
+  // 如果强制使用 grounding，使用默认模型
+  // 否则使用更快的模型
+  const useFastModel = !forceGrounding;
   
-  // 获取当前小时键
-  const hourKey = getCurrentHourKey();
-  modelState.hourlyTokens[hourKey] = modelState.hourlyTokens[hourKey] || 0;
-  console.log('当前小时Token使用量:', modelState.hourlyTokens[hourKey]);
+  // 默认情况下禁用 grounding 以获得更快的响应 (2-5秒 vs 15-20秒)
+  const useGrounding = forceGrounding && 
+                       modelState.currentModel === CONFIG.DEFAULT_MODEL && 
+                       modelState.groundingCount < CONFIG.DAILY_GROUNDING_LIMIT;
   
-  // 确定是否使用Grounding
-  const useGrounding = modelState.currentModel === CONFIG.DEFAULT_MODEL && 
-                      modelState.groundingCount < CONFIG.DAILY_GROUNDING_LIMIT;
+  // 高速模式：使用更快的模型，不使用 grounding
+  const activeModel = useFastModel ? CONFIG.HIGH_SPEED_MODEL : modelState.currentModel;
   
-  console.log(`基本配置 - 模型: ${modelState.currentModel}, 使用Grounding: ${useGrounding}`);
+  if (useFastModel) {
+    console.log(`🚀 高速模式 - 使用 ${CONFIG.HIGH_SPEED_MODEL} (跳过 grounding)`);
+  } else {
+    console.log(`📚 精确模式 - 使用 ${activeModel} + grounding (${modelState.groundingCount}/${CONFIG.DAILY_GROUNDING_LIMIT})`);
+  }
   
   // 返回简化的配置
   const modelConfig = {
-    model: modelState.currentModel,
-    useGrounding: useGrounding
+    model: activeModel,
+    useGrounding: useGrounding,
+    isHighSpeedMode: useFastModel
   };
   
   return modelConfig;

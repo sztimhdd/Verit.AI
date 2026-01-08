@@ -43,11 +43,14 @@ class HighlightManager {
         <span class="veritai-popover-score"></span>
       </div>
       <div class="veritai-popover-section">
-        <div class="veritai-tooltip-label">Explanation</div>
+        <div class="veritai-tooltip-label">Analysis & Evidence</div>
         <div class="veritai-tooltip-explanation-container">
           <div class="veritai-tooltip-value veritai-tooltip-explanation"></div>
-          <button class="veritai-see-more" aria-expanded="false">See more</button>
         </div>
+      </div>
+      <div class="veritai-popover-section veritai-sources-section hidden">
+        <div class="veritai-tooltip-label">Sources</div>
+        <div class="veritai-tooltip-sources"></div>
       </div>
       <div class="veritai-tooltip-arrow" aria-hidden="true"></div>
     `;
@@ -56,11 +59,6 @@ class HighlightManager {
     this.popoverEl.querySelector('.veritai-popover-close').addEventListener('click', (e) => {
       e.stopPropagation();
       this.hidePopover();
-    });
-
-    this.popoverEl.querySelector('.veritai-see-more').addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.toggleSeeMore();
     });
 
     console.log('[HighlightManager] Popover element created');
@@ -72,9 +70,15 @@ class HighlightManager {
         const tooltip = e.target.getAttribute('data-tooltip');
         const type = e.target.getAttribute('data-type') || 'dubious';
         const severity = e.target.getAttribute('data-severity') || 'Medium';
+        const sourcesJson = e.target.getAttribute('data-sources');
+        let sources = [];
+        try {
+          if (sourcesJson) sources = JSON.parse(sourcesJson);
+        } catch (err) {}
+
         if (tooltip) {
           this.currentHighlight = e.target;
-          this.showPopover(e.target, tooltip, type, severity);
+          this.showPopover(e.target, tooltip, type, severity, sources);
         }
       }
     });
@@ -100,7 +104,7 @@ class HighlightManager {
     });
   }
 
-  showPopover(targetElement, tooltipText, type, severity) {
+  showPopover(targetElement, tooltipText, type, severity, sources = []) {
     if (!this.popoverEl) return;
 
     let icon = '⚠️';
@@ -118,7 +122,13 @@ class HighlightManager {
     }
 
     const explanationEl = this.popoverEl.querySelector('.veritai-tooltip-explanation');
-    explanationEl.textContent = tooltipText;
+    
+    // Support markdown-like bolding for the label
+    const formattedText = tooltipText
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+    
+    explanationEl.innerHTML = formattedText;
 
     this.popoverEl.querySelector('.veritai-popover-type-icon').textContent = icon;
     this.popoverEl.querySelector('.veritai-popover-title').textContent = title;
@@ -127,33 +137,56 @@ class HighlightManager {
     scoreEl.textContent = this.getSeverityLabel(severity);
     scoreEl.className = 'veritai-popover-score severity-' + severity.toLowerCase();
 
+    // Handle Sources
+    const sourcesSection = this.popoverEl.querySelector('.veritai-sources-section');
+    const sourcesContainer = this.popoverEl.querySelector('.veritai-tooltip-sources');
+    
+    if (sources && sources.length > 0) {
+      sourcesSection.classList.remove('hidden');
+      sourcesContainer.innerHTML = sources.map(s => 
+        `<a href="${s.url}" target="_blank" class="veritai-tooltip-source-link">${s.title || s.url}</a>`
+      ).join('');
+    } else {
+      sourcesSection.classList.add('hidden');
+    }
+
     const rect = targetElement.getBoundingClientRect();
-    const scrollY = window.scrollY || window.pageYOffset;
-    const scrollX = window.scrollX || window.pageXOffset;
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
 
     let left = rect.left + scrollX + (rect.width / 2);
-    let top = rect.top + scrollY - 12;
+    let top = rect.top + scrollY - 12; // Position above the highlight
 
     const popoverWidth = 320;
     const padding = 10;
 
+    // Boundary check for horizontal positioning
     if (left - popoverWidth / 2 < padding) {
       left = padding + popoverWidth / 2;
-    } else if (left + popoverWidth / 2 > window.innerWidth - padding) {
-      left = window.innerWidth - padding - popoverWidth / 2;
+    } else if (left + popoverWidth / 2 > document.documentElement.clientWidth - padding) {
+      left = document.documentElement.clientWidth - padding - popoverWidth / 2;
     }
 
-    if (top < padding) {
+    // Flip to bottom if there's no space on top
+    if (rect.top < 150) { // If near top of viewport
       top = rect.bottom + scrollY + 12;
-      this.popoverEl.querySelector('.veritai-tooltip-arrow').style.bottom = '-6px';
-      this.popoverEl.querySelector('.veritai-tooltip-arrow').style.top = 'auto';
-    } else {
-      this.popoverEl.querySelector('.veritai-tooltip-arrow').style.top = '-6px';
       this.popoverEl.querySelector('.veritai-tooltip-arrow').style.bottom = 'auto';
+      this.popoverEl.querySelector('.veritai-tooltip-arrow').style.top = '-6px';
+      this.popoverEl.querySelector('.veritai-tooltip-arrow').style.transform = 'translateX(-50%) rotate(225deg)';
+    } else {
+      this.popoverEl.querySelector('.veritai-tooltip-arrow').style.top = 'auto';
+      this.popoverEl.querySelector('.veritai-tooltip-arrow').style.bottom = '-6px';
+      this.popoverEl.querySelector('.veritai-tooltip-arrow').style.transform = 'translateX(-50%) rotate(45deg)';
     }
 
     this.popoverEl.style.left = left + 'px';
     this.popoverEl.style.top = top + 'px';
+    this.popoverEl.style.transform = 'translate(-50%, -100%)'; 
+    
+    // If we flipped to bottom, adjust transform
+    if (rect.top < 150) {
+        this.popoverEl.style.transform = 'translate(-50%, 0)';
+    }
 
     this.popoverEl.classList.add('visible');
     this.popoverVisible = true;
@@ -219,7 +252,7 @@ class HighlightManager {
       }
 
       .veritai-popover {
-        position: fixed !important;
+        position: absolute !important;
         background: #ffffff !important;
         border-radius: 12px !important;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
@@ -227,14 +260,88 @@ class HighlightManager {
         font-size: 14px !important;
         color: #1f2937 !important;
         line-height: 1.5 !important;
-        max-width: 320px !important;
-        min-width: 260px !important;
+        max-width: 350px !important;
+        min-width: 280px !important;
         z-index: 2147483647 !important;
         opacity: 0 !important;
         visibility: hidden !important;
         transition: opacity 0.15s ease, visibility 0.15s ease, transform 0.15s ease !important;
         transform: translateY(4px) !important;
         padding: 14px 16px !important;
+        max-height: 450px !important;
+        overflow-y: auto !important;
+      }
+
+      .veritai-popover.hidden {
+        display: none !important;
+      }
+
+      .veritai-sources-section.hidden {
+        display: none !important;
+      }
+
+      .veritai-tooltip-sources {
+        font-size: 12px !important;
+        color: #3b82f6 !important;
+        word-break: break-all !important;
+      }
+
+      .veritai-tooltip-source-link {
+        display: block !important;
+        margin-top: 4px !important;
+        text-decoration: underline !important;
+        color: #2563eb !important;
+      }
+
+      .veritai-popover.visible {
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+
+      .veritai-popover-header {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        margin-bottom: 10px !important;
+        border-bottom: 1px solid #e5e7eb !important;
+        padding-bottom: 10px !important;
+      }
+
+      .veritai-popover-type-icon {
+        font-size: 16px !important;
+      }
+
+      .veritai-popover-title {
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        color: #374151 !important;
+        flex-grow: 1 !important;
+        text-align: left !important;
+      }
+
+      .veritai-popover-section {
+        margin-bottom: 12px !important;
+      }
+
+      .veritai-tooltip-label {
+        font-size: 10px !important;
+        color: #6b7280 !important;
+        font-weight: 600 !important;
+        margin-bottom: 6px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+      }
+
+      .veritai-tooltip-explanation-container {
+        transition: max-height 0.2s ease !important;
+      }
+
+      .veritai-tooltip-value {
+        font-size: 13px !important;
+        color: #1f2937 !important;
+        line-height: 1.6 !important;
+        word-wrap: break-word !important;
+        white-space: pre-wrap !important;
       }
 
       .veritai-popover.visible {
@@ -406,13 +513,18 @@ class HighlightManager {
     // Add exaggerations (always dubious)
     if (analysisData.exaggeration_check?.exaggerations_found) {
       analysisData.exaggeration_check.exaggerations_found.forEach((exaggeration, index) => {
+        const explanation = analysisData.exaggeration_check.explanations?.[index] || '';
         const correction = analysisData.exaggeration_check.corrections?.[index] || '';
         const severity = analysisData.exaggeration_check.severity_assessment || 'Medium';
+        
+        const fullTooltip = `⚠️ **EXAGGERATION**\n${explanation}\n\n✅ **CORRECTION**\n${correction}`;
+        
         dubiousItems.push({
           text: exaggeration,
-          tooltip: `⚠️ Exaggeration/Misleading\n\nMore accurate: ${correction || 'See analysis for details'}`,
+          tooltip: fullTooltip,
           type: 'exaggeration',
-          severity: severity
+          severity: severity,
+          sources: analysisData.sources || []
         });
       });
     }
@@ -421,14 +533,18 @@ class HighlightManager {
     if (analysisData.fact_check?.claims_identified) {
       analysisData.fact_check.claims_identified.forEach((claim, index) => {
         const result = analysisData.fact_check.verification_results?.[index] || '';
+        const evidence = analysisData.fact_check.supporting_evidence?.[index] || '';
         const isDubious = this.isDubiousResult(result);
         
         if (isDubious) {
+          const fullTooltip = `❌ **FACT CHECK: ${result.toUpperCase()}**\n${evidence || 'No detailed evidence provided by the AI.'}`;
+          
           dubiousItems.push({
             text: claim,
-            tooltip: `❌ Fact Check: ${result}\n\nSee detailed analysis for evidence`,
+            tooltip: fullTooltip,
             type: 'fact_check',
-            severity: this.getSeverityFromResult(result)
+            severity: this.getSeverityFromResult(result),
+            sources: analysisData.sources || []
           });
         }
       });
@@ -451,11 +567,13 @@ class HighlightManager {
       });
     }
 
-    console.log(`[HighlightManager] Found ${dubiousItems.length} dubious items to highlight`);
+     console.log(`[HighlightManager] Found ${dubiousItems.length} dubious items to highlight`);
+     console.log('[DEBUG] Items:', dubiousItems.map(i => ({ text: i.text?.substring(0, 20), type: i.type, len: i.text?.length })));
 
     // Apply highlights for each dubious item
     for (const item of dubiousItems) {
-      await this.highlightText(item.text, item.tooltip, item.type, item.severity);
+      console.log('[DEBUG] Trying to highlight:', item.text?.substring(0, 30), 'len:', item.text?.length);
+      await this.highlightText(item.text, item.tooltip, item.type, item.severity, item.sources);
     }
 
     // Store highlights for this URL
@@ -486,154 +604,262 @@ class HighlightManager {
     return 'Low';
   }
 
-  /**
-   * Highlight text matching the given string in the page
-   * @param {string} textToMatch - The text to search for and highlight
-   * @param {string} tooltip - Tooltip text to show on hover
-   * @param {string} type - Type of highlight (exaggeration, fact_check, entity)
-   * @param {string} severity - Severity level (High, Medium, Low)
-   */
-  async highlightText(textToMatch, tooltip, type = 'dubious', severity = 'Medium') {
-    if (!textToMatch || textToMatch.length < 10) {
-      console.log('[HighlightManager] Skipping short text:', textToMatch?.substring(0, 20));
-      return;
-    }
+   /**
+    * Highlight text matching the given string in the page
+    * @param {string} textToMatch - The text to search for and highlight
+    * @param {string} tooltip - Tooltip text to show on hover
+    * @param {string} type - Type of highlight (exaggeration, fact_check, entity)
+    * @param {string} severity - Severity level (High, Medium, Low)
+    * @param {Array} sources - Optional array of source objects
+    */
+   async highlightText(textToMatch, tooltip, type = 'dubious', severity = 'Medium', sources = []) {
+     if (!textToMatch || textToMatch.trim().length < 3) {
+       console.log('[DEBUG] Skipping short text:', textToMatch?.substring(0, 20));
+       return;
+     }
 
-    console.log('[HighlightManager] highlightText called with:', {
-      textLength: textToMatch?.length,
-      tooltipLength: tooltip?.length,
-      type,
-      severity
-    });
+     console.log('[DEBUG] highlightText search:', {
+       text: textToMatch?.substring(0, 50),
+       textLength: textToMatch?.length,
+       type
+     });
 
-    try {
-      // Create a TreeWalker to find text nodes
-      const walker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_TEXT,
-        {
-          acceptNode: (node) => {
-            // Skip script, style, and already highlighted elements
-            const parent = node.parentElement;
-            if (parent?.tagName === 'SCRIPT' || 
-                parent?.tagName === 'STYLE' || 
-                parent?.classList?.contains('veritai-highlight-dubious') ||
-                parent?.closest('script, style, nav, header, footer')) {
-              return NodeFilter.FILTER_REJECT;
+     // Normalize search text: remove only OUTER quotes and normalize ellipses
+     const cleanSearchText = textToMatch
+        .replace(/^["'""'']|["'""'']$/g, '') // Strip only outer quotes
+        .replace(/…/g, '...')
+        .trim();
+
+     console.log('[DEBUG] Cleaned search text:', cleanSearchText.substring(0, 50));
+
+     try {
+       const walker = document.createTreeWalker(
+         document.body,
+         NodeFilter.SHOW_TEXT,
+         {
+           acceptNode: (node) => {
+             const parent = node.parentElement;
+             if (parent?.tagName === 'SCRIPT' || 
+                 parent?.tagName === 'STYLE' || 
+                 parent?.classList?.contains('veritai-highlight-dubious') ||
+                 parent?.closest('script, style, nav, header, footer')) {
+               return NodeFilter.FILTER_REJECT;
+             }
+             return NodeFilter.FILTER_ACCEPT;
+           }
+         }
+       );
+
+       const textNodes = [];
+       let node;
+       while ((node = walker.nextNode())) {
+         textNodes.push(node);
+       }
+       
+       console.log('[DEBUG] Text nodes found:', textNodes.length);
+
+       // 1. Try exact match (normalized)
+       for (const textNode of textNodes) {
+         if (this.containsText(textNode.textContent, cleanSearchText)) {
+           this.wrapTextNode(textNode, cleanSearchText, tooltip, type, severity, sources);
+           this.highlights.push({ text: cleanSearchText, type, tooltip });
+           console.log('[DEBUG] ✅ EXACT MATCH FOUND');
+           return;
+         }
+       }
+       
+       console.log('[DEBUG] ❌ No exact match. Trying substring/phrase match...');
+
+       // 2. Substring Match: Try splitting search text by punctuation
+       // Split by Chinese or English punctuation
+       const phrases = cleanSearchText.split(/[，。,.!！？?!]+/).filter(p => p.trim().length > 5);
+       
+       console.log('[DEBUG] Trying', phrases.length, 'phrases...');
+
+       for (const phrase of phrases) {
+         // Try this phrase in all text nodes
+         for (const textNode of textNodes) {
+            // Case-insensitive check
+            if (textNode.textContent.toLowerCase().includes(phrase.toLowerCase().trim())) {
+               console.log('[DEBUG] ✅ SUBSTRING MATCH FOUND:', phrase.substring(0, 20));
+               this.wrapTextNode(textNode, phrase.trim(), tooltip, type, severity, sources);
+               this.highlights.push({ text: phrase.trim(), type, tooltip });
+               return;
             }
-            return NodeFilter.FILTER_ACCEPT;
+         }
+       }
+
+       console.log('[DEBUG] ❌ No substring match found');
+
+        // 3. Last Resort: Find the BEST substring match across ALL nodes
+        console.log('[DEBUG] Trying greedy substring overlap...');
+        let bestMatch = null;
+        let bestNode = null;
+
+        for (const textNode of textNodes) {
+          const textContent = textNode.textContent;
+          if (textContent.length < 10) continue;
+          
+          const match = this.findLongestCommonSubstring(textContent, cleanSearchText);
+          // Only consider significant matches (at least 15 chars or 40% of the target)
+          const minRequired = Math.min(15, Math.floor(cleanSearchText.length * 0.4));
+          
+          if (match && match.length >= minRequired) {
+             if (!bestMatch || match.length > bestMatch.length) {
+                bestMatch = match;
+                bestNode = textNode;
+             }
           }
         }
-      );
 
-      const textNodes = [];
-      let node;
-      while ((node = walker.nextNode())) {
-        textNodes.push(node);
-      }
-
-      // Search for matching text nodes
-      for (const textNode of textNodes) {
-        const textContent = textNode.textContent;
-        
-        // Try exact match first
-        if (this.containsText(textContent, textToMatch)) {
-          this.wrapTextNode(textNode, textToMatch, tooltip, type, severity);
-          this.highlights.push({ text: textToMatch, type, tooltip });
-          console.log('[HighlightManager] Highlighted exact match:', textToMatch.substring(0, 30));
-          return; // Only highlight first exact match
+        if (bestMatch && bestNode) {
+            console.log('[DEBUG] ✅ BEST OVERLAP FOUND:', bestMatch);
+            this.wrapTextNode(bestNode, bestMatch, tooltip, type, severity, sources);
+            this.highlights.push({ text: bestMatch, type, tooltip });
+            return;
         }
-      }
+        console.log('[DEBUG] ❌ No significant overlap found');
 
-      // If no exact match, try fuzzy matching (simplified version)
-      const fuzzyMatch = this.findFuzzyMatch(textNodes, textToMatch);
-      if (fuzzyMatch) {
-        this.wrapTextNode(fuzzyMatch.node, fuzzyMatch.text, tooltip, type, severity);
-        this.highlights.push({ text: fuzzyMatch.text, type, tooltip });
-        console.log('[HighlightManager] Highlighted fuzzy match:', fuzzyMatch.text.substring(0, 30));
-      }
+     } catch (error) {
+       console.error('[HighlightManager] Error highlighting text:', error);
+     }
+   }
 
-    } catch (error) {
-      console.error('[HighlightManager] Error highlighting text:', error);
-    }
-  }
-
-  /**
-   * Check if text content contains the search text (case-insensitive)
-   */
-  containsText(textContent, searchText) {
-    return textContent.toLowerCase().includes(searchText.toLowerCase().trim());
-  }
-
-  /**
-   * Find a fuzzy match in text nodes (simplified implementation)
-   */
-  findFuzzyMatch(textNodes, searchText) {
-    const searchLower = searchText.toLowerCase().trim();
-    const searchWords = searchLower.split(/\s+/).filter(w => w.length > 3);
-
-    for (const textNode of textNodes) {
-      const contentLower = textNode.textContent.toLowerCase();
+    /**
+     * Find the longest common substring between two strings
+     */
+    findLongestCommonSubstring(str1, str2) {
+      const len1 = str1.length;
+      const len2 = str2.length;
+      const matrix = Array(len2 + 1).fill(null).map(() => Array(len1 + 1).fill(0));
       
-      // Check if most search words are present
-      let matchCount = 0;
-      for (const word of searchWords) {
-        if (contentLower.includes(word)) {
-          matchCount++;
-        }
-      }
+      let maxLen = 0;
+      let endIndex = 0;
 
-      // If at least 70% of significant words match
-      if (searchWords.length > 0 && matchCount / searchWords.length >= 0.7) {
-        // Find the actual matched portion
-        const matchIndex = contentLower.indexOf(searchWords[0]);
-        if (matchIndex !== -1) {
-          const startIndex = Math.max(0, matchIndex - 10);
-          const endIndex = Math.min(textNode.textContent.length, matchIndex + searchText.length + 10);
-          const matchedText = textNode.textContent.substring(startIndex, endIndex);
-          return { node: textNode, text: matchedText };
+      for (let i = 1; i <= len2; i++) {
+        for (let j = 1; j <= len1; j++) {
+          if (str2[i - 1] === str1[j - 1]) {
+            matrix[i][j] = matrix[i - 1][j - 1] + 1;
+            if (matrix[i][j] > maxLen) {
+              maxLen = matrix[i][j];
+              endIndex = j - 1;
+            }
+          } else {
+            matrix[i][j] = 0;
+          }
         }
       }
+      
+      return maxLen > 0 ? str1.substring(endIndex - maxLen + 1, endIndex + 1) : null;
     }
-    return null;
-  }
 
-  /**
-   * Wrap a portion of text in a highlight span
-   */
-  wrapTextNode(textNode, searchText, tooltip, type = 'dubious', severity = 'Medium') {
-    const textContent = textNode.textContent;
-    const searchLower = searchText.toLowerCase().trim();
-    const contentLower = textContent.toLowerCase();
-    
-    const index = contentLower.indexOf(searchLower);
-    if (index === -1) return;
+   /**
+    * Check if text content contains the search text (case-insensitive and whitespace-normalized)
+    */
+   containsText(textContent, searchText) {
+     if (!textContent || !searchText) return false;
+     
+     const normalize = (str) => str.replace(/\s+/g, ' ').trim().toLowerCase();
+     const contentNorm = normalize(textContent);
+     const searchNorm = normalize(searchText);
+     
+     // Check exact match
+     if (contentNorm.includes(searchNorm)) return true;
+     
+     // Strip quotes and check
+     const searchStripped = searchNorm.replace(/^"|"$/g, '');
+     if (contentNorm.includes(searchStripped)) return true;
+     
+     return false;
+    }
 
-    // Get the text before, during, and after the match
-    const before = textContent.substring(0, index);
-    const match = textContent.substring(index, index + searchText.length);
-    const after = textContent.substring(index + searchText.length);
+   /**
+    * Wrap a portion of text in a highlight span
+    */
+   wrapTextNode(textNode, searchText, tooltip, type = 'dubious', severity = 'Medium', sources = []) {
+     const textContent = textNode.textContent;
+     
+     // Use normalization to find index
+     const normalize = (str) => str.replace(/\s+/g, ' ').toLowerCase();
+     const contentNorm = normalize(textContent);
+     
+     // Try various forms of search text
+     const searchNorm = normalize(searchText);
+     const searchStripped = searchNorm.replace(/^"|"$/g, '');
+     
+     let targetStr = null;
+     let index = -1;
+     
+     // 1. Try exact normalized match
+     if (contentNorm.includes(searchNorm)) {
+        // We found it in normalized string, but we need index in ORIGINAL string.
+        // This is hard. We'll use a simpler approach: regex with whitespace flexibility
+        targetStr = searchText;
+     } else if (contentNorm.includes(searchStripped)) {
+        targetStr = searchText.replace(/^"|"$/g, '');
+     }
+     
+     if (!targetStr) {
+         // Fallback: If we are here from fuzzy match, we might just highlight the whole node if it's short,
+         // or try to find a substantial substring.
+         console.log('[DEBUG] Could not find exact location for wrapping, skipping visual highlight but keeping log.');
+         return;
+     }
 
-    // Create highlight span
-    const highlightSpan = document.createElement('span');
-    highlightSpan.className = 'veritai-highlight-dubious';
-    highlightSpan.setAttribute('data-tooltip', tooltip);
-    highlightSpan.setAttribute('data-type', type);
-    highlightSpan.setAttribute('data-severity', severity);
-    highlightSpan.textContent = match;
+     // Escape regex special characters
+     const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+     
+     // Create flexible regex: replace spaces with \s+
+     const pattern = escapeRegExp(targetStr).replace(/\s+/g, '\\s+');
+     const regex = new RegExp(pattern, 'i');
+     
+     const match = regex.exec(textContent);
+     
+     if (!match) {
+         // Try stripped version if not already
+          const pattern2 = escapeRegExp(targetStr.replace(/^"|"$/g, '')).replace(/\s+/g, '\\s+');
+          const regex2 = new RegExp(pattern2, 'i');
+          const match2 = regex2.exec(textContent);
+          if (match2) {
+              this.applyHighlightRange(textNode, match2.index, match2[0].length, tooltip, type, severity, sources);
+          } else {
+              console.log('[DEBUG] Regex match failed for:', targetStr);
+          }
+          return;
+     }
+     
+     this.applyHighlightRange(textNode, match.index, match[0].length, tooltip, type, severity, sources);
+   }
+   
+   applyHighlightRange(textNode, index, length, tooltip, type, severity, sources = []) {
+     const textContent = textNode.textContent;
+     const before = textContent.substring(0, index);
+     const match = textContent.substring(index, index + length);
+     const after = textContent.substring(index + length);
 
-    // Replace text node with before text, highlight span, and after text
-    const parent = textNode.parentNode;
-    if (!parent) return;
+     const highlightSpan = document.createElement('span');
+     highlightSpan.className = 'veritai-highlight-dubious';
+     highlightSpan.setAttribute('data-tooltip', tooltip);
+     highlightSpan.setAttribute('data-type', type);
+     highlightSpan.setAttribute('data-severity', severity);
+     
+     // Store sources as JSON string in data attribute
+     if (sources && sources.length > 0) {
+       highlightSpan.setAttribute('data-sources', JSON.stringify(sources));
+     }
 
-    const beforeText = document.createTextNode(before);
-    const afterText = document.createTextNode(after);
+     highlightSpan.textContent = match;
 
-    parent.insertBefore(beforeText, textNode);
-    parent.insertBefore(highlightSpan, textNode);
-    parent.insertBefore(afterText, textNode);
-    parent.removeChild(textNode);
-  }
+     const parent = textNode.parentNode;
+     if (!parent) return;
+
+     if (before) parent.insertBefore(document.createTextNode(before), textNode);
+     parent.insertBefore(highlightSpan, textNode);
+     if (after) parent.insertBefore(document.createTextNode(after), textNode);
+     
+     parent.removeChild(textNode);
+     console.log('[DEBUG] Applied highlight successfully');
+   }
 
   /**
    * Save highlights for a specific URL

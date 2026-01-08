@@ -1,343 +1,55 @@
 # AGENTS.md - Agentic Coding Guidelines
 
-This document provides comprehensive guidelines for agentic coding agents working on the Verit AI Fact Checker project. It includes build/test commands, code style guidelines, and project-specific conventions.
-
-## Build & Development Commands
-
-### Chrome Extension (Frontend)
-
-#### Build Commands
-```bash
-# Production build
-cd chrome_extension && npm run build
-
-# Development build with watch mode
-cd chrome_extension && npm run dev
-
-# Clean build artifacts
-cd chrome_extension && npm run clean
-```
-
-#### Test Commands
-```bash
-# Run all tests
-cd chrome_extension && npm test
-
-# Run tests in watch mode
-cd chrome_extension && npm run test:watch
-
-# Run a single test file (example)
-cd chrome_extension && node tests/popup.test.js
-
-# Run specific test function (modify test file to isolate)
-# Edit tests/popup.test.js to comment out other tests, then run:
-cd chrome_extension && node tests/popup.test.js
-```
-
-### Backend (Node.js/Express)
-
-#### Build Commands
-```bash
-# Start production server
-cd backend && npm start
-
-# Start development server with auto-reload
-cd backend && npm run dev
-```
-
-#### Test Commands
-```bash
-# No formal test suite currently implemented
-# For manual testing:
-cd backend && node app.js
-# Then test endpoints with curl:
-curl http://localhost:4000/health
-curl -X POST http://localhost:4000/api/extension/analyze -H "Content-Type: application/json" -d '{"content":"test","url":"test"}'
-```
-
-## Code Style Guidelines
-
-### General Principles
-
-- **Language**: JavaScript (ES6+), HTML5, CSS3
-- **Architecture**: Chrome Extension Manifest V3 + Node.js/Express backend
-- **Philosophy**: Functional programming preferred, minimize class usage
-- **Documentation**: JSDoc comments for all public functions and complex logic
-- **Security**: HTTPS for all external requests, input sanitization, CSP headers
-
-### Import Conventions
-
-#### ES6 Modules (Backend)
-```javascript
-// Group imports by type, then alphabetically
-import express from 'express';
-import cors from 'cors';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import dotenv from 'dotenv';
-import axios from 'axios';
-import * as cheerio from 'cheerio';
-import * as modelManager from './model-manager.js';
-```
-
-#### Chrome Extension Scripts
-```javascript
-// Use relative imports for local modules
-import { HighlightManager } from './highlight-manager.js';
-
-// Global classes available via window object
-const manager = new window.HighlightManager();
-```
-
-### Naming Conventions
-
-#### Files and Directories
-- **JavaScript**: `camelCase.js` (e.g., `background.js`, `contentScript.js`)
-- **HTML**: `kebab-case.html` (e.g., `popup.html`, `floating-card.html`)
-- **CSS**: `kebab-case.css` (e.g., `popup.css`, `content.css`)
-- **Directories**: `snake_case` for Chrome extension (e.g., `chrome_extension/`)
-
-#### Variables and Functions
-```javascript
-// camelCase for variables and functions
-const apiBaseUrls = ['url1', 'url2'];
-const isServiceReady = false;
-
-function checkServiceStatus() {}
-function updateQuotaInfo(data) {}
-
-// PascalCase for classes (rarely used)
-class HighlightManager {}
-
-// UPPER_SNAKE_CASE for constants
-const API_BASE_URLS = ['url1', 'url2'];
-const STATE_KEY = 'veritai_state';
-```
-
-#### Chrome Extension Specific
-```javascript
-// Event listeners use onEventName pattern
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {});
-
-// Async functions use Async suffix when needed
-async function analyzeContentAsync(content) {}
-
-// Message action types use SCREAMING_SNAKE_CASE
-const actions = {
-  ANALYZE_CONTENT: 'analyzeContent',
-  SHOW_FLOATING_CARD: 'showFloatingCard'
-};
-```
-
-### Code Formatting
-
-#### Indentation and Spacing
-- **Indentation**: 2 spaces (no tabs)
-- **Line Length**: 100 characters maximum
-- **Semicolons**: Always use semicolons
-- **Quotes**: Single quotes for JavaScript strings, double for HTML attributes
-
-#### Function Structure
-```javascript
-// Async functions with proper error handling
-async function fetchWebContent(url) {
-  try {
-    const response = await axios.get(url, {
-      headers: { 'User-Agent': '...' },
-      timeout: 10000
-    });
-
-    // Process response
-    return { title, content };
-  } catch (error) {
-    console.error('Failed to fetch web content:', error);
-    throw new Error(`Web content fetch failed: ${error.message}`);
-  }
-}
-
-// Arrow functions for callbacks
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  (async () => {
-    try {
-      const result = await processRequest(request);
-      sendResponse({ success: true, data: result });
-    } catch (error) {
-      sendResponse({ success: false, error: error.message });
-    }
-  })();
-  return true; // Keep message channel open
-});
-```
-
-#### Object and Array Formatting
-```javascript
-// Objects: trailing commas, multi-line for readability
-const config = {
-  apiUrls: ['url1', 'url2'],
-  timeout: 3000,
-  retries: 3,
-};
-
-// Arrays: consistent formatting
-const permissions = [
-  'activeTab',
-  'scripting',
-  'storage'
-];
-```
-
-### Error Handling
-
-#### Backend (Express/Node.js)
-```javascript
-// Comprehensive error handling with logging
-app.post('/api/extension/analyze', async (req, res) => {
-  try {
-    const { content, url } = req.body;
-
-    // Input validation
-    if (!content || !url) {
-      return res.status(400).json({
-        error: { message: 'Missing required fields: content and url' }
-      });
-    }
-
-    // Process request
-    const result = await analyzeContent(content, url);
-    res.json({ data: result });
-
-  } catch (error) {
-    console.error('Analysis error:', error);
-
-    // Categorize errors for appropriate responses
-    if (error.message.includes('quota')) {
-      res.status(429).json({ error: { message: 'API quota exceeded' } });
-    } else {
-      res.status(500).json({ error: { message: 'Internal server error' } });
-    }
-  }
-});
-```
-
-#### Chrome Extension
-```javascript
-// Extension-specific error handling
-async function checkServiceStatus() {
-  try {
-    const response = await chrome.runtime.sendMessage({
-      action: 'checkServiceStatus'
-    });
-
-    if (response.isReady) {
-      updateUI('ready');
-    } else {
-      updateUI('error', response.error);
-    }
-  } catch (error) {
-    console.error('Service check failed:', error);
-    updateUI('error', 'Extension communication failed');
-  }
-}
-```
-
-### Chrome Extension Architecture
-
-#### Manifest V3 Compliance
-- **Service Worker**: Use for background scripts (not persistent pages)
-- **Permissions**: Principle of least privilege
-- **Content Security Policy**: Strict CSP in manifest.json
-
-#### Message Passing
-```javascript
-// Background to Content Script
-chrome.tabs.sendMessage(tabId, {
-  action: 'applyHighlights',
-  data: analysisResult
-});
-
-// Content Script to Background
-chrome.runtime.sendMessage({
-  action: 'analyzeContent',
-  content: pageContent,
-  url: currentUrl
-});
-```
-
-#### Storage API Usage
-```javascript
-// Local storage for temporary data
-await chrome.storage.local.set({
-  'highlights_data': highlightInfo
-});
-
-// Sync storage for user preferences
-await chrome.storage.sync.set({
-  'highlightsEnabled': true
-});
-```
-
-### Testing Guidelines
-
-#### Unit Testing (Chrome Extension)
-```javascript
-// Example test structure
-function testHighlightManager() {
-  const manager = new HighlightManager();
-
-  // Test initialization
-  assert(manager.isEnabled === true, 'Manager should be enabled by default');
-
-  // Test highlight application
-  const mockData = {
-    exaggeration_check: { exaggerations_found: ['claim1'] }
-  };
-
-  manager.applyHighlights(mockData);
-  assert(manager.highlights.length > 0, 'Highlights should be applied');
-
-  console.log('✅ HighlightManager tests passed');
-}
-
-// Run tests
-testHighlightManager();
-```
-
-#### Integration Testing
-```bash
-# Manual integration tests
-# 1. Load extension in Chrome
-# 2. Navigate to test page
-# 3. Click analyze button
-# 4. Verify highlights appear
-# 5. Check browser console for errors
-```
-
-### Git Workflow
-
-#### Commit Message Format
-```bash
-# Feature commits
-feat: add in-page highlights feature
-
-# Fix commits
-fix: resolve extension loading error
-
-# Documentation
-docs: update AGENTS.md with new guidelines
-```
-
-#### Branch Naming
-```bash
-# Feature branches
-feature/in-page-highlights
-
-# Bug fixes
-fix/extension-loading
-
-# Hot fixes
-hotfix/backend-connectivity
-```
-
-## Cursor Rules (from .cursorrules)
+This document provides essential guidelines for agents working on the Verit AI Fact Checker (Chrome Extension + Node.js Backend).
+
+## 1. Build & Test Commands
+
+### Chrome Extension (`/chrome_extension`)
+- **Build**: `npm run build` (Production)
+- **Watch**: `npm run dev` (Development with auto-rebuild)
+- **Clean**: `npm run clean`
+- **Test All**: `npm test`
+- **Test Single**: `node tests/popup.test.js` (Edit file to isolate tests if needed)
+- **Test Watch**: `npm run test:watch`
+
+### Backend (`/backend`)
+- **Start**: `npm start`
+- **Dev**: `npm run dev` (Nodemon auto-reload)
+- **Test**: No formal suite. Manual check:
+  ```bash
+  curl http://localhost:4000/health
+  curl -X POST http://localhost:4000/api/extension/analyze -H "Content-Type: application/json" -d '{"content":"test","url":"test"}'
+  ```
+
+## 2. Code Style & Conventions
+
+- **Language**: JavaScript (ES6+), HTML5, CSS3.
+- **Formatting**: 2 spaces indentation, 100 char line limit, semicolons required, single quotes for JS.
+- **Naming**: 
+  - `camelCase` for vars/functions (`fetchContent`).
+  - `PascalCase` for classes (`HighlightManager`).
+  - `SCREAMING_SNAKE_CASE` for constants (`API_URL`).
+  - `kebab-case` for HTML/CSS files (`popup-style.css`).
+- **Imports**: Group by type (libs first, then local). Use relative paths for local modules in extension.
+- **Error Handling**: Use `try/catch` with explicit error logging. Backend should return JSON errors (`{ error: { message: ... } }`).
+- **Comments**: JSDoc for complex functions. Explain *why*, not *what*.
+
+## 3. Architecture (Manifest V3)
+
+- **Service Worker**: `background.js` (module type). No persistent background pages.
+- **Content Scripts**: Isolated world. Use message passing to communicate with background.
+- **Messaging**: Use constants for action names (e.g., `actions.ANALYZE_CONTENT`).
+- **Storage**: Prefer `chrome.storage.local` for large data, `sync` for settings.
+- **Security**: Strict CSP. HTTPS only.
+
+## 4. Git Workflow
+
+- **Commits**: Conventional Commits (`feat: add highlight`, `fix: popup size`, `docs: update readme`).
+- **Branches**: `feature/name`, `fix/issue-name`.
+
+---
+
+## 5. Cursor Rules (from .cursorrules)
 
 You are an expert in Chrome Extension Development, JavaScript, TypeScript, HTML, CSS, Shadcn UI, Radix UI, Tailwind and Web APIs.
 
@@ -412,5 +124,4 @@ You are an expert in Chrome Extension Development, JavaScript, TypeScript, HTML,
 - Provide comments or explanations for significant changes or additions within the file
 - If the file is too large to reasonably include in full, provide the most relevant complete section and clearly indicate where it fits in the larger file structure
 
-Follow Chrome Extension documentation for best practices, security guidelines, and API usage</content>
-<parameter name="filePath">C:\Users\Administrator\Desktop\AI_study\factChecker_ai\factChecker_ai\AGENTS.md
+Follow Chrome Extension documentation for best practices, security guidelines, and API usage
