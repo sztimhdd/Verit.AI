@@ -23,69 +23,7 @@ let serviceReady = false;
 let pendingRequests = [];
 let initializationError = null;
 
-// Quota tracking object
-const quotaTracker = {
-    groundingQuota: {
-        daily: 500,
-        remaining: 500,
-        resetTime: new Date().setHours(24, 0, 0, 0)
-    },
-    gemini20Usage: {
-        dailyUsage: 0,
-        resetTime: new Date().setHours(24, 0, 0, 0)
-    },
-    gemini15Usage: {
-        dailyUsage: 0,
-        resetTime: new Date().setHours(24, 0, 0, 0)
-    },
-    
-    updateQuota(type, tokensUsed = 0) {
-        const now = new Date();
-        
-        // Reset daily stats if needed
-        Object.values(this).forEach(quota => {
-            if (typeof quota === 'object' && quota.resetTime < now) {
-                if (quota.daily) {
-                    quota.remaining = quota.daily;
-                } else {
-                    quota.dailyUsage = 0;
-                }
-                quota.resetTime = new Date().setHours(24, 0, 0, 0);
-            }
-        });
-        
-        // Update specific usage
-        switch (type) {
-            case 'grounding':
-                this.groundingQuota.remaining--;
-                break;
-            case 'gemini-2.0':
-                this.gemini20Usage.dailyUsage += tokensUsed;
-                break;
-            case 'gemini-1.5':
-                this.gemini15Usage.dailyUsage += tokensUsed;
-                break;
-        }
-    },
-    
-    getStatusLog() {
-        return {
-            grounding: {
-                remaining: this.groundingQuota.remaining,
-                resetIn: new Date(this.groundingQuota.resetTime) - new Date(),
-                limit: this.groundingQuota.daily
-            },
-            gemini20: {
-                dailyUsage: this.gemini20Usage.dailyUsage,
-                resetIn: new Date(this.gemini20Usage.resetTime) - new Date()
-            },
-            gemini15: {
-                dailyUsage: this.gemini15Usage.dailyUsage,
-                resetIn: new Date(this.gemini15Usage.resetTime) - new Date()
-            }
-        };
-    }
-};
+// Quota tracking removed, handled by model-manager.js
 
 // CORS configuration
 app.use(cors({
@@ -814,27 +752,11 @@ ${pageTitle ? `Page Title: ${pageTitle}\n\n` : ''}Content: ${analysisContent}
         const { response, usedGrounding: actualUsedGrounding } = await callGeminiWithFallback(prompt, activeModel, useGrounding);
 
         // Calculate and update token usage
-        const tokenUsage = calculateTokenUsage(analysisContent, response);
-        
-        // Update quota stats
-        if (activeModel.includes('gemini-1.5')) {
-            quotaTracker.updateQuota('gemini-1.5', tokenUsage.totalTokens);
-            if (actualUsedGrounding) {
-                quotaTracker.updateQuota('grounding');
-            }
-        } else {
-            quotaTracker.updateQuota('gemini-2.0', tokenUsage.totalTokens);
-            if (actualUsedGrounding) {
-                quotaTracker.updateQuota('grounding');
-            }
-        }
+        const tokenUsage = await modelManager.recordUsage(response, activeModel, actualUsedGrounding);
         
         // Log quota status
-        const quotaStatus = quotaTracker.getStatusLog();
-        console.log('\n=== Quota Status ===');
-        console.log(`Grounding: ${quotaStatus.grounding.remaining}/${quotaStatus.grounding.limit}`);
-        console.log(`Gemini 2.0: ${quotaStatus.gemini20.dailyUsage} tokens`);
-        console.log(`Gemini 1.5: ${quotaStatus.gemini15.dailyUsage} tokens`);
+        console.log(`\n=== Quota Updated ===`);
+        console.log(`Model: ${activeModel}, Tokens: ${tokenUsage}`);
         console.log('==================\n');
         
         await logToFile('QUOTA_STATUS', 'Quota status', quotaStatus);
@@ -1140,18 +1062,14 @@ app.get('/', (req, res) => {
 // Health check endpoint
 app.get('/health', (req, res) => {
     console.log("Health check received");
-    const quotaStatus = quotaTracker.getStatusLog();
+    const modelStatus = modelManager.getStatus();
     
     if (serviceReady) {
         res.status(200).json({ 
             status: 'OK', 
             ready: true,
             timestamp: new Date().toISOString(),
-            quota: {
-                grounding: quotaStatus.grounding,
-                gemini20: quotaStatus.gemini20,
-                gemini15: quotaStatus.gemini15
-            }
+            quota: modelStatus
         });
     } else if (initializationError) {
         res.status(503).json({ 

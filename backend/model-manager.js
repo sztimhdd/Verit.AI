@@ -9,21 +9,38 @@ const __dirname = path.dirname(__filename);
 let modelState = {
   currentModel: "gemini-2.5-flash",
   groundingCount: 0,
+  dailyRequests: {
+    "gemini-2.5-flash-lite": 0,
+    "gemini-2.5-flash": 0,
+    "gemini-2.5-pro": 0
+  },
   hourlyTokens: {},
   lastReset: new Date().toISOString()
 };
 
+// 内存中记录每分钟的请求数
+let minuteRequests = {
+  "gemini-2.5-flash-lite": { count: 0, lastMinute: Math.floor(Date.now() / 60000) },
+  "gemini-2.5-flash": { count: 0, lastMinute: Math.floor(Date.now() / 60000) },
+  "gemini-2.5-pro": { count: 0, lastMinute: Math.floor(Date.now() / 60000) }
+};
+
 const CONFIG = {
-  DAILY_GROUNDING_LIMIT: 500,
+  MODELS: {
+    LITE: "gemini-2.5-flash-lite",
+    FLASH: "gemini-2.5-flash",
+    PRO: "gemini-2.5-pro"
+  },
+  LIMITS: {
+    "gemini-2.5-flash-lite": { rpm: 15, rpd: 1000 },
+    "gemini-2.5-flash": { rpm: 10, rpd: 250 },
+    "gemini-2.5-pro": { rpm: 5, rpd: 100 }
+  },
   DEFAULT_MODEL: process.env.DEFAULT_MODEL || "gemini-2.5-flash",
-  // Use 2.0-flash for high-speed mode (faster, cheaper)
-  HIGH_SPEED_MODEL: "gemini-2.0-flash",
-  FALLBACK_MODEL: "gemini-2.0-flash",
-  HOURLY_TOKEN_THRESHOLD: 800000,
+  HIGH_SPEED_MODEL: "gemini-2.5-flash-lite",
   STATE_FILE: path.join(__dirname, 'data', 'model-state.json'),
-  // Speed vs Accuracy settings
-  USE_GROUNDING_DEFAULT: true, // Enable web search grounding for accuracy
-  HIGH_SPEED_MODE: false // Disable high-speed mode for better accuracy with grounding
+  USE_GROUNDING_DEFAULT: true, 
+  HIGH_SPEED_MODE: false 
 };
 
 // 初始化系统
@@ -79,73 +96,92 @@ async function getModelConfig(content, genAI, options = {}) {
   // 检查日期重置
   checkDateReset();
   
-  // 如果请求明确要求使用 grounding（高精度模式）
-  const forceGrounding = options.useGrounding === true;
+  // 确定目标模型
+  let targetModel = options.usePro ? CONFIG.MODELS.PRO : 
+                   (options.useGrounding || !CONFIG.HIGH_SPEED_MODE ? CONFIG.MODELS.FLASH : CONFIG.MODELS.LITE);
   
-  // 如果强制使用 grounding，使用默认模型
-  // 否则使用更快的模型
-  const useFastModel = !forceGrounding;
+  // 检查该模型的 RPM 和 RPD
+  if (!checkRateLimit(targetModel)) {
+    // 如果 Flash 达到限制，尝试使用 Lite
+    if (targetModel === CONFIG.MODELS.FLASH && checkRateLimit(CONFIG.MODELS.LITE)) {
+      console.log(`⚠️ ${targetModel} 达到限制，自动降级到 ${CONFIG.MODELS.LITE}`);
+      targetModel = CONFIG.MODELS.LITE;
+    } else {
+      throw new Error(`Model quota exceeded for ${targetModel}. Please try again later.`);
+    }
+  }
+
+  // Grounding 仅在 Flash 或 Pro 上启用（根据需求）
+  const useGrounding = (targetModel === CONFIG.MODELS.FLASH || targetModel === CONFIG.MODELS.PRO) && 
+                       options.useGrounding !== false;
   
-  // 默认情况下禁用 grounding 以获得更快的响应 (2-5秒 vs 15-20秒)
-  const useGrounding = forceGrounding && 
-                       modelState.currentModel === CONFIG.DEFAULT_MODEL && 
-                       modelState.groundingCount < CONFIG.DAILY_GROUNDING_LIMIT;
+  console.log(`🤖 使用模型: ${targetModel} | Grounding: ${useGrounding}`);
   
-  // 高速模式：使用更快的模型，不使用 grounding
-  const activeModel = useFastModel ? CONFIG.HIGH_SPEED_MODEL : modelState.currentModel;
+  return {
+    model: targetModel,
+    useGrounding: useGrounding,
+    isHighSpeedMode: targetModel === CONFIG.MODELS.LITE
+  };
+}
+
+// 检查频率限制 (RPM and RPD)
+function checkRateLimit(model) {
+  const nowMinute = Math.floor(Date.now() / 60000);
+  const limit = CONFIG.LIMITS[model];
   
-  if (useFastModel) {
-    console.log(`🚀 高速模式 - 使用 ${CONFIG.HIGH_SPEED_MODEL} (跳过 grounding)`);
-  } else {
-    console.log(`📚 精确模式 - 使用 ${activeModel} + grounding (${modelState.groundingCount}/${CONFIG.DAILY_GROUNDING_LIMIT})`);
+  // 初始化或重置分钟计数
+  if (!minuteRequests[model] || minuteRequests[model].lastMinute !== nowMinute) {
+    minuteRequests[model] = { count: 0, lastMinute: nowMinute };
   }
   
-  // 返回简化的配置
-  const modelConfig = {
-    model: activeModel,
-    useGrounding: useGrounding,
-    isHighSpeedMode: useFastModel
-  };
+  // 检查 RPM
+  if (minuteRequests[model].count >= limit.rpm) {
+    console.warn(`[Quota] RPM limit reached for ${model}`);
+    return false;
+  }
   
-  return modelConfig;
+  // 检查 RPD
+  if ((modelState.dailyRequests[model] || 0) >= limit.rpd) {
+    console.warn(`[Quota] RPD limit reached for ${model}`);
+    return false;
+  }
+  
+  return true;
 }
 
 // 记录API调用后的使用情况
-async function recordUsage(response, usedGrounding) {
+async function recordUsage(response, model, usedGrounding) {
   const timestamp = new Date().toISOString();
+  
+  // 增加请求计数
+  minuteRequests[model].count++;
+  modelState.dailyRequests[model] = (modelState.dailyRequests[model] || 0) + 1;
+  
   let totalTokens = 0;
-  
-  console.log('\n=== 记录API使用 ===');
-  
   try {
     const promptTokens = response.usageMetadata?.promptTokenCount || 0;
     const outputTokens = response.usageMetadata?.candidatesTokenCount || 0;
     totalTokens = promptTokens + outputTokens;
-    
-    console.log('提示Token:', promptTokens);
-    console.log('输出Token:', outputTokens);
-    console.log('总Token:', totalTokens);
   } catch (error) {
-    console.log('无法获取Token信息，使用估算值');
-    totalTokens = 1000;
+    totalTokens = 1000; // 估算
   }
   
-  // 更新使用量
+  // 更新 Token 使用情况
   const hourKey = getCurrentHourKey();
   modelState.hourlyTokens[hourKey] = (modelState.hourlyTokens[hourKey] || 0) + totalTokens;
   
   if (usedGrounding) {
     modelState.groundingCount++;
-    console.log('Grounding使用次数更新:', modelState.groundingCount);
   }
   
-  // 记录使用情况
+  // 记录详细日志
   const usageLog = {
     timestamp,
+    model,
     totalTokens,
     usedGrounding,
     hourlyTokens: modelState.hourlyTokens[hourKey],
-    groundingCount: modelState.groundingCount
+    dailyRequests: modelState.dailyRequests
   };
   
   await fs.appendFile(
@@ -153,8 +189,7 @@ async function recordUsage(response, usedGrounding) {
     JSON.stringify(usageLog) + '\n'
   );
   
-  console.log('使用记录已保存');
-  
+  await saveState();
   return totalTokens;
 }
 
@@ -167,22 +202,20 @@ function checkDateReset() {
       now.getMonth() !== lastReset.getMonth() ||
       now.getFullYear() !== lastReset.getFullYear()) {
     
-    // 新的一天，重置状态
-    modelState.currentModel = CONFIG.DEFAULT_MODEL;
+    console.log("执行每日配额重置...");
+    
+    // 重置每日计数
+    Object.keys(modelState.dailyRequests).forEach(key => {
+      modelState.dailyRequests[key] = 0;
+    });
+    
     modelState.groundingCount = 0;
     modelState.lastReset = now.toISOString();
     
-    // 清理过期小时数据，只保留今天的
-    const today = now.toISOString().slice(0, 10);
-    Object.keys(modelState.hourlyTokens).forEach(key => {
-      if (!key.startsWith(today)) {
-        delete modelState.hourlyTokens[key];
-      }
-    });
+    // 清理 Token 记录
+    modelState.hourlyTokens = {};
     
-    // 异步保存，不等待结果
     saveState().catch(err => console.error("重置保存失败", err));
-    console.log("执行日期重置，已切换回默认模型");
   }
 }
 
@@ -207,4 +240,12 @@ async function countContentTokens(content, genAI, modelName = CONFIG.DEFAULT_MOD
   return Math.ceil(content.length / 4);
 }
 
-export { initialize, getModelConfig, recordUsage }; 
+// 获取当前状态
+function getStatus() {
+  return {
+    ...modelState,
+    limits: CONFIG.LIMITS
+  };
+}
+
+export { initialize, getModelConfig, recordUsage, getStatus }; 
