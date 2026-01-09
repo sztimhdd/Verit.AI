@@ -1073,8 +1073,8 @@ app.get('/health', (req, res) => {
 });
 
 // Start server
-app.listen(port, '127.0.0.1', async () => {
-    console.log(`Server starting on http://127.0.0.1:${port}`);
+app.listen(port, '0.0.0.0', async () => {
+    console.log(`Server starting on http://0.0.0.0:${port}`);
     
     const initialized = await initializeService();
     if (initialized) {
