@@ -185,11 +185,35 @@ function calculateTokenUsage(content, response) {
     };
 }
 
-// Repair common JSON issues
+// Repair common JSON issues with better markdown handling
 function repairJSON(jsonString) {
     let repaired = jsonString;
     
-    // Remove newlines and extra spaces
+    // First, remove markdown code blocks BEFORE any other processing
+    if (repaired.includes('```json')) {
+        const match = repaired.match(/```json\s*([\s\S]*?)\s*```/);
+        if (match) {
+            repaired = match[1];
+        } else {
+            // If no closing ```, try to extract content between ```json and end of string
+            const match2 = repaired.match(/```json\s*([\s\S]*)$/);
+            if (match2) {
+                repaired = match2[1];
+            }
+        }
+    } else if (repaired.includes('```')) {
+        const match = repaired.match(/```\s*([\s\S]*?)\s*```/);
+        if (match) {
+            repaired = match[1];
+        } else {
+            const match2 = repaired.match(/```\s*([\s\S]*)$/);
+            if (match2) {
+                repaired = match2[1];
+            }
+        }
+    }
+    
+    // Remove newlines and extra spaces (but be careful with JSON structure)
     repaired = repaired.replace(/\n/g, ' ');
     repaired = repaired.replace(/\s+/g, ' ');
     
@@ -200,39 +224,27 @@ function repairJSON(jsonString) {
     // Remove consecutive commas
     repaired = repaired.replace(/,\s*,/g, ',');
     
-    // Fix incomplete closing brackets
+    // Fix incomplete closing brackets - count and balance
     const openBraces = (repaired.match(/\{/g) || []).length;
     const closeBraces = (repaired.match(/\}/g) || []).length;
     const openBrackets = (repaired.match(/\[/g) || []).length;
     const closeBrackets = (repaired.match(/\]/g) || []).length;
     
+    // Add missing closing braces
     let tempCloseBraces = closeBraces;
     while (tempCloseBraces < openBraces) {
         repaired += '}';
         tempCloseBraces++;
     }
     
+    // Add missing closing brackets
     let tempCloseBrackets = closeBrackets;
     while (tempCloseBrackets < openBrackets) {
         repaired += ']';
         tempCloseBrackets++;
     }
     
-    // Handle markdown code blocks
-    if (repaired.includes('```json')) {
-        const match = repaired.match(/```json\s*(\{[\s\S]*\})\s*```/);
-        if (match) {
-            repaired = match[1];
-        }
-    }
-    if (repaired.includes('```')) {
-        const match = repaired.match(/```\s*(\{[\s\S]*\})\s*```/);
-        if (match) {
-            repaired = match[1];
-        }
-    }
-    
-    // Ensure proper ending
+    // Ensure proper ending - trim and ensure it ends with } or ]
     repaired = repaired.trim();
     if (!repaired.endsWith('}') && !repaired.endsWith(']')) {
         const lastBrace = Math.max(repaired.lastIndexOf('}'), repaired.lastIndexOf(']'));
@@ -241,7 +253,7 @@ function repairJSON(jsonString) {
         }
     }
     
-    // Remove non-JSON characters
+    // Remove any remaining non-JSON characters at start/end
     repaired = repaired.replace(/^[^{[]*/, '');
     repaired = repaired.replace(/[^}\]]*$/, '');
     
@@ -353,28 +365,79 @@ async function callGeminiWithFallback(prompt, activeModel, useGrounding) {
     }
 }
 
-// Parse response text to JSON
+// Parse response text to JSON with better error handling
 function parseResponseText(text) {
+    // If text is empty or too short, return default
+    if (!text || text.length < 10) {
+        console.warn("Response text is too short, returning default result");
+        return getDefaultResult();
+    }
+    
+    // Try direct JSON parse first
     try {
-        return JSON.parse(text);
+        const parsed = JSON.parse(text);
+        console.log("✅ Direct JSON parse successful");
+        return parsed;
     } catch (e) {
-        console.warn("Direct JSON parse failed, attempting repair...");
-        try {
-            const repaired = repairJSON(text);
-            return JSON.parse(repaired);
-        } catch (e2) {
-            // Last resort: try to extract JSON-like content
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                try {
-                    return JSON.parse(jsonMatch[0]);
-                } catch (e3) {
-                    throw new Error("JSON parsing failed: " + e.message);
+        console.warn("Direct JSON parse failed:", e.message);
+        console.log("Attempting JSON repair...");
+    }
+    
+    // Try repair with markdown code block removal
+    try {
+        const repaired = repairJSON(text);
+        const parsed = JSON.parse(repaired);
+        console.log("✅ JSON repair successful");
+        return parsed;
+    } catch (e2) {
+        console.warn("JSON repair failed:", e2.message);
+    }
+    
+    // Try to extract JSON from markdown code blocks
+    try {
+        const jsonMatch = text.match(/```(?:json)?\s*({[\s\S]*})\s*```/);
+        if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[1]);
+            console.log("✅ Extracted from markdown code block");
+            return parsed;
+        }
+    } catch (e3) {
+        console.warn("Markdown extraction failed:", e3.message);
+    }
+    
+    // Last resort: try to find ANY JSON-like structure
+    try {
+        const jsonMatch = text.match(/\{[\s\S]*(?:\{[\s\S]*\}[\s\S]*)*\}/);
+        if (jsonMatch) {
+            try {
+                const parsed = JSON.parse(jsonMatch[0]);
+                console.log("✅ Extracted partial JSON from response");
+                return parsed;
+            } catch (e4) {
+                // Try to complete the JSON
+                const completed = jsonMatch[0];
+                const braces = (completed.match(/\{/g) || []).length;
+                const closingBraces = (completed.match(/\}/g) || []).length;
+                
+                if (closingBraces < braces) {
+                    const completedJson = completed + '}'.repeat(braces - closingBraces);
+                    try {
+                        const parsed = JSON.parse(completedJson);
+                        console.log("✅ Completed partial JSON");
+                        return parsed;
+                    } catch (e5) {
+                        console.warn("JSON completion failed:", e5.message);
+                    }
                 }
             }
-            throw new Error("JSON parsing failed: " + e.message);
         }
+    } catch (e6) {
+        console.warn("Last resort extraction failed:", e6.message);
     }
+    
+    // If all else fails, return default result
+    console.error("All JSON parsing attempts failed, returning default result");
+    return getDefaultResult();
 }
 
 // Transform response to frontend-compatible format
@@ -777,13 +840,18 @@ ${pageTitle ? `Page Title: ${pageTitle}\n\n` : ''}Content: ${analysisContent}
             throw new Error("Unable to extract text from response");
         }
 
-        console.log("Raw API response:", text.substring(0, 200));
+        // Remove markdown code blocks before logging/parsing
+        text = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+        
+        console.log("Raw API response (after markdown cleanup):", text.substring(0, 200));
         
         // Check if text is wrapped in JSON object with "text" field
         try {
             const wrapper = JSON.parse(text);
             if (wrapper.text) {
                 text = wrapper.text.trim();
+                // Remove markdown code blocks again if present
+                text = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
                 console.log("Extracted nested text:", text.substring(0, 200));
             }
         } catch (e) {
@@ -792,6 +860,12 @@ ${pageTitle ? `Page Title: ${pageTitle}\n\n` : ''}Content: ${analysisContent}
         
         // Parse JSON
         let analysisResult = parseResponseText(text);
+        
+        // Validate we got a valid result
+        if (!analysisResult || typeof analysisResult !== 'object') {
+            console.error("Invalid analysis result after parsing:", analysisResult);
+            throw new Error("Unable to parse analysis result from API response");
+        }
         
         // Validate required fields (make lenient to accept partial results)
         const requiredFields = [
