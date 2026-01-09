@@ -970,7 +970,7 @@ async function translateToZhSimplified(analysisResult, modelName, model) {
     }
 }
 
-// Detection endpoint
+// Detection endpoint with LLM-based triage
 app.post("/api/extension/detect", async (req, res) => {
     try {
         const { content } = req.body;
@@ -982,57 +982,70 @@ app.post("/api/extension/detect", async (req, res) => {
             });
         }
 
-        const truncatedContent = content.substring(0, 2000);
-        const lowerContent = truncatedContent.toLowerCase();
+        // Use LLM-based triage instead of keyword heuristics
+        const truncatedContent = content.substring(0, 500);
         
-        const newsKeywords = ['news', 'breaking', 'report', 'according to', 'study shows', 'research', 'scientists', ' experts'];
-        const claimKeywords = ['claim', 'alleged', 'reportedly', 'suspected', 'believed'];
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
         
-        const recipeKeywords = ['recipe', 'ingredients', 'cook', 'bake', 'preparation', 'instructions'];
-        const fictionKeywords = ['chapter', 'novel', 'story', 'fiction', 'character', 'narrative'];
-        const navKeywords = ['home', 'about us', 'contact', 'menu', 'navigation', 'login', 'sign in'];
-        
-        let score = 0;
-        
-        for (const kw of newsKeywords) {
-            if (lowerContent.includes(kw)) score += 0.15;
-        }
-        for (const kw of claimKeywords) {
-            if (lowerContent.includes(kw)) score += 0.1;
-        }
-        
-        for (const kw of recipeKeywords) {
-            if (lowerContent.includes(kw)) score -= 0.3;
-        }
-        for (const kw of fictionKeywords) {
-            if (lowerContent.includes(kw)) score -= 0.3;
-        }
-        for (const kw of navKeywords) {
-            if (lowerContent.includes(kw)) score -= 0.2;
-        }
+        const prompt = `Analyze this webpage content and determine if it should be fact-checked.
 
-        const requiresFactCheck = score > 0.2;
-        
-        let category = "Other Content";
-        if (requiresFactCheck) {
-            if (score > 0.6) category = "News Report";
-            else if (score > 0.4) category = "Blog Post";
-            else category = "Social Media";
-        } else {
-            if (lowerContent.includes('recipe') || lowerContent.includes('cook')) category = "Recipe";
-            else if (lowerContent.includes('chapter') || lowerContent.includes('novel')) category = "Fiction";
-            else category = "Navigation/Other";
-        }
+Content snippet:
+${truncatedContent}
 
-        res.json({
-            status: "success",
-            data: {
-                requires_fact_check: requiresFactCheck,
-                category: category,
-                confidence: Math.min(Math.abs(score) + 0.3, 0.95),
-                reason: `Keyword analysis score: ${score.toFixed(2)}`
+Return ONLY JSON with this exact structure:
+{
+  "requires_fact_check": true/false,
+  "category": "News Report/Blog Post/Social Media/Recipe/Fiction/Navigation/Other",
+  "confidence": 0.0-1.0,
+  "reason": "brief explanation"
+}
+
+Consider these factors:
+- Does it make factual claims that could be verified?
+- Is it presenting news, opinion, or analysis as fact?
+- Is it clearly a recipe, fiction, navigation, or other non-factual content?
+- Does it contain claims that might be exaggerated, misleading, or unverifiable?`;
+
+        try {
+            const result = await model.generateContent(prompt);
+            const responseText = result.response.text().trim();
+            
+            // Clean up response (remove markdown code blocks if present)
+            const cleanText = responseText.replace(/```json\n?|\n?```/g, '').trim();
+            
+            let detectionData;
+            try {
+                detectionData = JSON.parse(cleanText);
+            } catch (parseError) {
+                // Fallback to keyword-based detection if LLM parsing fails
+                console.warn("Failed to parse LLM response, falling back to keyword detection");
+                detectionData = fallbackKeywordDetection(content);
             }
-        });
+            
+            // Validate and normalize detection data
+            if (typeof detectionData.requires_fact_check !== 'boolean') {
+                detectionData.requires_fact_check = detectionData.category && 
+                    ['News Report', 'Blog Post', 'Social Media'].includes(detectionData.category);
+            }
+            
+            if (!detectionData.confidence) {
+                detectionData.confidence = 0.7;
+            }
+            
+            res.json({
+                status: "success",
+                data: detectionData
+            });
+            
+        } catch (llmError) {
+            console.warn("LLM detection failed, falling back to keyword detection:", llmError.message);
+            // Fallback to keyword-based detection
+            const detectionData = fallbackKeywordDetection(content);
+            res.json({
+                status: "success",
+                data: detectionData
+            });
+        }
 
     } catch (error) {
         console.error("Detection error:", error);
@@ -1042,6 +1055,57 @@ app.post("/api/extension/detect", async (req, res) => {
         });
     }
 });
+
+// Fallback keyword-based detection (used when LLM fails)
+function fallbackKeywordDetection(content) {
+    const lowerContent = content.toLowerCase().substring(0, 2000);
+    
+    const newsKeywords = ['news', 'breaking', 'report', 'according to', 'study shows', 'research', 'scientists', ' experts'];
+    const claimKeywords = ['claim', 'alleged', 'reportedly', 'suspected', 'believed'];
+    
+    const recipeKeywords = ['recipe', 'ingredients', 'cook', 'bake', 'preparation', 'instructions'];
+    const fictionKeywords = ['chapter', 'novel', 'story', 'fiction', 'character', 'narrative'];
+    const navKeywords = ['home', 'about us', 'contact', 'menu', 'navigation', 'login', 'sign in'];
+    
+    let score = 0;
+    
+    for (const kw of newsKeywords) {
+        if (lowerContent.includes(kw)) score += 0.15;
+    }
+    for (const kw of claimKeywords) {
+        if (lowerContent.includes(kw)) score += 0.1;
+    }
+    
+    for (const kw of recipeKeywords) {
+        if (lowerContent.includes(kw)) score -= 0.3;
+    }
+    for (const kw of fictionKeywords) {
+        if (lowerContent.includes(kw)) score -= 0.3;
+    }
+    for (const kw of navKeywords) {
+        if (lowerContent.includes(kw)) score -= 0.2;
+    }
+
+    const requiresFactCheck = score > 0.2;
+    
+    let category = "Other Content";
+    if (requiresFactCheck) {
+        if (score > 0.6) category = "News Report";
+        else if (score > 0.4) category = "Blog Post";
+        else category = "Social Media";
+    } else {
+        if (lowerContent.includes('recipe') || lowerContent.includes('cook')) category = "Recipe";
+        else if (lowerContent.includes('chapter') || lowerContent.includes('novel')) category = "Fiction";
+        else category = "Navigation/Other";
+    }
+
+    return {
+        requires_fact_check: requiresFactCheck,
+        category: category,
+        confidence: Math.min(Math.abs(score) + 0.3, 0.95),
+        reason: `Keyword analysis score: ${score.toFixed(2)} (fallback from LLM)`
+    };
+}
 
 // Apply middleware
 app.use(ensureServiceReady);

@@ -11,8 +11,9 @@ class HighlightManager {
     this.popoverEl = null;
     this.popoverVisible = false;
     this.highlightedAnchors = new Set();
-    this.matchThreshold = 0.6;
+    this.matchThreshold = 0.75;
     this.currentHighlight = null;
+    this.highlightedTexts = new Set();
   }
 
   /**
@@ -491,6 +492,7 @@ class HighlightManager {
       }
     });
     this.highlights = [];
+    this.highlightedTexts.clear();
     console.log('[HighlightManager] Highlights cleared');
   }
 
@@ -605,18 +607,220 @@ class HighlightManager {
   }
 
    /**
-    * Highlight text matching the given string in the page
-    * @param {string} textToMatch - The text to search for and highlight
-    * @param {string} tooltip - Tooltip text to show on hover
-    * @param {string} type - Type of highlight (exaggeration, fact_check, entity)
-    * @param {string} severity - Severity level (High, Medium, Low)
-    * @param {Array} sources - Optional array of source objects
-    */
-   async highlightText(textToMatch, tooltip, type = 'dubious', severity = 'Medium', sources = []) {
-     if (!textToMatch || textToMatch.trim().length < 3) {
-       console.log('[DEBUG] Skipping short text:', textToMatch?.substring(0, 20));
-       return;
-     }
+     * Highlight text matching the given string in the page
+     * Uses improved fuzzy matching with higher threshold and deduplication
+     * @param {string} textToMatch - The text to search for and highlight
+     * @param {string} tooltip - Tooltip text to show on hover
+     * @param {string} type - Type of highlight (exaggeration, fact_check, entity)
+     * @param {string} severity - Severity level (High, Medium, Low)
+     * @param {Array} sources - Optional array of source objects
+     */
+    async highlightText(textToMatch, tooltip, type = 'dubious', severity = 'Medium', sources = []) {
+      if (!textToMatch || textToMatch.trim().length < 5) {
+        console.log('[DEBUG] Skipping short text:', textToMatch?.substring(0, 20));
+        return;
+      }
+
+      // Skip if this exact text is already highlighted
+      const normalizedText = textToMatch.trim().toLowerCase().replace(/\s+/g, ' ');
+      if (this.highlightedTexts.has(normalizedText)) {
+        console.log('[DEBUG] Text already highlighted, skipping:', textToMatch?.substring(0, 30));
+        return;
+      }
+
+      console.log('[DEBUG] highlightText search:', {
+        text: textToMatch?.substring(0, 50),
+        textLength: textToMatch?.length,
+        type
+      });
+
+      // Normalize search text: remove only OUTER quotes and normalize ellipses
+      const cleanSearchText = textToMatch
+         .replace(/^["'""'']|["'""'']$/g, '') // Strip only outer quotes
+         .replace(/…/g, '...')
+         .trim();
+
+      if (cleanSearchText.length < 5) {
+        console.log('[DEBUG] Cleaned text too short, skipping');
+        return;
+      }
+
+      console.log('[DEBUG] Cleaned search text:', cleanSearchText.substring(0, 50));
+
+      try {
+        const walker = document.createTreeWalker(
+          document.body,
+          NodeFilter.SHOW_TEXT,
+          {
+            acceptNode: (node) => {
+              const parent = node.parentElement;
+              if (parent?.tagName === 'SCRIPT' || 
+                  parent?.tagName === 'STYLE' || 
+                  parent?.classList?.contains('veritai-highlight-dubious') ||
+                  parent?.closest('script, style, nav, header, footer')) {
+                return NodeFilter.FILTER_REJECT;
+              }
+              return NodeFilter.FILTER_ACCEPT;
+            }
+          }
+        );
+
+        const textNodes = [];
+        let node;
+        while ((node = walker.nextNode())) {
+          textNodes.push(node);
+        }
+        
+        console.log('[DEBUG] Text nodes found:', textNodes.length);
+
+        // 1. Try exact match (normalized) - this is most accurate
+        for (const textNode of textNodes) {
+          if (this.containsText(textNode.textContent, cleanSearchText)) {
+            this.wrapTextNode(textNode, cleanSearchText, tooltip, type, severity, sources);
+            this.highlights.push({ text: cleanSearchText, type, tooltip });
+            this.highlightedTexts.add(normalizedText);
+            console.log('[DEBUG] ✅ EXACT MATCH FOUND');
+            return;
+          }
+        }
+        
+        console.log('[DEBUG] ❌ No exact match. Trying smart phrase match...');
+
+        // 2. Smart Phrase Match: Extract meaningful phrases (8+ chars, not too short)
+        const phrases = this.extractMeaningfulPhrases(cleanSearchText);
+        
+        console.log('[DEBUG] Trying', phrases.length, 'meaningful phrases...');
+
+        for (const phrase of phrases) {
+          // Skip if already highlighted
+          const normalizedPhrase = phrase.trim().toLowerCase().replace(/\s+/g, ' ');
+          if (this.highlightedTexts.has(normalizedPhrase)) {
+            console.log('[DEBUG] Phrase already highlighted, skipping');
+            continue;
+          }
+
+          // Try this phrase in all text nodes
+          for (const textNode of textNodes) {
+             if (textNode.textContent.toLowerCase().includes(normalizedPhrase)) {
+                console.log('[DEBUG] ✅ PHRASE MATCH FOUND:', phrase.substring(0, 20));
+                this.wrapTextNode(textNode, phrase.trim(), tooltip, type, severity, sources);
+                this.highlights.push({ text: phrase.trim(), type, tooltip });
+                this.highlightedTexts.add(normalizedPhrase);
+                return;
+             }
+          }
+        }
+
+        console.log('[DEBUG] ❌ No phrase match found. Trying fuzzy match with Levenshtein...');
+
+        // 3. Fuzzy Match with Levenshtein distance (higher threshold = more accurate)
+        let bestMatch = null;
+        let bestNode = null;
+        let bestScore = 0;
+
+        for (const textNode of textNodes) {
+          const textContent = textNode.textContent;
+          if (textContent.length < 10) continue;
+          
+          const fuzzyResult = this.fuzzyMatch(textContent, cleanSearchText);
+          
+          // Require at least 75% similarity (up from 40%)
+          if (fuzzyResult.score >= this.matchThreshold && fuzzyResult.score > bestScore) {
+             bestMatch = fuzzyResult.match;
+             bestNode = textNode;
+             bestScore = fuzzyResult.score;
+          }
+        }
+
+        if (bestMatch && bestNode) {
+            console.log(`[DEBUG] ✅ FUZZY MATCH FOUND (score: ${bestScore.toFixed(2)}):`, bestMatch);
+            this.wrapTextNode(bestNode, bestMatch, tooltip, type, severity, sources);
+            this.highlights.push({ text: bestMatch, type, tooltip });
+            return;
+        }
+        console.log('[DEBUG] ❌ No significant fuzzy match found');
+
+      } catch (error) {
+        console.error('[HighlightManager] Error highlighting text:', error);
+      }
+    }
+
+    /**
+     * Extract meaningful phrases from text (longer than 8 chars, split by sentence/punctuation)
+     */
+    extractMeaningfulPhrases(text) {
+      // Split by sentence boundaries and punctuation
+      const phrases = text.split(/[。！？,.!?]+/);
+      
+      // Filter and clean phrases
+      return phrases
+        .map(p => p.trim())
+        .filter(p => p.length >= 8 && p.length <= 100) // Reasonable length
+        .slice(0, 3); // Max 3 phrases to try
+    }
+
+    /**
+     * Fuzzy match using Levenshtein distance
+     * Returns { match: string, score: number } where score is 0-1
+     */
+    fuzzyMatch(haystack, needle) {
+      const maxLen = Math.max(haystack.length, needle.length);
+      
+      // Try all possible substrings of haystack that could match
+      const minMatchLen = Math.floor(needle.length * 0.7); // At least 70% of needle length
+      const maxMatchLen = Math.min(needle.length * 1.3, haystack.length); // Up to 130% (allow some extra)
+      
+      let bestMatch = null;
+      let bestScore = 0;
+      
+      for (let start = 0; start <= haystack.length - minMatchLen; start++) {
+        for (let len = minMatchLen; len <= Math.min(maxMatchLen, haystack.length - start); len++) {
+          const substring = haystack.substring(start, start + len);
+          const distance = this.levenshteinDistance(substring, needle);
+          const similarity = 1 - (distance / Math.max(substring.length, needle.length));
+          
+          if (similarity > bestScore) {
+            bestScore = similarity;
+            bestMatch = substring;
+          }
+        }
+      }
+      
+      return { match: bestMatch, score: bestScore };
+    }
+
+    /**
+     * Calculate Levenshtein distance between two strings
+     */
+    levenshteinDistance(str1, str2) {
+      const m = str1.length;
+      const n = str2.length;
+      
+      if (m === 0) return n;
+      if (n === 0) return m;
+      
+      const matrix = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+      
+      for (let i = 0; i <= m; i++) {
+        matrix[i][0] = i;
+      }
+      for (let j = 0; j <= n; j++) {
+        matrix[0][j] = j;
+      }
+      
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j] + 1, // deletion
+            matrix[i][j - 1] + 1, // insertion
+            matrix[i - 1][j - 1] + cost // substitution
+          );
+        }
+      }
+      
+      return matrix[m][n];
+    }
 
      console.log('[DEBUG] highlightText search:', {
        text: textToMatch?.substring(0, 50),
