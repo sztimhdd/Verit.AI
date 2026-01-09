@@ -496,103 +496,140 @@ class HighlightManager {
     console.log('[HighlightManager] Highlights cleared');
   }
 
-  /**
-   * Apply highlights based on analysis results
-   * @param {Object} analysisData - The analysis result from the API
-   */
-  async applyHighlights(analysisData) {
-    if (!this.isEnabled) {
-      console.log('[HighlightManager] Highlights disabled by user');
-      return;
-    }
+   /**
+    * Apply highlights based on analysis results
+    * @param {Object} analysisData - The analysis result from the API
+    */
+   async applyHighlights(analysisData) {
+     console.log('[HighlightManager] applyHighlights called with data:', {
+       score: analysisData.score,
+       hasExaggerations: !!analysisData.exaggeration_check?.exaggerations_found?.length,
+       hasClaims: !!analysisData.fact_check?.claims_identified?.length,
+       hasEntities: !!analysisData.entity_verification?.entities_found?.length
+     });
 
-    // Clear existing highlights first
-    this.clearHighlights();
+     if (!this.isEnabled) {
+       console.log('[HighlightManager] Highlights disabled by user');
+       return;
+     }
 
-    // Collect dubious items to highlight
-    const dubiousItems = [];
+     // Clear existing highlights first
+     this.clearHighlights();
 
-    // Add exaggerations (always dubious)
-    if (analysisData.exaggeration_check?.exaggerations_found) {
-      analysisData.exaggeration_check.exaggerations_found.forEach((exaggeration, index) => {
-        const explanation = analysisData.exaggeration_check.explanations?.[index] || '';
-        const correction = analysisData.exaggeration_check.corrections?.[index] || '';
-        const severity = analysisData.exaggeration_check.severity_assessment || 'Medium';
-        
-        const fullTooltip = `⚠️ **EXAGGERATION**\n${explanation}\n\n✅ **CORRECTION**\n${correction}`;
-        
-        dubiousItems.push({
-          text: exaggeration,
-          tooltip: fullTooltip,
-          type: 'exaggeration',
-          severity: severity,
-          sources: analysisData.sources || []
-        });
-      });
-    }
+     // Collect dubious items to highlight
+     const dubiousItems = [];
 
-    // Add false/misleading claims from fact check
-    if (analysisData.fact_check?.claims_identified) {
-      analysisData.fact_check.claims_identified.forEach((claim, index) => {
-        const result = analysisData.fact_check.verification_results?.[index] || '';
-        const evidence = analysisData.fact_check.supporting_evidence?.[index] || '';
-        const isDubious = this.isDubiousResult(result);
-        
-        if (isDubious) {
-          const fullTooltip = `❌ **FACT CHECK: ${result.toUpperCase()}**\n${evidence || 'No detailed evidence provided by the AI.'}`;
-          
-          dubiousItems.push({
-            text: claim,
-            tooltip: fullTooltip,
-            type: 'fact_check',
-            severity: this.getSeverityFromResult(result),
-            sources: analysisData.sources || []
-          });
-        }
-      });
-    }
+     // Add exaggerations (always dubious)
+     if (analysisData.exaggeration_check?.exaggerations_found) {
+       console.log('[DEBUG] Processing exaggerations:', analysisData.exaggeration_check.exaggerations_found.length);
+       analysisData.exaggeration_check.exaggerations_found.forEach((exaggeration, index) => {
+         if (exaggeration && exaggeration.trim()) {
+           const explanation = analysisData.exaggeration_check.explanations?.[index] || '';
+           const correction = analysisData.exaggeration_check.corrections?.[index] || '';
+           const severity = analysisData.exaggeration_check.severity_assessment || 'Medium';
 
-    // Also check for dubious results in entity verification
-    if (analysisData.entity_verification?.entities_found) {
-      analysisData.entity_verification.entities_found.forEach((entity, index) => {
-        const assessment = analysisData.entity_verification.accuracy_assessment || '';
-        const corrections = analysisData.entity_verification.corrections?.[index] || '';
-        
-        if (assessment.toLowerCase().includes('low') || corrections) {
-          dubiousItems.push({
-            text: entity,
-            tooltip: `⚠️ Entity Verification Issue\n\n${corrections || 'See analysis for details'}`,
-            type: 'entity',
-            severity: 'Medium'
-          });
-        }
-      });
-    }
+           const fullTooltip = `⚠️ **EXAGGERATION**\n${explanation}\n\n✅ **CORRECTION**\n${correction}`;
 
-     console.log(`[HighlightManager] Found ${dubiousItems.length} dubious items to highlight`);
-     console.log('[DEBUG] Items:', dubiousItems.map(i => ({ text: i.text?.substring(0, 20), type: i.type, len: i.text?.length })));
+           dubiousItems.push({
+             text: exaggeration,
+             tooltip: fullTooltip,
+             type: 'exaggeration',
+             severity: severity
+           });
+         }
+       });
+     }
 
-    // Apply highlights for each dubious item
-    for (const item of dubiousItems) {
-      console.log('[DEBUG] Trying to highlight:', item.text?.substring(0, 30), 'len:', item.text?.length);
-      await this.highlightText(item.text, item.tooltip, item.type, item.severity, item.sources);
-    }
+     // Add false/misleading claims from fact check
+     if (analysisData.fact_check?.claims_identified) {
+       console.log('[DEBUG] Processing claims:', analysisData.fact_check.claims_identified.length);
+       analysisData.fact_check.claims_identified.forEach((claim, index) => {
+         const result = analysisData.fact_check.verification_results?.[index] || '';
+         const evidence = analysisData.fact_check.supporting_evidence?.[index] || '';
+         const isDubious = this.isDubiousResult(result);
 
-    // Store highlights for this URL
-    await this.saveHighlightsForUrl(analysisData.url || window.location.href);
-  }
+         console.log('[DEBUG] Claim check:', { claim: claim?.substring(0, 30), result, isDubious });
 
-  /**
-   * Check if a verification result is dubious (false, misleading, etc.)
-   */
-  isDubiousResult(result) {
-    if (!result) return false;
-    const lower = result.toLowerCase();
-    return lower.includes('false') || 
-           lower.includes('misleading') || 
-           lower.includes('low') ||
-           lower.includes('unverified');
-  }
+         if (isDubious && claim && claim.trim()) {
+           const fullTooltip = `❌ **FACT CHECK: ${result.toUpperCase()}**\n${evidence || 'No detailed evidence provided by the AI.'}`;
+
+           dubiousItems.push({
+             text: claim,
+             tooltip: fullTooltip,
+             type: 'fact_check',
+             severity: this.getSeverityFromResult(result)
+           });
+         }
+       });
+     }
+
+     // Also check for dubious results in entity verification
+     if (analysisData.entity_verification?.entities_found) {
+       console.log('[DEBUG] Processing entities:', analysisData.entity_verification.entities_found.length);
+       analysisData.entity_verification.entities_found.forEach((entity, index) => {
+         const assessment = analysisData.entity_verification.accuracy_assessment || '';
+         const corrections = analysisData.entity_verification.corrections?.[index] || '';
+
+         if (assessment.toLowerCase().includes('low') || corrections) {
+           dubiousItems.push({
+             text: entity,
+             tooltip: `⚠️ Entity Verification Issue\n\n${corrections || 'See analysis for details'}`,
+             type: 'entity',
+             severity: 'Medium'
+           });
+         }
+       });
+     }
+
+     console.log(`[HighlightManager] Found ${dubiousItems.length} dubious items to highlight (limiting to first 10)`);
+     console.log('[DEBUG] Dubious items:', dubiousItems.map(i => ({
+       text: i.text?.substring(0, 30),
+       type: i.type,
+       severity: i.severity
+     })));
+
+     // Limit to first 10 items to prevent freezing
+     const itemsToHighlight = dubiousItems.slice(0, 10);
+
+     // Apply highlights for each dubious item (using requestAnimationFrame to prevent blocking)
+     for (const item of itemsToHighlight) {
+       console.log('[DEBUG] Applying highlight for:', {
+         text: item.text?.substring(0, 30),
+         type: item.type,
+         tooltip: item.tooltip?.substring(0, 50)
+       });
+
+       await new Promise(resolve => {
+         requestAnimationFrame(() => {
+           this.highlightText(item.text, item.tooltip, item.type, item.severity);
+           resolve();
+         });
+       });
+       // Small delay between highlights to prevent UI blocking
+       await new Promise(r => setTimeout(r, 50));
+     }
+
+     console.log(`[HighlightManager] Highlight application complete. Applied ${itemsToHighlight.length} highlights.`);
+
+     // Store highlights for this URL
+     await this.saveHighlightsForUrl(analysisData.url || window.location.href);
+   }
+
+   /**
+    * Check if a verification result is dubious (false, misleading, etc.)
+    */
+   isDubiousResult(result) {
+     if (!result) return false;
+     const lower = result.toLowerCase();
+     const isDubious = lower.includes('false') ||
+            lower.includes('misleading') ||
+            lower.includes('low') ||
+            lower.includes('unverified') ||
+            lower.includes('partially true');
+
+     console.log('[DEBUG] isDubiousResult check:', { result, lower, isDubious });
+     return isDubious;
+   }
 
   /**
    * Get severity level from verification result
@@ -667,11 +704,16 @@ class HighlightManager {
 
         const textNodes = [];
         let node;
-        while ((node = walker.nextNode())) {
+        let maxNodes = 500; // Limit text nodes to prevent freezing
+        while ((node = walker.nextNode()) && textNodes.length < maxNodes) {
           textNodes.push(node);
         }
         
-        console.log('[DEBUG] Text nodes found:', textNodes.length);
+        if (textNodes.length >= maxNodes) {
+          console.log(`[DEBUG] Limited text nodes to ${maxNodes} to prevent freezing`);
+        } else {
+          console.log(`[DEBUG] Found ${textNodes.length} text nodes`);
+        }
 
         // 1. Try exact match (normalized) - this is most accurate
         for (const textNode of textNodes) {
