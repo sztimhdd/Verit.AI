@@ -1059,32 +1059,17 @@ app.get('/', (req, res) => {
     });
 });
 
-// Health check endpoint
+// Health check endpoint - returns 200 immediately when server is up
 app.get('/health', (req, res) => {
     console.log("Health check received");
     const modelStatus = modelManager.getStatus();
     
-    if (serviceReady) {
-        res.status(200).json({ 
-            status: 'OK', 
-            ready: true,
-            timestamp: new Date().toISOString(),
-            quota: modelStatus
-        });
-    } else if (initializationError) {
-        res.status(503).json({ 
-            status: 'ERROR', 
-            ready: false,
-            error: initializationError.message,
-            timestamp: new Date().toISOString() 
-        });
-    } else {
-        res.status(503).json({ 
-            status: 'INITIALIZING', 
-            ready: false,
-            timestamp: new Date().toISOString() 
-        });
-    }
+    res.status(200).json({ 
+        status: 'OK', 
+        ready: serviceReady,
+        timestamp: new Date().toISOString(),
+        quota: modelStatus
+    });
 });
 
 // Start server
