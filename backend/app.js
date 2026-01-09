@@ -759,7 +759,7 @@ ${pageTitle ? `Page Title: ${pageTitle}\n\n` : ''}Content: ${analysisContent}
         console.log(`Model: ${activeModel}, Tokens: ${tokenUsage}`);
         console.log('==================\n');
         
-        await logToFile('QUOTA_STATUS', 'Quota status', quotaStatus);
+        await logToFile('QUOTA_STATUS', 'Quota status', modelManager.getStatus());
         
         // Log grounding metadata
         if (response.candidates && response.candidates[0].groundingMetadata) {
